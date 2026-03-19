@@ -1,8 +1,9 @@
+
 #  Music Room - Project Overview
 
 Un resumen del projecto de 42, un mapa de ruta para el desarrollo de la aplicación móvil, web y backend.
 
-## 📝 Resumen del Proyecto (Project Summary)
+## Resumen del Proyecto (Project Summary)
 The main objective of the "Music Room" project is the creation of a complete mobile solution focused on music and user experience. It aims to tackle all the concepts necessary to the creation of a mobile, connected, and collaborative application taking into account the constraints of a real product.
 
 ### Mandatory Features (Requisitos Obligatorios)
@@ -21,9 +22,53 @@ The main objective of the "Music Room" project is the creation of a complete mob
 - **Subscriptions:** Offer users the choice between a free limited subscription and unlimited paid ones, allowing them to switch between the two.
 - **Offline Mode:** Implement a mechanism that allows users to enjoy the application offline when there is no mobile service. This requires a synchronization plan to handle conflicts and obsolete data.
 
-## Reglas
+---
 
-- **Estructura de carpetas:** Todo estará dividido por carpetas: `frontend/`, `backend/` y `Doc/` (documentación).
-- **Ramas (branches):** Tendremos la rama principal `main`, una rama de desarrollo (por ejemplo `develop`) y ramas enfocadas en cada sección o feature.
-- **Gestión de trabajo:** Se usarán los issues del repositorio para organizar tareas y se vincularán a los Projects de GitHub para seguimiento.
+## Tech Stack & [[Arquitectura REST]] 
 
+Para resolver este proyecto en **maximo 2 meses** y cubrir los bonus multiplataforma, lo mejor es usar **Flutter** para el frontend.
+
+### Frontend (Flutter App)
+- **Framework:** Flutter (Compila y mismo base of code to iOS, Android y Web nativamente)
+- **State Management:** `Provider` 
+- **API Networking:** `dio` (REST clasico).
+- **Real-Time Collaboration:** `web_socket_channel` (Para el Editor de Playlist y los Votos en vivo) *aprender*.
+- **Authentication:** `firebase_auth`, `google_sign_in`, `flutter_facebook_auth`, `flutter_secure_storage`
+- **Offline Storage (Para Bonus):** `hive` (Base de datos local ultrarrápida para manejar el caché cuando no hay red) *aprender*.
+- **Security Logs:** `device_info_plus` & `package_info_plus` (Para enviar los logs de plataforma exigidos).
+- **Subscriptions** con `flutter_stripe` (El paquete soporta las 3 plataformas necesarias)
+
+
+## Para la calificaicon del projecto
+
+### CD/CI
+- **Build** para IOS y andorid en la nube  con `Codemagic` *learn*
+- **Buidl** GitHub Actions? *its possible*
+- **obligatorio** Send to the Google Play 
+> **obligatorio** Send to App Store  ($ 100 usd)
+
+
+## Next Steps
+- [ ] Inicializar repositorio de Git y projecto para el manejo de tiempo
+- [ ] [[Arquitectura REST]] : Hablar de la organisacion de la API y el la estrcutia de tados .
+- [ ] Enfocarse en conseguir el MVP **(1 - 4 semanas)**
+	- [ ] **(1 - 2 semanas)** Primera seccion
+		- [ ] User Accounts
+		- [ ] Core Services
+			- [ ] Music Track Vote
+			- [ ] Music Control Delegation
+	- [ ]  **(1 - 2 semanas)** Segunda seccion
+		- [ ] CD / CI (para el proyecto configuracion WEB/ APP)
+		- [ ] Idratacion de la API
+		- [ ] Music Playlist Editor (WebSockets)
+- [ ] Bonus  **(1 - 2 semanas)**
+	- [ ] **poca configuraicon** Multi-platform support 
+	- [ ] **IoT Reflection**
+	- [ ] **Subscriptions** con stripe
+	- [ ] **Offline Mode**
+- [ ] Evaluacion (1 semana)
+	- [ ] Its posible to
+- [ ]  Tiempo maximo 8 semanas, 18 de mayo tiempo maximo
+
+### Todo:
+- [ ] no usar Facebook is complex
