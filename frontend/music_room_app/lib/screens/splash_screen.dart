@@ -55,8 +55,9 @@ class _SplashScreenState extends State<SplashScreen>
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         if (mounted) {
-          // Tdodo: move to main screen after 10 seconds
+          // move to main screen after 2 seconds
           Future.delayed(const Duration(seconds: 2), () {
+            if (!mounted) return;
             Navigator.pushReplacementNamed(context, '/');
           });
         }
