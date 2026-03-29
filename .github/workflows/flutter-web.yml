@@ -21,10 +21,6 @@ concurrency:
   group: flutter-web-${{ github.ref }}
   cancel-in-progress: true
 
-environment:
-  name: github-pages
-  url: ${{ steps.deployment.outputs.page_url }}
-
 jobs:
   build-web:
     name: Build Flutter Web (frontend/music_room_app)
