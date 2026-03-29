@@ -1,4 +1,4 @@
-name: Flutter Web CI
+name: Flutter Web CI / CD
 
 on:
   push:
@@ -14,10 +14,16 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
   group: flutter-web-${{ github.ref }}
   cancel-in-progress: true
+
+environment:
+  name: github-pages
+  url: ${{ steps.deployment.outputs.page_url }}
 
 jobs:
   build-web:
@@ -58,10 +64,23 @@ jobs:
 
       - name: Build web (release)
         working-directory: frontend/music_room_app
-        run: flutter build web --release
+        run: flutter build web --release --base-href=/music-room/
 
-      - name: Upload web build artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: flutter-web-build
           path: frontend/music_room_app/build/web
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build-web
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
