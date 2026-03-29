@@ -2,12 +2,12 @@ name: Flutter Web CI / CD
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main, dev, frontend ]
     paths:
       - 'frontend/**'
       - '.github/workflows/flutter-web.yml'
   pull_request:
-    branches: [ main, dev ]
+    branches: [ main, dev, frontend ]
     paths:
       - 'frontend/**'
       - '.github/workflows/flutter-web.yml'
@@ -30,12 +30,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Cache pub packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ~/.pub-cache
@@ -63,7 +63,7 @@ jobs:
         run: flutter build web --release --base-href=/music-room/
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: frontend/music_room_app/build/web
 
@@ -71,7 +71,7 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build-web
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/frontend'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
