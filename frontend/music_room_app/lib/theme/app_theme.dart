@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 abstract class AppColors {
   // * Primary colors
   // ? are gonna change in the future
-  static const Color primaryDark = Color(0xFF171717);
-  static const Color primaryRed = Color(0xFFE22128);
+  static const Color primaryDark = Color.fromARGB(255, 104, 104, 104);
+  static const Color primaryRed = Color.fromARGB(255, 255, 0, 8);
 
   // * Utility colors
-  static const Color backgroundLight = Color(0xFFF5F5F5);
+  static const Color backgroundLight = Color.fromARGB(255, 255, 17, 255);
 }
 
 //! Typography constants
@@ -103,6 +103,19 @@ class AppTheme {
     bodyMedium: TextStyle(fontSize: AppTypography.bodyMedium, fontWeight: AppTypography.normal, color: AppColors.primaryDark),
     bodySmall: TextStyle(fontSize: AppTypography.bodySmall, fontWeight: AppTypography.normal, color: AppColors.primaryDark),
     labelSmall: TextStyle(fontSize: AppTypography.captionSmall, fontWeight: AppTypography.medium, color: AppColors.primaryRed),
+  );
+
+  // * Reusable button style for primary actions
+  static final ButtonStyle primaryButtonStyle = ElevatedButton.styleFrom(
+    backgroundColor: AppColors.primaryRed,
+    foregroundColor: Colors.white,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
+    ),
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppDimens.lg,
+      vertical: AppDimens.sm,
+    ),
   );
 
   /// Light theme (primary)

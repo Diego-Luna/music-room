@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:music_room_app/screens/splash_screen.dart';
-import 'package:music_room_app/screens/main_screen.dart';
-import 'package:music_room_app/screens/not_found_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:music_room_app/routes/route_names.dart';
+import 'package:music_room_app/routes/app_router.dart';
 import 'package:music_room_app/theme/app_theme.dart';
 
 void main() async {
@@ -15,6 +15,7 @@ void main() async {
     }
   }
 
+  setupLocator();
   runApp(const AppState());
 }
 
@@ -33,20 +34,18 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
 
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Music Room',
-      initialRoute: '/splash',
-      routes: {
-        '/splash': (_) => const SplashScreen(),
-        '/': (_) => const MainScreen(),
-      },
-      onUnknownRoute: (settings) {
-        return MaterialPageRoute(
-          builder: (context) => const NotFoundScreen(),
-        );
-      },
-      theme: AppTheme.lightTheme,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: navigationProvider),
+        ChangeNotifierProvider.value(value: authProvider),
+      ],
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Music Room',
+        initialRoute: routeSplash,
+        onGenerateRoute: AppRouter.onGenerateRoute,
+        theme: AppTheme.lightTheme,
+      ),
     );
   }
 }
