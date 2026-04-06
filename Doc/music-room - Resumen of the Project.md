@@ -34,7 +34,7 @@ Para resolver este proyecto en **maximo 2 meses** y cubrir los bonus multiplataf
 - **API Networking:** `dio` (REST clasico).
 - **Real-Time Collaboration:** `web_socket_channel` (Para el Editor de Playlist y los Votos en vivo) *aprender*.
 - **Authentication:** `firebase_auth`, `google_sign_in`, `flutter_facebook_auth`, `flutter_secure_storage`
-- **Offline Storage (Para Bonus):** `hive` (Base de datos local ultrarrápida para manejar el caché cuando no hay red) *aprender*.
+- **Offline Storage (Para Bonus):** `hive_ce` (Base de datos local ultrarrápida para manejar el caché cuando no hay red) *aprender*.
 - **Security Logs:** `device_info_plus` & `package_info_plus` (Para enviar los logs de plataforma exigidos).
 - **Subscriptions** con `flutter_stripe` (El paquete soporta las 3 plataformas necesarias)
 

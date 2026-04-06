@@ -1,0 +1,82 @@
+name: Flutter Web CI / CD
+
+on:
+  push:
+    branches: [ main, dev, frontend ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/flutter-web.yml'
+  pull_request:
+    branches: [ main, dev, frontend ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/flutter-web.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: flutter-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-web:
+    name: Build Flutter Web (frontend/music_room_app)
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Cache pub packages
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.pub-cache
+            frontend/music_room_app/.dart_tool
+          key: ${{ runner.os }}-flutter-pub-${{ hashFiles('frontend/music_room_app/pubspec.lock', 'frontend/music_room_app/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-flutter-pub-
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+
+      - name: Enable web support and run doctor
+        run: |
+          flutter config --enable-web
+          flutter doctor -v
+
+      - name: Get dependencies
+        working-directory: frontend/music_room_app
+        run: flutter pub get
+
+      - name: Build web (release)
+        working-directory: frontend/music_room_app
+        run: flutter build web --release --base-href=/music-room/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: frontend/music_room_app/build/web
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build-web
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || github.ref == 'refs/heads/frontend'
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
