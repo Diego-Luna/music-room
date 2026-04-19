@@ -8,6 +8,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from '@fastify/helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { RedisIoAdapter } from './realtime/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -42,13 +43,32 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Music Room API')
-    .setDescription('Music Room - Collaborative music platform API')
-    .setVersion('0.1.0')
+    .setDescription(
+      [
+        'Music Room — collaborative music platform (42 school subject).',
+        '',
+        'Endpoints are grouped by tag: Auth, Users, Rooms (members, tracks,',
+        'playlist, delegation, playback), Spotify, Notifications, Health.',
+        '',
+        'All routes outside `Auth` and `Health` require a Bearer JWT.',
+      ].join('\n'),
+    )
+    .setVersion('1.0.0')
     .addBearerAuth()
+    .addTag('Auth')
+    .addTag('Users')
+    .addTag('Rooms')
+    .addTag('Spotify')
+    .addTag('Notifications')
+    .addTag('Health')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);
+
+  const ioAdapter = new RedisIoAdapter(app);
+  await ioAdapter.connectToRedis();
+  app.useWebSocketAdapter(ioAdapter);
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');

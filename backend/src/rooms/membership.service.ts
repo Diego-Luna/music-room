@@ -4,8 +4,11 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
+import { PushService } from '../notifications/push.service';
 import {
   InviteMemberDto,
   MemberRole,
@@ -17,7 +20,18 @@ const ADMIN_ROLES = new Set(['OWNER', 'ADMIN']);
 
 @Injectable()
 export class RoomMembershipService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly realtime?: RealtimeService,
+    @Optional() private readonly push?: PushService,
+  ) {}
+
+  private emit(roomId: string, event: string, payload: unknown) {
+    this.realtime?.emitToRoom(roomId, event, payload);
+  }
+  private emitUser(userId: string, event: string, payload: unknown) {
+    this.realtime?.emitToUser(userId, event, payload);
+  }
 
   async listMembers(roomId: string, userId: string) {
     await this.requireVisibleRoom(roomId, userId);
@@ -60,9 +74,11 @@ export class RoomMembershipService {
       });
     }
 
-    return this.prisma.roomMember.create({
+    const member = await this.prisma.roomMember.create({
       data: { roomId, userId, role: 'MEMBER' },
     });
+    this.emit(roomId, 'member:joined', { roomId, userId, role: 'MEMBER' });
+    return member;
   }
 
   async leave(roomId: string, userId: string) {
@@ -81,6 +97,7 @@ export class RoomMembershipService {
     await this.prisma.roomMember.delete({
       where: { roomId_userId: { roomId, userId } },
     });
+    this.emit(roomId, 'member:left', { roomId, userId });
   }
 
   async invite(roomId: string, inviterId: string, dto: InviteMemberDto) {
@@ -99,7 +116,7 @@ export class RoomMembershipService {
       throw new ConflictException('User is already a member');
     }
 
-    return this.prisma.roomInvitation.create({
+    const invitation = await this.prisma.roomInvitation.create({
       data: {
         roomId,
         inviterId,
@@ -108,6 +125,17 @@ export class RoomMembershipService {
         expiresAt: new Date(Date.now() + INVITE_TTL_MS),
       },
     });
+    this.emitUser(dto.userId, 'invitation:new', {
+      invitationId: invitation.id,
+      roomId,
+      inviterId,
+    });
+    void this.push?.sendToUser(dto.userId, {
+      title: 'New room invitation',
+      body: 'You were invited to join a Music Room',
+      data: { type: 'invitation:new', roomId, invitationId: invitation.id },
+    });
+    return invitation;
   }
 
   async updateRole(
@@ -129,10 +157,16 @@ export class RoomMembershipService {
     });
     if (!target) throw new NotFoundException('Member not found');
 
-    return this.prisma.roomMember.update({
+    const updated = await this.prisma.roomMember.update({
       where: { roomId_userId: { roomId, userId: targetUserId } },
       data: { role: dto.role },
     });
+    this.emit(roomId, 'member:role-changed', {
+      roomId,
+      userId: targetUserId,
+      role: dto.role,
+    });
+    return updated;
   }
 
   async removeMember(
@@ -154,6 +188,12 @@ export class RoomMembershipService {
     await this.prisma.roomMember.delete({
       where: { roomId_userId: { roomId, userId: targetUserId } },
     });
+    this.emit(roomId, 'member:removed', {
+      roomId,
+      userId: targetUserId,
+      by: actingUserId,
+    });
+    this.emitUser(targetUserId, 'room:kicked', { roomId });
   }
 
   // ── helpers ─────────────────────────────────────────────────────

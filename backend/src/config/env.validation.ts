@@ -26,6 +26,12 @@ export const envValidationSchema = Joi.object({
   FACEBOOK_APP_ID: Joi.string().optional().allow(''),
   FACEBOOK_APP_SECRET: Joi.string().optional().allow(''),
 
+  SPOTIFY_CLIENT_ID: Joi.string().optional().allow(''),
+  SPOTIFY_CLIENT_SECRET: Joi.string().optional().allow(''),
+  SPOTIFY_REDIRECT_URI: Joi.string()
+    .uri()
+    .default('http://localhost:3000/auth/spotify/callback'),
+
   THROTTLE_TTL: Joi.number().default(60000),
   THROTTLE_LIMIT: Joi.number().default(100),
 

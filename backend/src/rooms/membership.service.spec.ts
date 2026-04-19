@@ -7,11 +7,16 @@ import {
 } from '@nestjs/common';
 import { RoomMembershipService } from './membership.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { MemberRole } from './dto/invite-member.dto';
 
 describe('RoomMembershipService', () => {
   let service: RoomMembershipService;
   let prisma: Record<string, Record<string, ReturnType<typeof vi.fn>>>;
+  let realtime: {
+    emitToRoom: ReturnType<typeof vi.fn>;
+    emitToUser: ReturnType<typeof vi.fn>;
+  };
 
   const publicRoom = {
     id: 'room-1',
@@ -39,10 +44,13 @@ describe('RoomMembershipService', () => {
       user: { findUnique: vi.fn() },
     };
 
+    realtime = { emitToRoom: vi.fn(), emitToUser: vi.fn() };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RoomMembershipService,
         { provide: PrismaService, useValue: prisma },
+        { provide: RealtimeService, useValue: realtime },
       ],
     }).compile();
 
@@ -249,6 +257,66 @@ describe('RoomMembershipService', () => {
       await expect(
         service.removeMember('room-1', 'owner-1', 'owner-1'),
       ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('realtime broadcasts', () => {
+    it('broadcasts member:joined on PUBLIC join', async () => {
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      prisma.roomMember.findUnique.mockResolvedValue(null);
+      prisma.roomMember.create.mockResolvedValue({ role: 'MEMBER' });
+
+      await service.join('room-1', 'newbie');
+      expect(realtime.emitToRoom).toHaveBeenCalledWith(
+        'room-1',
+        'member:joined',
+        expect.objectContaining({ userId: 'newbie', role: 'MEMBER' }),
+      );
+    });
+
+    it('broadcasts member:left on leave', async () => {
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      prisma.roomMember.findUnique.mockResolvedValue({
+        userId: 'member-1',
+        role: 'MEMBER',
+      });
+
+      await service.leave('room-1', 'member-1');
+      expect(realtime.emitToRoom).toHaveBeenCalledWith(
+        'room-1',
+        'member:left',
+        expect.objectContaining({ userId: 'member-1' }),
+      );
+    });
+
+    it('emits invitation:new to the invitee', async () => {
+      prisma.room.findUnique.mockResolvedValue(privateRoom);
+      prisma.user.findUnique.mockResolvedValue({ id: 'invited' });
+      prisma.roomMember.findUnique.mockResolvedValue(null);
+      prisma.roomInvitation.findFirst.mockResolvedValue(null);
+      prisma.roomInvitation.create.mockResolvedValue({ id: 'inv-99' });
+
+      await service.invite('room-1', 'owner-1', { userId: 'invited' });
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'invited',
+        'invitation:new',
+        expect.objectContaining({ invitationId: 'inv-99', roomId: 'room-1' }),
+      );
+    });
+
+    it('emits room:kicked to the target on removeMember', async () => {
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      prisma.roomMember.findUnique.mockResolvedValue({
+        userId: 'kicked',
+        role: 'MEMBER',
+      });
+
+      await service.removeMember('room-1', 'owner-1', 'kicked');
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'kicked',
+        'room:kicked',
+        { roomId: 'room-1' },
+      );
     });
   });
 

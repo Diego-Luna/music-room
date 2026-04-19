@@ -30,9 +30,11 @@ model User {
   emailVerifications EmailVerification[]
   passwordResets     PasswordReset[]
   ownedRooms         Room[]              @relation("RoomOwner")
+  delegatedRooms     Room[]              @relation("RoomDelegate")
   roomMemberships    RoomMember[]
   sentInvitations    RoomInvitation[]    @relation("InvitationInviter")
   receivedInvites    RoomInvitation[]    @relation("InvitationInvitee")
+  deviceTokens       DeviceToken[]
 }
 
 enum RoomKind {
@@ -96,10 +98,19 @@ model Room {
 
   members     RoomMember[]
   invitations RoomInvitation[]
+  tracks      Track[]
+
+  currentTrackId String? @unique
+  currentTrack   Track?  @relation("CurrentTrack", fields: [currentTrackId], references: [id], onDelete: SetNull)
+
+  delegateUserId    String?
+  delegate          User?     @relation("RoomDelegate", fields: [delegateUserId], references: [id], onDelete: SetNull)
+  delegateGrantedAt DateTime?
 
   @@index([ownerId])
   @@index([visibility])
   @@index([kind])
+  @@index([delegateUserId])
 }
 
 model RoomMember {
@@ -113,6 +124,45 @@ model RoomMember {
 
   @@unique([roomId, userId])
   @@index([userId])
+}
+
+model Track {
+  id             String   @id @default(uuid())
+  roomId         String
+  room           Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  provider       String   @default("spotify")
+  providerId     String
+  title          String
+  artist         String
+  durationMs     Int
+  artworkUrl     String?
+  addedById      String
+  addedAt        DateTime @default(now())
+  playedAt       DateTime?
+
+  votes          TrackVote[]
+  currentInRoom  Room?       @relation("CurrentTrack")
+
+  score          Int      @default(0)
+  position       String?
+
+  @@unique([roomId, provider, providerId])
+  @@index([roomId, score])
+  @@index([roomId, position])
+}
+
+model TrackVote {
+  id       String   @id @default(uuid())
+  roomId   String
+  trackId  String
+  track    Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  userId   String
+  value    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([trackId, userId])
+  @@index([roomId, trackId])
 }
 
 model RoomInvitation {
@@ -134,12 +184,17 @@ model RoomInvitation {
 }
 
 model SocialAccount {
-  id         String   @id @default(uuid())
-  provider   String
-  providerId String
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  id             String    @id @default(uuid())
+  provider       String
+  providerId     String
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  scope          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([provider, providerId])
   @@unique([provider, userId])
@@ -173,6 +228,25 @@ model EmailVerification {
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+model DeviceToken {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String
+  platform    DevicePlatform
+  createdAt   DateTime       @default(now())
+  lastSeenAt  DateTime       @default(now())
+
+  @@unique([platform, token])
+  @@index([userId])
 }
 
 model PasswordReset {

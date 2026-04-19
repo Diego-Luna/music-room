@@ -9,6 +9,10 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { RealtimeCoreModule } from './realtime/realtime-core.module';
+import { RealtimeModule } from './realtime/realtime.module';
+import { SpotifyModule } from './spotify/spotify.module';
+import { NotificationsModule } from './notifications/notifications.module';
 import { MailModule } from './mail/mail.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -76,7 +80,11 @@ import { envValidationSchema } from './config/env.validation';
     MailModule,
     AuthModule,
     UsersModule,
+    RealtimeCoreModule,
+    NotificationsModule,
     RoomsModule,
+    RealtimeModule,
+    SpotifyModule,
     HealthModule,
   ],
   providers: [
