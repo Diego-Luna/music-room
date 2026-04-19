@@ -14,21 +14,123 @@ enum Visibility {
 }
 
 model User {
-  id                   String    @id @default(uuid())
-  email                String    @unique
-  passwordHash         String?
-  displayName          String
-  avatarUrl            String?
-  emailVerified        Boolean   @default(false)
-  emailVerifyToken     String?
-  resetPasswordToken   String?
-  resetPasswordExpires DateTime?
-  visibility           Visibility @default(PUBLIC)
-  musicPreferences     String[]  @default([])
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id               String     @id @default(uuid())
+  email            String     @unique
+  passwordHash     String?
+  displayName      String
+  avatarUrl        String?
+  emailVerified    Boolean    @default(false)
+  visibility       Visibility @default(PUBLIC)
+  musicPreferences String[]   @default([])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
-  socialAccounts SocialAccount[]
+  socialAccounts     SocialAccount[]
+  refreshTokens      RefreshToken[]
+  emailVerifications EmailVerification[]
+  passwordResets     PasswordReset[]
+  ownedRooms         Room[]              @relation("RoomOwner")
+  roomMemberships    RoomMember[]
+  sentInvitations    RoomInvitation[]    @relation("InvitationInviter")
+  receivedInvites    RoomInvitation[]    @relation("InvitationInvitee")
+}
+
+enum RoomKind {
+  VOTE
+  PLAYLIST
+  DELEGATE
+}
+
+enum RoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum LicenseTier {
+  FREE
+  PREMIUM
+}
+
+enum VoteWindow {
+  ALWAYS
+  SCHEDULED
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+model Room {
+  id             String         @id @default(uuid())
+  name           String
+  description    String?
+  kind           RoomKind
+  visibility     RoomVisibility @default(PUBLIC)
+  licenseTier    LicenseTier    @default(FREE)
+  ownerId        String
+  owner          User           @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // PLAYLIST settings
+  allowMembersEdit Boolean @default(true)
+
+  // VOTE settings
+  voteWindow       VoteWindow @default(ALWAYS)
+  voteStartsAt     DateTime?
+  voteEndsAt       DateTime?
+  voteLocationLat  Float?
+  voteLocationLng  Float?
+  voteLocationRadiusM Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     RoomMember[]
+  invitations RoomInvitation[]
+
+  @@index([ownerId])
+  @@index([visibility])
+  @@index([kind])
+}
+
+model RoomMember {
+  id        String     @id @default(uuid())
+  roomId    String
+  room      Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      MemberRole @default(MEMBER)
+  joinedAt  DateTime   @default(now())
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+model RoomInvitation {
+  id         String           @id @default(uuid())
+  roomId     String
+  room       Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  inviterId  String
+  inviter    User             @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  inviteeId  String
+  invitee    User             @relation("InvitationInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  status     InvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  createdAt  DateTime         @default(now())
+  respondedAt DateTime?
+
+  @@unique([roomId, inviteeId, status])
+  @@index([inviteeId])
+  @@index([expiresAt])
 }
 
 model SocialAccount {
@@ -41,4 +143,47 @@ model SocialAccount {
 
   @@unique([provider, providerId])
   @@unique([provider, userId])
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  deviceId   String?
+  userAgent  String?
+  ip         String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model EmailVerification {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordReset {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }

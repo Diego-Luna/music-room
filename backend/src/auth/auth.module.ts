@@ -7,10 +7,12 @@ import { AuthService } from './auth.service';
 import { JwtBlacklistService } from './jwt-blacklist.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     PassportModule,
+    MailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({

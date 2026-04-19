@@ -105,4 +105,49 @@ describe('RequestLoggerMiddleware', () => {
     >;
     expect(logData.ip).toBe('192.168.1.1');
   });
+
+  it('should fall back to UNKNOWN/"/" when method and url are missing', () => {
+    const req = {
+      headers: {},
+      socket: { remoteAddress: '127.0.0.1' },
+    };
+    const res = new EventEmitter();
+    (res as Record<string, unknown>).statusCode = 500;
+    const next = vi.fn();
+
+    middleware.use(req as never, res as never, next);
+    res.emit('finish');
+
+    const logData = (res as Record<string, unknown>).__logData as Record<
+      string,
+      unknown
+    >;
+    expect(logData.method).toBe('UNKNOWN');
+    expect(logData.path).toBe('/');
+  });
+
+  it('should take the first entry when a header is an array', () => {
+    const req = {
+      method: 'GET',
+      url: '/multi',
+      headers: {
+        'x-forwarded-for': ['10.0.0.1', '10.0.0.2'],
+        'x-platform': ['android', 'ios'],
+      },
+      socket: { remoteAddress: '127.0.0.1' },
+    };
+    const res = new EventEmitter();
+    (res as Record<string, unknown>).statusCode = 200;
+    const next = vi.fn();
+
+    middleware.use(req as never, res as never, next);
+    res.emit('finish');
+
+    const logData = (res as Record<string, unknown>).__logData as Record<
+      string,
+      unknown
+    >;
+    expect(logData.ip).toBe('10.0.0.1');
+    expect(logData.platform).toBe('android');
+  });
 });

@@ -6,6 +6,10 @@ export const envValidationSchema = Joi.object({
     .default('development'),
   PORT: Joi.number().default(3000),
 
+  LOG_LEVEL: Joi.string()
+    .valid('fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent')
+    .optional(),
+
   DATABASE_URL: Joi.string().required(),
 
   REDIS_HOST: Joi.string().default('localhost'),
@@ -24,4 +28,17 @@ export const envValidationSchema = Joi.object({
 
   THROTTLE_TTL: Joi.number().default(60000),
   THROTTLE_LIMIT: Joi.number().default(100),
+
+  AUTH_THROTTLE_TTL: Joi.number().default(60000),
+  AUTH_THROTTLE_LIMIT: Joi.number().default(10),
+
+  APP_BASE_URL: Joi.string().uri().default('http://localhost:3000'),
+  APP_FRONTEND_URL: Joi.string().uri().default('http://localhost:8080'),
+
+  SMTP_HOST: Joi.string().default('localhost'),
+  SMTP_PORT: Joi.number().default(1025),
+  SMTP_USER: Joi.string().optional().allow(''),
+  SMTP_PASSWORD: Joi.string().optional().allow(''),
+  SMTP_FROM: Joi.string().default('Music Room <no-reply@musicroom.local>'),
+  SMTP_SECURE: Joi.boolean().default(false),
 });
