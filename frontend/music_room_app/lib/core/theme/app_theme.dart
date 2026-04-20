@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 
 //* Colors
-// Defining the exact color palette requested for the project.
 // We map these to our Neumorphic design system.
 abstract class AppColors {
   // Light Theme Colors
@@ -142,29 +141,25 @@ class AppTheme {
     cardRadius: BorderRadius.circular(AppDimens.radiusApple),
     neumorphicShadow: [
       const BoxShadow(
-        color: Colors.white, // Light source from top-left
+        color: Colors.white, // Light source from top-left (lighter than FFF5E0)
         offset: Offset(-5, -5),
         blurRadius: 10,
       ),
-      BoxShadow(
-        color: AppColors.lightTertiary.withValues(
-          alpha: 0.2,
-        ), // Shadow to bottom-right
-        offset: const Offset(5, 5),
+      const BoxShadow(
+        color: Color(0xFFE5DCC9), // Darker shade of lightBg for shadow
+        offset: Offset(5, 5),
         blurRadius: 10,
       ),
     ],
     neumorphicPressedShadow: [
-      // Inset shadows are tricky with just BoxShadow, so we simulate a pressed state
-      // with a smaller, tighter shadow, making it look closer to the surface.
       const BoxShadow(
         color: Colors.white,
         offset: Offset(-2, -2),
         blurRadius: 5,
       ),
-      BoxShadow(
-        color: AppColors.lightTertiary.withValues(alpha: 0.3),
-        offset: const Offset(2, 2),
+      const BoxShadow(
+        color: Color(0xFFE5DCC9),
+        offset: Offset(2, 2),
         blurRadius: 5,
       ),
     ],
@@ -176,24 +171,24 @@ class AppTheme {
     cardRadius: BorderRadius.circular(AppDimens.radiusApple),
     neumorphicShadow: [
       const BoxShadow(
-        color: Color(0xFF27391C), // Lighter edge (light source) - darkSecondary
+        color: Color(0xFF233316), // Lighter shade of darkBg
         offset: Offset(-5, -5),
         blurRadius: 10,
       ),
       const BoxShadow(
-        color: Color(0xFF0C1208), // Darker edge (shadow) - darker than darkBg
+        color: Color(0xFF0D1308), // Darker shade of darkBg
         offset: Offset(5, 5),
         blurRadius: 10,
       ),
     ],
     neumorphicPressedShadow: [
       const BoxShadow(
-        color: Color(0xFF27391C),
+        color: Color(0xFF233316),
         offset: Offset(-2, -2),
         blurRadius: 5,
       ),
       const BoxShadow(
-        color: Color(0xFF0C1208),
+        color: Color(0xFF0D1308),
         offset: Offset(2, 2),
         blurRadius: 5,
       ),

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:music_room_app/theme/app_theme.dart';
+import 'package:music_room_app/core/theme/app_theme.dart';
+import 'package:music_room_app/core/animations/animated_scale_button.dart';
 
+//* PrimaryButton
+// Reusable button adapted to our Neumorphic design system.
 class PrimaryButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
@@ -20,14 +23,13 @@ class PrimaryButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = theme.extension<AppDesignTokens>();
+
     final Widget content = isLoading
-        ? SizedBox(
+        ? const SizedBox(
             height: AppDimens.iconMedium,
             width: AppDimens.iconMedium,
-            child: const CircularProgressIndicator(
-              strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-            ),
+            child: CircularProgressIndicator(strokeWidth: 2),
           )
         : Row(
             mainAxisSize: MainAxisSize.min,
@@ -39,19 +41,33 @@ class PrimaryButton extends StatelessWidget {
               ],
               Text(
                 label,
-                style: theme.textTheme.bodyLarge?.copyWith(color: Colors.white),
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontWeight: AppTypography.bold,
+                  color: theme.colorScheme.primary,
+                ),
               ),
             ],
           );
 
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: AppDimens.touchTargetMin),
-      child: ElevatedButton(
+      child: AnimatedScaleButton(
         onPressed: isLoading ? null : onPressed,
-        style: AppTheme.primaryButtonStyle,
-        child: Padding(
-          padding: padding ?? const EdgeInsets.symmetric(horizontal: AppDimens.lg),
-          child: content,
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
+            boxShadow: tokens?.neumorphicShadow,
+          ),
+          child: Padding(
+            padding:
+                padding ??
+                const EdgeInsets.symmetric(
+                  horizontal: AppDimens.lg,
+                  vertical: AppDimens.md,
+                ),
+            child: Center(child: content),
+          ),
         ),
       ),
     );
