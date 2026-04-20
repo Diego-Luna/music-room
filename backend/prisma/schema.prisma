@@ -1,0 +1,44 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Visibility {
+  PUBLIC
+  FRIENDS_ONLY
+  PRIVATE
+}
+
+model User {
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  passwordHash         String?
+  displayName          String
+  avatarUrl            String?
+  emailVerified        Boolean   @default(false)
+  emailVerifyToken     String?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  visibility           Visibility @default(PUBLIC)
+  musicPreferences     String[]  @default([])
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  socialAccounts SocialAccount[]
+}
+
+model SocialAccount {
+  id         String   @id @default(uuid())
+  provider   String
+  providerId String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@unique([provider, providerId])
+  @@unique([provider, userId])
+}

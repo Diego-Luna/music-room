@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:music_room_app/theme/app_theme.dart';
+import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/navigation_provider.dart';
+import 'package:music_room_app/core/animations/animated_scale_button.dart';
 
 // ! Responsive navigation bar that reads destinations from `NavigationProvider`.
-// * - On small widths it renders a `BottomNavigationBar`.
-// * - On wide screens it renders a top horizontal navigation bar.
+//* - On small widths it renders a custom Neumorphic bottom bar.
+//* - On wide screens it renders a top horizontal navigation bar.
 class ResponsiveNavbar extends StatelessWidget {
   // ! Temporal:  Optional override to force mobile layout for testing.
   final bool? forceMobile;
@@ -26,30 +27,79 @@ class ResponsiveNavbar extends StatelessWidget {
 
   Widget _buildMobileNav(BuildContext context, NavigationProvider nav) {
     final theme = Theme.of(context);
-    return BottomNavigationBar(
-      currentIndex: nav.currentIndex,
-      onTap: (i) => nav.navigateToIndex(context, i),
-      type: BottomNavigationBarType.fixed,
-      backgroundColor: theme.colorScheme.primary,
-      selectedItemColor: theme.colorScheme.secondary,
-      unselectedItemColor: theme.disabledColor,
-      showSelectedLabels: true,
-      showUnselectedLabels: true,
-      items: nav.destinations
-          .map(
-            (d) => BottomNavigationBarItem(
-              icon: Icon(d.icon),
-              label: d.label,
+    final tokens = theme.extension<AppDesignTokens>();
+
+    return Container(
+      padding: const EdgeInsets.only(
+        top: AppDimens.sm,
+        bottom: AppDimens.xl,
+      ), // Extra bottom padding for safe area
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: tokens?.neumorphicShadow,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(nav.destinations.length, (index) {
+          final item = nav.destinations[index];
+          final isActive = index == nav.currentIndex;
+
+          return AnimatedScaleButton(
+            onPressed: () => nav.navigateToIndex(context, index),
+            scaleDown: 0.90,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppDimens.md,
+                vertical: AppDimens.sm,
+              ),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
+                // Apply inset shadow if active, otherwise flat (or slight outer shadow)
+                boxShadow: isActive ? tokens?.neumorphicPressedShadow : null,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    item.icon,
+                    color: isActive
+                        ? theme.colorScheme.primary
+                        : theme.disabledColor,
+                    size: AppDimens.iconMedium,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: isActive
+                          ? theme.colorScheme.primary
+                          : theme.disabledColor,
+                      fontWeight: isActive
+                          ? AppTypography.bold
+                          : AppTypography.normal,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          )
-          .toList(),
+          );
+        }),
+      ),
     );
   }
 
   Widget _buildWebNav(BuildContext context, NavigationProvider nav) {
     final theme = Theme.of(context);
+    final tokens = theme.extension<AppDesignTokens>();
+
     return Container(
-      color: theme.colorScheme.primary,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        boxShadow: tokens?.neumorphicShadow,
+      ),
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimens.xxl,
         vertical: AppDimens.lg,
@@ -62,7 +112,6 @@ class ResponsiveNavbar extends StatelessWidget {
             Text(
               'Music Room',
               style: theme.textTheme.titleLarge?.copyWith(
-                color: theme.colorScheme.onPrimary,
                 fontWeight: AppTypography.extraBold,
               ),
             ),
@@ -70,27 +119,47 @@ class ResponsiveNavbar extends StatelessWidget {
             ...List.generate(nav.destinations.length, (index) {
               final item = nav.destinations[index];
               final isActive = index == nav.currentIndex;
+
               return Padding(
-                padding: const EdgeInsets.only(left: AppDimens.xl),
-                child: MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: GestureDetector(
-                    onTap: () => nav.navigateToIndex(context, index),
-                    behavior: HitTestBehavior.opaque,
+                padding: const EdgeInsets.only(left: AppDimens.md),
+                child: AnimatedScaleButton(
+                  onPressed: () => nav.navigateToIndex(context, index),
+                  scaleDown: 0.95,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppDimens.lg,
+                      vertical: AppDimens.sm,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(
+                        AppDimens.radiusMedium,
+                      ),
+                      boxShadow: isActive
+                          ? tokens?.neumorphicPressedShadow
+                          : null,
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           item.icon,
-                          color: isActive ? theme.colorScheme.secondary : theme.disabledColor,
+                          color: isActive
+                              ? theme.colorScheme.primary
+                              : theme.disabledColor,
                           size: AppDimens.iconMedium,
                         ),
-                        const SizedBox(width: AppDimens.xs),
+                        const SizedBox(width: AppDimens.sm),
                         Text(
                           item.label,
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: isActive ? theme.colorScheme.secondary : theme.disabledColor,
-                            fontWeight: isActive ? AppTypography.semibold : AppTypography.normal,
+                            color: isActive
+                                ? theme.colorScheme.primary
+                                : theme.disabledColor,
+                            fontWeight: isActive
+                                ? AppTypography.bold
+                                : AppTypography.normal,
                           ),
                         ),
                       ],

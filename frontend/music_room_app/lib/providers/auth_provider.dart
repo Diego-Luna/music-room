@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 
-// * Skeleton auth provider 
+//* Skeleton auth provider
 //  ! is not funcional
 class AuthProvider extends ChangeNotifier {
   bool _signedIn = false;

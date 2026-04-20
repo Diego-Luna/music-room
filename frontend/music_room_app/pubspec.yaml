@@ -42,6 +42,7 @@ dependencies:
   # ? im not sure about this one, the website say: "This is the platform-specific implementation of flutter_secure_storage for Android and iOS."
   # ? The Package is not very clear about the web support, its necesary to test it
   flutter_secure_storage: ^10.0.0 
+  go_router: ^17.2.1
 
 dev_dependencies:
   flutter_test:
