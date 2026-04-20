@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
-// AnimatedScaleButton
-// A smart wrapper button that adds the physical "scale down" effect
-// characteristic of iOS when pressed. We use AnimatedScale for a butter-smooth feel.
+// * A smart wrapper button that adds the physical "scale down" effect
 class AnimatedScaleButton extends StatefulWidget {
   final Widget child;
   final VoidCallback? onPressed;

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 //* Simple decorative motion shapes (implicit tweens).
-// ! Not critical — used as a small visual helper for placeholders.
+// ! used as a small visual helper for placeholders.
 class MotionShapes extends StatelessWidget {
   final double size;
   final Color color;

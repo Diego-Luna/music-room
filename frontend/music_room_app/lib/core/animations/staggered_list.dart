@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 //* StaggeredList
 // Cascading animation for our lists (Rooms, Playlists, etc.).
 // It smoothly combines FadeIn and SlideIn with an incremental delay
-// to create that premium, sequential loading feel.
 class StaggeredList extends StatelessWidget {
   final int index;
   final Widget child;

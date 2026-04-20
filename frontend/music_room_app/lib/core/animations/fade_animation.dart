@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 //* Simple FadeIn implicit animation widget.
-// ! the simply animation
 class FadeIn extends StatelessWidget {
   final Widget child;
   final Duration duration;
