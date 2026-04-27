@@ -32,10 +32,11 @@ class PlaylistsPage extends StatelessWidget {
                 tag: 'playlist_cover_$index',
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.secondary.withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
+                    boxShadow: Theme.of(
+                      context,
+                    ).extension<AppDesignTokens>()?.neumorphicPressedShadow,
                   ),
                   child: Icon(
                     Icons.playlist_play,
