@@ -33,10 +33,11 @@ class RoomsListPage extends StatelessWidget {
                 tag: 'room_cover_$index', // Unique tag for each room
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withValues(alpha: 0.1),
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
+                    boxShadow: Theme.of(
+                      context,
+                    ).extension<AppDesignTokens>()?.neumorphicPressedShadow,
                   ),
                   child: Icon(
                     Icons.queue_music,
