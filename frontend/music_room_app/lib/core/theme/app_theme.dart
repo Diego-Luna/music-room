@@ -5,16 +5,16 @@ import 'dart:ui' as ui;
 // We map these to our Neumorphic design system.
 abstract class AppColors {
   // Light Theme Colors
-  static const Color lightBg = Color(0xFFFFF5E0); // Principal
-  static const Color lightSecondary = Color(0xFF8DECB4); // Segundo
-  static const Color lightTertiary = Color(0xFF41B06E); // Tercer
-  static const Color lightQuaternary = Color(0xFF141E46); // Cuarto
+  static const Color lightBg = Color(0xFFE0EAE5); // Principal base
+  static const Color lightSecondary = Color(0xFFBCC9C1); // Segundo
+  static const Color lightTertiary = Color(0xFF1DB954); // Tercer
+  static const Color lightQuaternary = Color(0xFF142018); // Cuarto
 
   // Dark Theme Colors
-  static const Color darkBg = Color(0xFF18230F); // Principal
-  static const Color darkSecondary = Color(0xFF27391C); // Segundo
-  static const Color darkTertiary = Color(0xFF255F38); // Tercer
-  static const Color darkQuaternary = Color(0xFF1F7D53); // Cuarto
+  static const Color darkBg = Color(0xFF121A14); // Principal
+  static const Color darkSecondary = Color(0xFF1B271E); // Segundo
+  static const Color darkTertiary = Color(0xFF1ED760); // Tercer
+  static const Color darkQuaternary = Color(0xFFE0EAE5); // Cuarto
 }
 
 //* Typography constants
@@ -141,12 +141,12 @@ class AppTheme {
     cardRadius: BorderRadius.circular(AppDimens.radiusApple),
     neumorphicShadow: [
       const BoxShadow(
-        color: Colors.white, // Light source from top-left (lighter than FFF5E0)
+        color: Colors.white, // Light source from top-left
         offset: Offset(-5, -5),
         blurRadius: 10,
       ),
       const BoxShadow(
-        color: Color(0xFFE5DCC9), // Darker shade of lightBg for shadow
+        color: Color(0xFFBCC9C1), // Darker shade of lightBg for shadow
         offset: Offset(5, 5),
         blurRadius: 10,
       ),
@@ -158,7 +158,7 @@ class AppTheme {
         blurRadius: 5,
       ),
       const BoxShadow(
-        color: Color(0xFFE5DCC9),
+        color: Color(0xFFBCC9C1),
         offset: Offset(2, 2),
         blurRadius: 5,
       ),
@@ -171,24 +171,24 @@ class AppTheme {
     cardRadius: BorderRadius.circular(AppDimens.radiusApple),
     neumorphicShadow: [
       const BoxShadow(
-        color: Color(0xFF233316), // Lighter shade of darkBg
+        color: Color(0xFF1B271E), // Lighter shade of darkBg
         offset: Offset(-5, -5),
         blurRadius: 10,
       ),
       const BoxShadow(
-        color: Color(0xFF0D1308), // Darker shade of darkBg
+        color: Color(0xFF090D0A), // Darker shade of darkBg
         offset: Offset(5, 5),
         blurRadius: 10,
       ),
     ],
     neumorphicPressedShadow: [
       const BoxShadow(
-        color: Color(0xFF233316),
+        color: Color(0xFF1B271E),
         offset: Offset(-2, -2),
         blurRadius: 5,
       ),
       const BoxShadow(
-        color: Color(0xFF0D1308),
+        color: Color(0xFF090D0A),
         offset: Offset(2, 2),
         blurRadius: 5,
       ),
