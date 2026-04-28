@@ -1,0 +1,55 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'frontend/**'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: deploy-main-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build Web Artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      
+      - name: Get dependencies
+        working-directory: frontend/music_room_app
+        run: flutter pub get
+
+      - name: Build web
+        working-directory: frontend/music_room_app
+        run: flutter build web --release --base-href=/music-room/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: frontend/music_room_app/build/web
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
