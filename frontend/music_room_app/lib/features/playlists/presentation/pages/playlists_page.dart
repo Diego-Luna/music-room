@@ -61,7 +61,7 @@ class PlaylistsPage extends StatelessWidget {
                             ),
                             child: Icon(
                               Icons.playlist_play,
-                              color: Theme.of(context).colorScheme.secondary,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
                           ),
                         ),

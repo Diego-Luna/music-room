@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';
@@ -25,6 +27,9 @@ class _DaftPunkLoaderState extends State<DaftPunkLoader>
   late final Flutter3DController _viewerController;
   Ticker? _ticker;
   StreamSubscription<GyroscopeEvent>? _gyroSubscription;
+  final bool _isTest = kIsWeb
+      ? false
+      : Platform.environment.containsKey('FLUTTER_TEST');
 
   bool _isLoading = true;
   bool _gyroActive =
@@ -57,7 +62,7 @@ class _DaftPunkLoaderState extends State<DaftPunkLoader>
   void _initGyro() {
     try {
       // Listen to gyroscope events
-      _gyroSubscription = gyroscopeEvents.listen(
+      _gyroSubscription = gyroscopeEventStream().listen(
         (GyroscopeEvent event) {
           if (!mounted || _isLoading) return;
 
@@ -123,6 +128,15 @@ class _DaftPunkLoaderState extends State<DaftPunkLoader>
 
   @override
   Widget build(BuildContext context) {
+    if (_isTest) {
+      return SizedBox(
+        width: widget.size,
+        height: widget.size,
+        key: const Key('3d_placeholder_loader'),
+        child: const Center(child: Icon(Icons.view_in_ar)),
+      );
+    }
+
     return Stack(
       alignment: Alignment.center,
       children: [

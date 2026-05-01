@@ -85,12 +85,14 @@ class AppDesignTokens extends ThemeExtension<AppDesignTokens> {
   final BorderRadius cardRadius;
   final List<BoxShadow> neumorphicShadow;
   final List<BoxShadow> neumorphicPressedShadow;
+  final EdgeInsets shadowSafeMargin;
 
   const AppDesignTokens({
     required this.blurAmount,
     required this.cardRadius,
     required this.neumorphicShadow,
     required this.neumorphicPressedShadow,
+    this.shadowSafeMargin = const EdgeInsets.all(AppDimens.lg),
   });
 
   @override
@@ -99,6 +101,7 @@ class AppDesignTokens extends ThemeExtension<AppDesignTokens> {
     BorderRadius? cardRadius,
     List<BoxShadow>? neumorphicShadow,
     List<BoxShadow>? neumorphicPressedShadow,
+    EdgeInsets? shadowSafeMargin,
   }) {
     return AppDesignTokens(
       blurAmount: blurAmount ?? this.blurAmount,
@@ -106,6 +109,7 @@ class AppDesignTokens extends ThemeExtension<AppDesignTokens> {
       neumorphicShadow: neumorphicShadow ?? this.neumorphicShadow,
       neumorphicPressedShadow:
           neumorphicPressedShadow ?? this.neumorphicPressedShadow,
+      shadowSafeMargin: shadowSafeMargin ?? this.shadowSafeMargin,
     );
   }
 
@@ -129,6 +133,9 @@ class AppDesignTokens extends ThemeExtension<AppDesignTokens> {
             t,
           ) ??
           neumorphicPressedShadow,
+      shadowSafeMargin:
+          EdgeInsets.lerp(shadowSafeMargin, other.shadowSafeMargin, t) ??
+          shadowSafeMargin,
     );
   }
 }
@@ -141,28 +148,29 @@ class AppTheme {
     cardRadius: BorderRadius.circular(AppDimens.radiusApple),
     neumorphicShadow: [
       const BoxShadow(
-        color: Colors.white, // Light source from top-left
-        offset: Offset(-5, -5),
-        blurRadius: 10,
+        color: Colors.white,
+        offset: Offset(-6, -6),
+        blurRadius: 12,
       ),
       const BoxShadow(
-        color: Color(0xFFBCC9C1), // Darker shade of lightBg for shadow
-        offset: Offset(5, 5),
-        blurRadius: 10,
+        color: Color(0xFFBCC9C1),
+        offset: Offset(6, 6),
+        blurRadius: 12,
       ),
     ],
     neumorphicPressedShadow: [
       const BoxShadow(
         color: Colors.white,
-        offset: Offset(-2, -2),
-        blurRadius: 5,
+        offset: Offset(-1, -1),
+        blurRadius: 2,
       ),
       const BoxShadow(
         color: Color(0xFFBCC9C1),
-        offset: Offset(2, 2),
-        blurRadius: 5,
+        offset: Offset(1, 1),
+        blurRadius: 2,
       ),
     ],
+    shadowSafeMargin: const EdgeInsets.all(AppDimens.xl),
   );
 
   // Dark Neumorphic Tokens
@@ -171,28 +179,29 @@ class AppTheme {
     cardRadius: BorderRadius.circular(AppDimens.radiusApple),
     neumorphicShadow: [
       const BoxShadow(
-        color: Color(0xFF1B271E), // Lighter shade of darkBg
-        offset: Offset(-5, -5),
-        blurRadius: 10,
+        color: Color(0xFF1D2820), // More contrast for dark mode
+        offset: Offset(-6, -6),
+        blurRadius: 12,
       ),
       const BoxShadow(
-        color: Color(0xFF090D0A), // Darker shade of darkBg
-        offset: Offset(5, 5),
-        blurRadius: 10,
+        color: Color(0xFF070B08),
+        offset: Offset(6, 6),
+        blurRadius: 12,
       ),
     ],
     neumorphicPressedShadow: [
       const BoxShadow(
-        color: Color(0xFF1B271E),
-        offset: Offset(-2, -2),
-        blurRadius: 5,
+        color: Color(0xFF1D2820),
+        offset: Offset(-1, -1),
+        blurRadius: 2,
       ),
       const BoxShadow(
-        color: Color(0xFF090D0A),
-        offset: Offset(2, 2),
-        blurRadius: 5,
+        color: Color(0xFF070B08),
+        offset: Offset(1, 1),
+        blurRadius: 2,
       ),
     ],
+    shadowSafeMargin: const EdgeInsets.all(AppDimens.xl),
   );
 
   /// Light theme

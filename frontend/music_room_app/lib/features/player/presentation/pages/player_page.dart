@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
-import 'package:music_room_app/core/animations/animated_scale_button.dart';
+import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/features/events/presentation/widgets/swipeable_track_card.dart';
 import 'package:music_room_app/features/player/presentation/widgets/audio_visualizer.dart';
 import 'package:music_room_app/widgets/interactive_3d/interactive_mpc.dart';
@@ -94,20 +94,14 @@ class _PlayerPageState extends State<PlayerPage> {
                   ),
                   child: Row(
                     children: [
-                      AnimatedScaleButton(
-                        onPressed: () => context.pop(),
-                        child: Container(
-                          padding: const EdgeInsets.all(AppDimens.sm),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            shape: BoxShape.circle,
-                            boxShadow: tokens?.neumorphicShadow,
-                          ),
-                          child: Icon(
-                            Icons.keyboard_arrow_down,
-                            size: 32,
-                            color: theme.colorScheme.primary,
-                          ),
+                      NeumorphicInteractiveContainer(
+                        onTap: () => context.pop(),
+                        padding: const EdgeInsets.all(AppDimens.sm),
+                        decoration: const BoxDecoration(shape: BoxShape.circle),
+                        child: Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 32,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                       Expanded(
@@ -121,20 +115,14 @@ class _PlayerPageState extends State<PlayerPage> {
                           ),
                         ),
                       ),
-                      AnimatedScaleButton(
-                        onPressed: _showMpcBeatpad,
-                        child: Container(
-                          padding: const EdgeInsets.all(AppDimens.sm),
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.surface,
-                            shape: BoxShape.circle,
-                            boxShadow: tokens?.neumorphicShadow,
-                          ),
-                          child: Icon(
-                            Icons.grid_view_rounded,
-                            size: 24,
-                            color: theme.colorScheme.primary,
-                          ),
+                      NeumorphicInteractiveContainer(
+                        onTap: _showMpcBeatpad,
+                        padding: const EdgeInsets.all(AppDimens.sm),
+                        decoration: const BoxDecoration(shape: BoxShape.circle),
+                        child: Icon(
+                          Icons.grid_view_rounded,
+                          size: 24,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
                     ],
@@ -246,59 +234,55 @@ class _PlayerPageState extends State<PlayerPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          AnimatedScaleButton(
-                            onPressed: () {},
-                            child: Container(
-                              padding: const EdgeInsets.all(AppDimens.md),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surface,
-                                shape: BoxShape.circle,
-                                boxShadow: tokens?.neumorphicShadow,
-                              ),
-                              child: Icon(
-                                Icons.skip_previous_rounded,
-                                size: 36,
-                                color: theme.colorScheme.primary,
-                              ),
+                          NeumorphicInteractiveContainer(
+                            onTap: () {},
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: AppDimens.xs,
+                            ),
+                            padding: const EdgeInsets.all(AppDimens.md),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.skip_previous_rounded,
+                              size: 36,
+                              color: theme.colorScheme.primary,
                             ),
                           ),
-                          AnimatedScaleButton(
-                            onPressed: () {
+                          NeumorphicInteractiveContainer(
+                            onTap: () {
                               setState(() {
                                 _isPlaying = !_isPlaying;
                               });
                             },
-                            scaleDown: 0.9,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: theme.colorScheme.surface,
-                                boxShadow: tokens?.neumorphicShadow,
-                              ),
-                              padding: const EdgeInsets.all(AppDimens.lg),
-                              child: Icon(
-                                _isPlaying
-                                    ? Icons.pause_rounded
-                                    : Icons.play_arrow_rounded,
-                                size: 48,
-                                color: theme.colorScheme.primary,
-                              ),
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: AppDimens.xs,
+                            ),
+                            padding: const EdgeInsets.all(AppDimens.lg),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              _isPlaying
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              size: 48,
+                              color: theme.colorScheme.primary,
                             ),
                           ),
-                          AnimatedScaleButton(
-                            onPressed: () {},
-                            child: Container(
-                              padding: const EdgeInsets.all(AppDimens.md),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.surface,
-                                shape: BoxShape.circle,
-                                boxShadow: tokens?.neumorphicShadow,
-                              ),
-                              child: Icon(
-                                Icons.skip_next_rounded,
-                                size: 36,
-                                color: theme.colorScheme.primary,
-                              ),
+                          NeumorphicInteractiveContainer(
+                            onTap: () {},
+                            margin: const EdgeInsets.symmetric(
+                              horizontal: AppDimens.xs,
+                            ),
+                            padding: const EdgeInsets.all(AppDimens.md),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.skip_next_rounded,
+                              size: 36,
+                              color: theme.colorScheme.primary,
                             ),
                           ),
                         ],

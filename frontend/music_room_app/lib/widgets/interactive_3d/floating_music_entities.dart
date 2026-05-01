@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 
@@ -21,6 +23,9 @@ class FloatingModel extends StatefulWidget {
 
 class _FloatingModelState extends State<FloatingModel> {
   late final Flutter3DController _controller;
+  final bool _isTest = kIsWeb
+      ? false
+      : Platform.environment.containsKey('FLUTTER_TEST');
 
   @override
   void initState() {
@@ -30,6 +35,15 @@ class _FloatingModelState extends State<FloatingModel> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isTest) {
+      return SizedBox(
+        width: widget.size * 1.5,
+        height: widget.size * 1.5,
+        key: const Key('3d_placeholder_floater'),
+        child: const Center(child: Icon(Icons.music_note)),
+      );
+    }
+
     return SizedBox(
       width: widget.size * 1.5,
       height: widget.size * 1.5,

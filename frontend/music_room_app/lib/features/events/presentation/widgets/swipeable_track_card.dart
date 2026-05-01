@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
-import 'package:music_room_app/core/animations/animated_scale_button.dart';
+import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 
 enum SwipeAction { like, dislike, none }
 
@@ -40,7 +40,7 @@ class SwipeableTrackCardState extends State<SwipeableTrackCard>
     _animationController =
         AnimationController(
           vsync: this,
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 500),
         )..addListener(() {
           setState(() {});
         });
@@ -298,7 +298,7 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Voted: LIKE'),
-          duration: Duration(milliseconds: 500),
+          duration: Duration(seconds: 2),
         ),
       );
     } else if (action == SwipeAction.dislike) {
@@ -306,7 +306,7 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Voted: DISLIKE'),
-          duration: Duration(milliseconds: 500),
+          duration: Duration(seconds: 2),
         ),
       );
     }
@@ -331,42 +331,24 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            AnimatedScaleButton(
-              onPressed: () => _cardKey.currentState?.triggerDislike(),
-              scaleDown: 0.90,
-              child: Container(
-                padding: const EdgeInsets.all(AppDimens.xl),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Theme.of(context).colorScheme.surface,
-                  boxShadow: Theme.of(
-                    context,
-                  ).extension<AppDesignTokens>()?.neumorphicShadow,
-                ),
-                child: const Icon(
-                  Icons.close_rounded,
-                  size: 36,
-                  color: Colors.red,
-                ),
+            NeumorphicInteractiveContainer(
+              onTap: () => _cardKey.currentState?.triggerDislike(),
+              padding: const EdgeInsets.all(AppDimens.xl),
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+              child: const Icon(
+                Icons.close_rounded,
+                size: 36,
+                color: Colors.red,
               ),
             ),
-            AnimatedScaleButton(
-              onPressed: () => _cardKey.currentState?.triggerLike(),
-              scaleDown: 0.90,
-              child: Container(
-                padding: const EdgeInsets.all(AppDimens.xl),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Theme.of(context).colorScheme.surface,
-                  boxShadow: Theme.of(
-                    context,
-                  ).extension<AppDesignTokens>()?.neumorphicShadow,
-                ),
-                child: const Icon(
-                  Icons.favorite_rounded,
-                  size: 36,
-                  color: Colors.green,
-                ),
+            NeumorphicInteractiveContainer(
+              onTap: () => _cardKey.currentState?.triggerLike(),
+              padding: const EdgeInsets.all(AppDimens.xl),
+              decoration: const BoxDecoration(shape: BoxShape.circle),
+              child: const Icon(
+                Icons.favorite_rounded,
+                size: 36,
+                color: Colors.green,
               ),
             ),
           ],

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/slide_animation.dart';
-import 'package:music_room_app/core/animations/animated_scale_button.dart';
+import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/features/home/presentation/widgets/quick_picks_carousel.dart';
 import 'package:music_room_app/features/home/presentation/widgets/recent_events_list.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
@@ -35,6 +35,7 @@ class HomePage extends StatelessWidget {
           const Opacity(opacity: 0.6, child: BackgroundFloaters()),
 
           CustomScrollView(
+            clipBehavior: Clip.none,
             slivers: [
               SliverAppBar(
                 expandedHeight: 120.0,
@@ -58,49 +59,30 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 actions: [
-                  AnimatedScaleButton(
-                    onPressed: () {
+                  NeumorphicInteractiveContainer(
+                    onTap: () {
                       context.read<ThemeProvider>().toggleTheme();
                     },
-                    child: Container(
-                      margin: const EdgeInsets.all(
-                        AppDimens.md,
-                      ), // Added symmetric margin to prevent shadow clipping
-                      padding: const EdgeInsets.all(AppDimens.sm),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        shape: BoxShape.circle,
-                        boxShadow: Theme.of(
-                          context,
-                        ).extension<AppDesignTokens>()?.neumorphicShadow,
-                      ),
-                      child: Icon(
-                        context.watch<ThemeProvider>().themeMode ==
-                                ThemeMode.dark
-                            ? Icons.light_mode_rounded
-                            : Icons.dark_mode_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 24,
-                      ),
+                    margin: const EdgeInsets.all(AppDimens.md),
+                    padding: const EdgeInsets.all(AppDimens.sm),
+                    decoration: const BoxDecoration(shape: BoxShape.circle),
+                    child: Icon(
+                      context.watch<ThemeProvider>().themeMode == ThemeMode.dark
+                          ? Icons.light_mode_rounded
+                          : Icons.dark_mode_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 24,
                     ),
                   ),
-                  AnimatedScaleButton(
-                    onPressed: () {},
-                    child: Container(
-                      margin: const EdgeInsets.all(AppDimens.md),
-                      padding: const EdgeInsets.all(AppDimens.sm),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        shape: BoxShape.circle,
-                        boxShadow: Theme.of(
-                          context,
-                        ).extension<AppDesignTokens>()?.neumorphicShadow,
-                      ),
-                      child: Icon(
-                        Icons.person_rounded,
-                        color: Theme.of(context).colorScheme.primary,
-                        size: 24,
-                      ),
+                  NeumorphicInteractiveContainer(
+                    onTap: () {},
+                    margin: const EdgeInsets.all(AppDimens.md),
+                    padding: const EdgeInsets.all(AppDimens.sm),
+                    decoration: const BoxDecoration(shape: BoxShape.circle),
+                    child: Icon(
+                      Icons.person_rounded,
+                      color: Theme.of(context).colorScheme.primary,
+                      size: 24,
                     ),
                   ),
                 ],

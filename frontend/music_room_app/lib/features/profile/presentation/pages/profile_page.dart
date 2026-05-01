@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
-import 'package:music_room_app/core/animations/animated_scale_button.dart';
+import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
@@ -86,6 +86,10 @@ class ProfilePage extends StatelessWidget {
                           boxShadow: theme
                               .extension<AppDesignTokens>()
                               ?.neumorphicShadow,
+                          border: Border.all(
+                            color: theme.scaffoldBackgroundColor,
+                            width: 0.5,
+                          ),
                         ),
                         padding: const EdgeInsets.all(AppDimens.sm),
                         child: CircleAvatar(
@@ -152,10 +156,10 @@ class ProfilePage extends StatelessWidget {
                     index: profileFields.length,
                     child: PrimaryButton(
                       label: 'Log Out',
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.logout,
-                        color: Colors.white,
-                        size: 20,
+                        color: theme.colorScheme.primary,
+                        size: AppDimens.iconMedium,
                       ),
                       onPressed: () => _handleLogout(context),
                     ),
@@ -197,51 +201,45 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
         ),
-        AnimatedScaleButton(
-          onPressed: () {
+        NeumorphicInteractiveContainer(
+          onTap: () {
             // TODO: Open edit modal
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Edit $title coming soon...')),
             );
           },
-          scaleDown: 0.98,
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius:
-                  tokens?.cardRadius ??
-                  BorderRadius.circular(AppDimens.radiusLarge),
-              boxShadow: tokens
-                  ?.neumorphicPressedShadow, // Inset shadow for an "input field" look
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.lg,
-              vertical: AppDimens.lg,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: theme.colorScheme.primary,
-                  size: AppDimens.iconMedium,
-                ),
-                const SizedBox(width: AppDimens.md),
-                Expanded(
-                  child: Text(
-                    value,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: AppTypography.medium,
-                    ),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius:
+                tokens?.cardRadius ??
+                BorderRadius.circular(AppDimens.radiusLarge),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimens.lg,
+            vertical: AppDimens.lg,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: theme.colorScheme.primary,
+                size: AppDimens.iconMedium,
+              ),
+              const SizedBox(width: AppDimens.md),
+              Expanded(
+                child: Text(
+                  value,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: AppTypography.medium,
                   ),
                 ),
-                Icon(
-                  Icons.edit_rounded,
-                  color: theme.disabledColor,
-                  size: AppDimens.iconSmall,
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                Icons.edit_rounded,
+                color: theme.disabledColor,
+                size: AppDimens.iconSmall,
+              ),
+            ],
           ),
         ),
       ],
