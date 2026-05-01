@@ -145,8 +145,9 @@ class _DaftPunkLoaderState extends State<DaftPunkLoader>
           height: widget.size,
           child: Flutter3DViewer(
             controller: _viewerController,
-            src:
-                'assets/models/loading/daft_punk_thomas_helmet_re-uploaded.glb',
+            src: kIsWeb
+                ? 'assets/assets/models/loading/daft_punk_thomas_helmet_re-uploaded.glb'
+                : 'assets/models/loading/daft_punk_thomas_helmet_re-uploaded.glb',
             onProgress: (double progress) {
               debugPrint('3D Model Loading: ${progress * 100}%');
             },

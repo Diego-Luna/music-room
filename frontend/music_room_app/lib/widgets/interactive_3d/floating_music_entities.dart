@@ -49,7 +49,7 @@ class _FloatingModelState extends State<FloatingModel> {
       height: widget.size * 1.5,
       child: Flutter3DViewer(
         controller: _controller,
-        src: widget.modelPath,
+        src: kIsWeb ? 'assets/${widget.modelPath}' : widget.modelPath,
         onLoad: (modelAddress) {
           // * Start native rotation using the controller
           _controller.startRotation(
