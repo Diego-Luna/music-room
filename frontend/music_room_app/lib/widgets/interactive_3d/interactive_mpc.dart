@@ -67,7 +67,9 @@ class _InteractiveMpcState extends State<InteractiveMpc> {
                           )
                         : Flutter3DViewer(
                             controller: _controller,
-                            src: 'assets/models/interactive/mpc_one.glb',
+                            src: kIsWeb
+                                ? 'assets/assets/models/interactive/mpc_one.glb'
+                                : 'assets/models/interactive/mpc_one.glb',
                             onLoad: (modelAddress) {
                               // Making the model slightly larger by default and aligning it to zoom=70
                               _controller.setCameraOrbit(0, 0, 70);
