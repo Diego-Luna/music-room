@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/slide_animation.dart';
-import 'package:music_room_app/core/animations/animated_scale_button.dart';
+import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/features/auth/presentation/widgets/auth_text_field.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
@@ -112,63 +112,55 @@ class _LoginPageState extends State<LoginPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: AnimatedScaleButton(
-                          onPressed: _handleLogin,
-                          child: Container(
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface,
-                              borderRadius: BorderRadius.circular(
-                                AppDimens.radiusMedium,
-                              ),
-                              boxShadow: theme
-                                  .extension<AppDesignTokens>()
-                                  ?.neumorphicShadow,
+                        child: NeumorphicInteractiveContainer(
+                          onTap: _handleLogin,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              AppDimens.radiusMedium,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.g_mobiledata, size: 30),
-                                const SizedBox(width: AppDimens.sm),
-                                Text(
-                                  'Google',
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: AppTypography.semibold,
-                                  ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppDimens.md,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.g_mobiledata, size: 30),
+                              const SizedBox(width: AppDimens.sm),
+                              Text(
+                                'Google',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  fontWeight: AppTypography.semibold,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
                       const SizedBox(width: AppDimens.lg),
                       Expanded(
-                        child: AnimatedScaleButton(
-                          onPressed: _handleLogin,
-                          child: Container(
-                            height: 50,
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface,
-                              borderRadius: BorderRadius.circular(
-                                AppDimens.radiusMedium,
-                              ),
-                              boxShadow: theme
-                                  .extension<AppDesignTokens>()
-                                  ?.neumorphicShadow,
+                        child: NeumorphicInteractiveContainer(
+                          onTap: _handleLogin,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(
+                              AppDimens.radiusMedium,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.facebook, color: Colors.blue),
-                                const SizedBox(width: AppDimens.sm),
-                                Text(
-                                  'Facebook',
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: AppTypography.semibold,
-                                  ),
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppDimens.md,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.facebook, color: Colors.blue),
+                              const SizedBox(width: AppDimens.sm),
+                              Text(
+                                'Facebook',
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  fontWeight: AppTypography.semibold,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -188,7 +180,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: Text(
                           "Sign Up",
                           style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.secondary,
+                            color: theme.colorScheme.primary,
                             fontWeight: AppTypography.bold,
                           ),
                         ),
