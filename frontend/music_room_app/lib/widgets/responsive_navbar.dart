@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/navigation_provider.dart';
-import 'package:music_room_app/core/animations/animated_scale_button.dart';
+import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 
 // ! Responsive navigation bar that reads destinations from `NavigationProvider`.
 //* - On small widths it renders a custom Neumorphic bottom bar.
@@ -38,26 +38,24 @@ class ResponsiveNavbar extends StatelessWidget {
         color: theme.colorScheme.surface,
         boxShadow: tokens?.neumorphicShadow,
       ),
+      clipBehavior: Clip.none,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(nav.destinations.length, (index) {
           final item = nav.destinations[index];
           final isActive = index == nav.currentIndex;
 
-          return AnimatedScaleButton(
-            onPressed: () => nav.navigateToIndex(context, index),
-            scaleDown: 0.90,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.md,
+          return Expanded(
+            child: NeumorphicInteractiveContainer(
+              onTap: () => nav.navigateToIndex(context, index),
+              isForcedPressed: isActive,
+              margin: const EdgeInsets.symmetric(
+                horizontal: AppDimens.xs,
                 vertical: AppDimens.sm,
               ),
+              padding: const EdgeInsets.symmetric(vertical: AppDimens.sm),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surface,
                 borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
-                // Apply inset shadow if active, otherwise flat (or slight outer shadow)
-                boxShadow: isActive ? tokens?.neumorphicPressedShadow : null,
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -81,6 +79,8 @@ class ResponsiveNavbar extends StatelessWidget {
                           : AppTypography.normal,
                       fontSize: 10,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -122,48 +122,39 @@ class ResponsiveNavbar extends StatelessWidget {
 
               return Padding(
                 padding: const EdgeInsets.only(left: AppDimens.md),
-                child: AnimatedScaleButton(
-                  onPressed: () => nav.navigateToIndex(context, index),
-                  scaleDown: 0.95,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppDimens.lg,
-                      vertical: AppDimens.sm,
-                    ),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(
-                        AppDimens.radiusMedium,
+                child: NeumorphicInteractiveContainer(
+                  onTap: () => nav.navigateToIndex(context, index),
+                  isForcedPressed: isActive,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimens.lg,
+                    vertical: AppDimens.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        item.icon,
+                        color: isActive
+                            ? theme.colorScheme.primary
+                            : theme.disabledColor,
+                        size: AppDimens.iconMedium,
                       ),
-                      boxShadow: isActive
-                          ? tokens?.neumorphicPressedShadow
-                          : null,
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          item.icon,
+                      const SizedBox(width: AppDimens.sm),
+                      Text(
+                        item.label,
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           color: isActive
                               ? theme.colorScheme.primary
                               : theme.disabledColor,
-                          size: AppDimens.iconMedium,
+                          fontWeight: isActive
+                              ? AppTypography.bold
+                              : AppTypography.normal,
                         ),
-                        const SizedBox(width: AppDimens.sm),
-                        Text(
-                          item.label,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: isActive
-                                ? theme.colorScheme.primary
-                                : theme.disabledColor,
-                            fontWeight: isActive
-                                ? AppTypography.bold
-                                : AppTypography.normal,
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               );

@@ -21,6 +21,9 @@ class AuthTextField extends StatelessWidget {
     final tokens = theme.extension<AppDesignTokens>();
 
     return Container(
+      margin:
+          tokens?.shadowSafeMargin ??
+          const EdgeInsets.symmetric(vertical: AppDimens.sm),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(AppDimens.radiusMedium),

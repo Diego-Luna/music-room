@@ -16,7 +16,6 @@ import 'package:music_room_app/features/rooms/presentation/pages/rooms_list_page
 import 'package:music_room_app/features/rooms/presentation/pages/room_detail_page.dart';
 import 'package:music_room_app/features/player/presentation/pages/player_page.dart';
 import 'package:music_room_app/features/start/presentation/pages/start_page.dart';
-import 'package:music_room_app/features/splash/presentation/pages/splash_page.dart';
 import 'package:music_room_app/features/not_found/presentation/pages/not_found_page.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 
@@ -66,18 +65,10 @@ CustomTransitionPage<void> _buildPageWithTransition({
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: routeSplash,
+    initialLocation: routeStart,
     debugLogDiagnostics: true,
     errorBuilder: (context, state) => const NotFoundPage(),
     routes: [
-      GoRoute(
-        path: routeSplash,
-        pageBuilder: (context, state) => _buildPageWithTransition(
-          context: context,
-          state: state,
-          child: const SplashPage(),
-        ),
-      ),
       GoRoute(
         path: routeLogin,
         pageBuilder: (context, state) => _buildPageWithTransition(

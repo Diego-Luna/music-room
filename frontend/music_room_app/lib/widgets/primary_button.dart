@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
-import 'package:music_room_app/core/animations/animated_scale_button.dart';
+import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 
 //* PrimaryButton
 // Reusable button adapted to our Neumorphic design system.
@@ -51,24 +51,20 @@ class PrimaryButton extends StatelessWidget {
 
     return ConstrainedBox(
       constraints: const BoxConstraints(minHeight: AppDimens.touchTargetMin),
-      child: AnimatedScaleButton(
-        onPressed: isLoading ? null : onPressed,
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
-            boxShadow: tokens?.neumorphicShadow,
-          ),
-          child: Padding(
-            padding:
-                padding ??
-                const EdgeInsets.symmetric(
-                  horizontal: AppDimens.lg,
-                  vertical: AppDimens.md,
-                ),
-            child: Center(child: content),
-          ),
+      child: NeumorphicInteractiveContainer(
+        onTap: isLoading ? null : onPressed,
+        margin: tokens?.shadowSafeMargin ?? const EdgeInsets.all(AppDimens.md),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
         ),
+        padding:
+            padding ??
+            const EdgeInsets.symmetric(
+              horizontal: AppDimens.lg,
+              vertical: AppDimens.md,
+            ),
+        child: Center(child: content),
       ),
     );
   }

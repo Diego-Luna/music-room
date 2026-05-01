@@ -4,9 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
-import 'package:music_room_app/core/animations/animated_scale_button.dart';
+import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
+import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -57,103 +58,119 @@ class ProfilePage extends StatelessWidget {
     ];
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 250.0,
-            floating: false,
-            pinned: true,
-            backgroundColor: theme.scaffoldBackgroundColor,
-            elevation: 0,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const SizedBox(height: AppDimens.xxl),
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: theme.colorScheme.surface,
-                      boxShadow: theme
-                          .extension<AppDesignTokens>()
-                          ?.neumorphicShadow,
-                    ),
-                    padding: const EdgeInsets.all(AppDimens.sm),
-                    child: CircleAvatar(
-                      radius: 45,
-                      backgroundColor: theme.colorScheme.primary.withValues(
-                        alpha: 0.1,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      body: Stack(
+        children: [
+          // Ambient 3D floating models
+          const Opacity(opacity: 0.3, child: BackgroundFloaters()),
+
+          CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                title: const Text('Profile'),
+                centerTitle: true,
+                expandedHeight: 250.0,
+                floating: true, // Now it floats and disappears on scroll
+                pinned: false, // Ensures it doesn't stay fixed
+                backgroundColor: theme.scaffoldBackgroundColor,
+                elevation: 0,
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: AppDimens.xxl),
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: theme.colorScheme.surface,
+                          boxShadow: theme
+                              .extension<AppDesignTokens>()
+                              ?.neumorphicShadow,
+                          border: Border.all(
+                            color: theme.scaffoldBackgroundColor,
+                            width: 0.5,
+                          ),
+                        ),
+                        padding: const EdgeInsets.all(AppDimens.sm),
+                        child: CircleAvatar(
+                          radius: 45,
+                          backgroundColor: theme.colorScheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
+                          child: Icon(
+                            Icons.person,
+                            size: 45,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
                       ),
-                      child: Icon(
-                        Icons.person,
-                        size: 45,
-                        color: theme.colorScheme.primary,
+                      const SizedBox(height: AppDimens.md),
+                      Text(
+                        'Diego Luna',
+                        style: theme.textTheme.headlineLarge?.copyWith(
+                          fontWeight: AppTypography.extraBold,
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: AppDimens.xs),
+                      Text(
+                        '@diegoluna',
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: theme.disabledColor,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: AppDimens.md),
-                  Text(
-                    'Diego Luna',
-                    style: theme.textTheme.headlineLarge?.copyWith(
-                      fontWeight: AppTypography.extraBold,
-                    ),
-                  ),
-                  const SizedBox(height: AppDimens.xs),
-                  Text(
-                    '@diegoluna',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.disabledColor,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.xl,
-              vertical: AppDimens.md,
-            ),
-            sliver: SliverList(
-              delegate: SliverChildBuilderDelegate((context, index) {
-                final field = profileFields[index];
-                return StaggeredList(
-                  index: index,
-                  child: Padding(
-                    padding: const EdgeInsets.only(bottom: AppDimens.lg),
-                    child: _buildEditableField(
-                      context,
-                      field['title'] as String,
-                      field['value'] as String,
-                      field['icon'] as IconData,
-                    ),
-                  ),
-                );
-              }, childCount: profileFields.length),
-            ),
-          ),
-          // Botón de Logout
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppDimens.xl,
-                vertical: AppDimens.lg,
-              ),
-              child: StaggeredList(
-                index: profileFields.length,
-                child: PrimaryButton(
-                  label: 'Log Out',
-                  leading: const Icon(
-                    Icons.logout,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                  onPressed: () => _handleLogout(context),
                 ),
               ),
-            ),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.xl,
+                  vertical: AppDimens.md,
+                ),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final field = profileFields[index];
+                    return StaggeredList(
+                      index: index,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: AppDimens.lg),
+                        child: _buildEditableField(
+                          context,
+                          field['title'] as String,
+                          field['value'] as String,
+                          field['icon'] as IconData,
+                        ),
+                      ),
+                    );
+                  }, childCount: profileFields.length),
+                ),
+              ),
+              // Botón de Logout
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimens.xl,
+                    vertical: AppDimens.lg,
+                  ),
+                  child: StaggeredList(
+                    index: profileFields.length,
+                    child: PrimaryButton(
+                      label: 'Log Out',
+                      leading: Icon(
+                        Icons.logout,
+                        color: theme.colorScheme.primary,
+                        size: AppDimens.iconMedium,
+                      ),
+                      onPressed: () => _handleLogout(context),
+                    ),
+                  ),
+                ),
+              ),
+              const SliverToBoxAdapter(
+                child: SizedBox(height: AppDimens.xxl * 3),
+              ),
+            ],
           ),
-          const SliverToBoxAdapter(child: SizedBox(height: AppDimens.xxl * 3)),
         ],
       ),
     );
@@ -184,51 +201,45 @@ class ProfilePage extends StatelessWidget {
             ),
           ),
         ),
-        AnimatedScaleButton(
-          onPressed: () {
+        NeumorphicInteractiveContainer(
+          onTap: () {
             // TODO: Open edit modal
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Edit $title coming soon...')),
             );
           },
-          scaleDown: 0.98,
-          child: Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surface,
-              borderRadius:
-                  tokens?.cardRadius ??
-                  BorderRadius.circular(AppDimens.radiusLarge),
-              boxShadow: tokens
-                  ?.neumorphicPressedShadow, // Inset shadow for an "input field" look
-            ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppDimens.lg,
-              vertical: AppDimens.lg,
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: theme.colorScheme.primary,
-                  size: AppDimens.iconMedium,
-                ),
-                const SizedBox(width: AppDimens.md),
-                Expanded(
-                  child: Text(
-                    value,
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: AppTypography.medium,
-                    ),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius:
+                tokens?.cardRadius ??
+                BorderRadius.circular(AppDimens.radiusLarge),
+          ),
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppDimens.lg,
+            vertical: AppDimens.lg,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: theme.colorScheme.primary,
+                size: AppDimens.iconMedium,
+              ),
+              const SizedBox(width: AppDimens.md),
+              Expanded(
+                child: Text(
+                  value,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: AppTypography.medium,
                   ),
                 ),
-                Icon(
-                  Icons.edit_rounded,
-                  color: theme.disabledColor,
-                  size: AppDimens.iconSmall,
-                ),
-              ],
-            ),
+              ),
+              Icon(
+                Icons.edit_rounded,
+                color: theme.disabledColor,
+                size: AppDimens.iconSmall,
+              ),
+            ],
           ),
         ),
       ],
