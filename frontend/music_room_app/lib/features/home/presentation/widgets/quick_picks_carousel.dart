@@ -13,7 +13,7 @@ class QuickPicksCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 180,
+      height: 200,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg),
         scrollDirection: Axis.horizontal,
@@ -24,12 +24,15 @@ class QuickPicksCarousel extends StatelessWidget {
             onPressed: () => context.push(routePlayer),
             scaleDown: 0.95,
             child: SizedBox(
-              width: 140,
+              width: 156,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Container(
+                      margin: const EdgeInsets.all(
+                        AppDimens.sm,
+                      ), // Added margin for shadow rendering
                       decoration: BoxDecoration(
                         color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(

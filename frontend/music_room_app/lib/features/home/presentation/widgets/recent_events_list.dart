@@ -21,7 +21,10 @@ class RecentEventsList extends StatelessWidget {
           onPressed: () => context.push(routePlayer),
           scaleDown: 0.98,
           child: Container(
-            margin: const EdgeInsets.only(bottom: AppDimens.md),
+            margin: const EdgeInsets.symmetric(
+              horizontal: AppDimens.sm,
+              vertical: AppDimens.sm,
+            ),
             padding: const EdgeInsets.all(AppDimens.sm),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
@@ -33,6 +36,7 @@ class RecentEventsList extends StatelessWidget {
                 Container(
                   width: 60,
                   height: 60,
+                  margin: const EdgeInsets.all(AppDimens.sm),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,
                     borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
@@ -41,7 +45,7 @@ class RecentEventsList extends StatelessWidget {
                   ),
                   child: Icon(Icons.podcasts, color: theme.colorScheme.primary),
                 ),
-                const SizedBox(width: AppDimens.md),
+                const SizedBox(width: AppDimens.sm),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,6 +67,7 @@ class RecentEventsList extends StatelessWidget {
                   ),
                 ),
                 Container(
+                  margin: const EdgeInsets.all(AppDimens.sm),
                   padding: const EdgeInsets.all(AppDimens.sm),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.surface,

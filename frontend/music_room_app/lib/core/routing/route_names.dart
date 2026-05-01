@@ -1,7 +1,7 @@
 //* Constant routes used by the router/navigation across the app.
 //* Keeping them here prevents typos
 
-const String routeSplash = '/splash';
+// const String routeSplash = '/splash';
 const String routeStart = '/start';
 const String routeHome = '/home';
 const String routePlaylists = '/playlists';

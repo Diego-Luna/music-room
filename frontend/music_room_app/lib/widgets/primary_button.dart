@@ -54,6 +54,7 @@ class PrimaryButton extends StatelessWidget {
       child: AnimatedScaleButton(
         onPressed: isLoading ? null : onPressed,
         child: Container(
+          margin: const EdgeInsets.all(AppDimens.sm), // Added margin so neumorphic shadows
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(AppDimens.radiusMedium),

@@ -66,18 +66,10 @@ CustomTransitionPage<void> _buildPageWithTransition({
 
 class AppRouter {
   static final GoRouter router = GoRouter(
-    initialLocation: routeSplash,
+    initialLocation: routeStart,
     debugLogDiagnostics: true,
     errorBuilder: (context, state) => const NotFoundPage(),
     routes: [
-      GoRoute(
-        path: routeSplash,
-        pageBuilder: (context, state) => _buildPageWithTransition(
-          context: context,
-          state: state,
-          child: const SplashPage(),
-        ),
-      ),
       GoRoute(
         path: routeLogin,
         pageBuilder: (context, state) => _buildPageWithTransition(

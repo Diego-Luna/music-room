@@ -5,6 +5,7 @@ import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/animated_scale_button.dart';
 import 'package:music_room_app/features/events/presentation/widgets/swipeable_track_card.dart';
 import 'package:music_room_app/features/player/presentation/widgets/audio_visualizer.dart';
+import 'package:music_room_app/widgets/interactive_3d/interactive_mpc.dart';
 
 // * Full-screen Player with swipe for voting.
 class PlayerPage extends StatefulWidget {
@@ -16,6 +17,57 @@ class PlayerPage extends StatefulWidget {
 
 class _PlayerPageState extends State<PlayerPage> {
   bool _isPlaying = true;
+
+  void _showMpcBeatpad() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(AppDimens.radiusLarge),
+          ),
+          boxShadow: Theme.of(
+            context,
+          ).extension<AppDesignTokens>()?.neumorphicShadow,
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: AppDimens.md),
+            Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Theme.of(context).disabledColor.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: AppDimens.lg),
+            Text(
+              'MPC BEATPAD',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: AppTypography.bold,
+                letterSpacing: 2.0,
+              ),
+            ),
+            const Expanded(child: InteractiveMpc()),
+            Padding(
+              padding: const EdgeInsets.all(AppDimens.xl),
+              child: Text(
+                'Tap the pads to trigger live samples',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).disabledColor,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,7 +121,22 @@ class _PlayerPageState extends State<PlayerPage> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 48), // Balance for centering
+                      AnimatedScaleButton(
+                        onPressed: _showMpcBeatpad,
+                        child: Container(
+                          padding: const EdgeInsets.all(AppDimens.sm),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            shape: BoxShape.circle,
+                            boxShadow: tokens?.neumorphicShadow,
+                          ),
+                          child: Icon(
+                            Icons.grid_view_rounded,
+                            size: 24,
+                            color: theme.colorScheme.primary,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
