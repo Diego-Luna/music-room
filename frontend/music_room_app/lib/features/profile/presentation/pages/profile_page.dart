@@ -22,7 +22,7 @@ class ProfilePage extends StatelessWidget {
       ),
     );
 
-    await auth.signOutPlaceholder();
+    await auth.logout();
 
     if (context.mounted) {
       context.go(routeLogin);

@@ -15,6 +15,7 @@ void main() async {
   }
 
   setupLocator();
+  await authProvider.tryAutoLogin();
   runApp(const AppState());
 }
 

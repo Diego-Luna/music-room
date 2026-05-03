@@ -18,18 +18,37 @@ class SignupPage extends StatefulWidget {
 }
 
 class _SignupPageState extends State<SignupPage> {
-  bool _isLoading = false;
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   void _handleSignup() async {
-    setState(() => _isLoading = true);
-
-    // Simulate network delay and login
     final auth = context.read<AuthProvider>();
-    await auth.signInPlaceholder();
+    await auth.register(
+      _emailController.text.trim(),
+      _passwordController.text,
+      _nameController.text.trim(),
+    );
 
     if (mounted) {
-      setState(() => _isLoading = false);
-      context.go(routeHome);
+      if (auth.signedIn) {
+        context.go(routeHome);
+      } else if (auth.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(auth.error!),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -70,28 +89,40 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                   const SizedBox(height: AppDimens.xxl * 2),
 
-                  const AuthTextField(
-                    hintText: 'Display Name',
-                    icon: Icons.person_outline,
-                  ),
-                  const SizedBox(height: AppDimens.lg),
-                  const AuthTextField(
-                    hintText: 'Email address',
-                    icon: Icons.email_outlined,
-                  ),
-                  const SizedBox(height: AppDimens.lg),
-                  const AuthTextField(
-                    hintText: 'Password',
-                    icon: Icons.lock_outline,
-                    isPassword: true,
-                  ),
+                  Consumer<AuthProvider>(
+                    builder: (context, auth, _) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AuthTextField(
+                            hintText: 'Display Name',
+                            icon: Icons.person_outline,
+                            controller: _nameController,
+                          ),
+                          const SizedBox(height: AppDimens.lg),
+                          AuthTextField(
+                            hintText: 'Email address',
+                            icon: Icons.email_outlined,
+                            controller: _emailController,
+                          ),
+                          const SizedBox(height: AppDimens.lg),
+                          AuthTextField(
+                            hintText: 'Password',
+                            icon: Icons.lock_outline,
+                            isPassword: true,
+                            controller: _passwordController,
+                          ),
 
-                  const SizedBox(height: AppDimens.xxl),
+                          const SizedBox(height: AppDimens.xxl),
 
-                  PrimaryButton(
-                    label: 'Sign Up',
-                    isLoading: _isLoading,
-                    onPressed: _handleSignup,
+                          PrimaryButton(
+                            label: 'Sign Up',
+                            isLoading: auth.isLoading,
+                            onPressed: _handleSignup,
+                          ),
+                        ],
+                      );
+                    },
                   ),
 
                   const SizedBox(height: AppDimens.xxl),
