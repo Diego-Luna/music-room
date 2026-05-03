@@ -68,6 +68,19 @@ class AppRouter {
     initialLocation: routeStart,
     debugLogDiagnostics: true,
     errorBuilder: (context, state) => const NotFoundPage(),
+    refreshListenable: authProvider,
+    redirect: (context, state) {
+      final isLoggedIn = authProvider.signedIn;
+      final isAuthRoute =
+          state.matchedLocation == routeLogin ||
+          state.matchedLocation == routeSignup ||
+          state.matchedLocation == routeStart;
+
+      if (!isLoggedIn && !isAuthRoute) return routeLogin;
+      if (isLoggedIn && isAuthRoute) return routeHome;
+
+      return null;
+    },
     routes: [
       GoRoute(
         path: routeLogin,

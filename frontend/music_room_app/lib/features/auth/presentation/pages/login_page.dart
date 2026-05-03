@@ -18,18 +18,31 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  bool _isLoading = false;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   void _handleLogin() async {
-    setState(() => _isLoading = true);
-
-    // Simulate network delay and login
     final auth = context.read<AuthProvider>();
-    await auth.signInPlaceholder();
+    await auth.login(_emailController.text.trim(), _passwordController.text);
 
     if (mounted) {
-      setState(() => _isLoading = false);
-      context.go(routeHome);
+      if (auth.signedIn) {
+        context.go(routeHome);
+      } else if (auth.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(auth.error!),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -67,35 +80,46 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: AppDimens.xxl * 2),
 
-                  const AuthTextField(
-                    hintText: 'Email address',
-                    icon: Icons.email_outlined,
-                  ),
-                  const SizedBox(height: AppDimens.lg),
-                  const AuthTextField(
-                    hintText: 'Password',
-                    icon: Icons.lock_outline,
-                    isPassword: true,
-                  ),
+                  Consumer<AuthProvider>(
+                    builder: (context, auth, _) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          AuthTextField(
+                            hintText: 'Email address',
+                            icon: Icons.email_outlined,
+                            controller: _emailController,
+                          ),
+                          const SizedBox(height: AppDimens.lg),
+                          AuthTextField(
+                            hintText: 'Password',
+                            icon: Icons.lock_outline,
+                            isPassword: true,
+                            controller: _passwordController,
+                          ),
 
-                  const SizedBox(height: AppDimens.lg),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'Forgot Password?',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.secondary,
-                        fontWeight: AppTypography.bold,
-                      ),
-                    ),
-                  ),
+                          const SizedBox(height: AppDimens.lg),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              'Forgot Password?',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.secondary,
+                                fontWeight: AppTypography.bold,
+                              ),
+                            ),
+                          ),
 
-                  const SizedBox(height: AppDimens.xxl),
+                          const SizedBox(height: AppDimens.xxl),
 
-                  PrimaryButton(
-                    label: 'Sign In',
-                    isLoading: _isLoading,
-                    onPressed: _handleLogin,
+                          PrimaryButton(
+                            label: 'Sign In',
+                            isLoading: auth.isLoading,
+                            onPressed: _handleLogin,
+                          ),
+                        ],
+                      );
+                    },
                   ),
 
                   const SizedBox(height: AppDimens.xxl),
