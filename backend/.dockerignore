@@ -1,0 +1,41 @@
+# Dependencies (rebuilt via npm ci)
+node_modules
+npm-debug.log
+
+# Build output (rebuilt in image)
+dist
+coverage
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# Git
+.git
+.gitignore
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+*.swp
+*.swo
+
+# Tests not needed at runtime
+test
+**/*.spec.ts
+**/*.e2e-spec.ts
+
+# Logs / tmp
+*.log
+logs
+tmp
+temp
+
+# Docs
+README.md
+
+# Prisma local dev artifacts
+prisma/*.db
+prisma/*.db-journal

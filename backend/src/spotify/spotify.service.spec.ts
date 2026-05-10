@@ -287,4 +287,148 @@ describe('SpotifyService', () => {
       });
     });
   });
+
+  describe('playback', () => {
+    const validAccount = {
+      id: 'sa1',
+      accessToken: 'valid',
+      refreshToken: 'r',
+      tokenExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+      scope: null,
+    };
+
+    beforeEach(() => {
+      prisma.socialAccount.findUnique.mockResolvedValue(validAccount);
+    });
+
+    it('play sends PUT /me/player/play with uris and context_uri', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(204, ''));
+      await service.play('u1', ['spotify:track:1'], 'spotify:album:42');
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toContain('/me/player/play');
+      expect(init.method).toBe('PUT');
+      expect(JSON.parse(init.body)).toEqual({
+        uris: ['spotify:track:1'],
+        context_uri: 'spotify:album:42',
+      });
+    });
+
+    it('pause sends PUT /me/player/pause without body', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(204, ''));
+      await service.pause('u1');
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toContain('/me/player/pause');
+      expect(init.method).toBe('PUT');
+      expect(init.body).toBeUndefined();
+    });
+
+    it('next sends POST /me/player/next', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(204, ''));
+      await service.next('u1');
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toContain('/me/player/next');
+      expect(init.method).toBe('POST');
+    });
+
+    it('previous sends POST /me/player/previous', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(204, ''));
+      await service.previous('u1');
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toContain('/me/player/previous');
+      expect(init.method).toBe('POST');
+    });
+
+    it('setVolume clamps percent to [0,100] and floors floats', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(204, ''));
+      await service.setVolume('u1', 150);
+      expect(fetchMock.mock.calls[0][0]).toContain('volume_percent=100');
+
+      fetchMock.mockResolvedValueOnce(jsonResponse(204, ''));
+      await service.setVolume('u1', -10);
+      expect(fetchMock.mock.calls[1][0]).toContain('volume_percent=0');
+
+      fetchMock.mockResolvedValueOnce(jsonResponse(204, ''));
+      await service.setVolume('u1', 73.6);
+      expect(fetchMock.mock.calls[2][0]).toContain('volume_percent=74');
+    });
+
+    it('throws NotFoundException when Spotify returns 404 (no active device)', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(404, ''));
+      await expect(service.pause('u1')).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws InternalServerErrorException on other Spotify failures', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(500, 'oops'));
+      await expect(service.pause('u1')).rejects.toThrow(
+        /Spotify playback failed/,
+      );
+    });
+  });
+
+  describe('search error branch', () => {
+    it('throws InternalServerErrorException when search returns non-2xx', async () => {
+      prisma.socialAccount.findUnique.mockResolvedValue({
+        id: 'sa1',
+        accessToken: 'valid',
+        refreshToken: null,
+        tokenExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        scope: null,
+      });
+      fetchMock.mockResolvedValueOnce(jsonResponse(500, ''));
+      await expect(service.search('u1', 'hello')).rejects.toThrow(
+        /Spotify search failed/,
+      );
+    });
+  });
+
+  describe('exchangeCode profile error', () => {
+    it('throws UnauthorizedException when profile fetch fails', async () => {
+      fetchMock
+        .mockResolvedValueOnce(
+          jsonResponse(200, {
+            access_token: 'at',
+            refresh_token: 'rt',
+            expires_in: 3600,
+          }),
+        )
+        .mockResolvedValueOnce(jsonResponse(401, ''));
+      await expect(service.exchangeCode('u1', 'c')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('getAccessTokenForUser edge cases', () => {
+    it('throws Unauthorized when account exists but accessToken is null', async () => {
+      prisma.socialAccount.findUnique.mockResolvedValue({
+        id: 'sa1',
+        accessToken: null,
+        refreshToken: 'r',
+        tokenExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
+        scope: null,
+      });
+      await expect(service.getAccessTokenForUser('u1')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('requireConfig', () => {
+    it('throws InternalServerErrorException when a required env is missing', async () => {
+      const incompleteConfig: Partial<ConfigService> = {
+        get: vi.fn(() => undefined),
+      };
+      const localModule = await Test.createTestingModule({
+        providers: [
+          SpotifyService,
+          { provide: PrismaService, useValue: prisma },
+          { provide: ConfigService, useValue: incompleteConfig },
+        ],
+      }).compile();
+      const localService = localModule.get(SpotifyService);
+      expect(() => localService.buildAuthorizeUrl()).toThrow(
+        /SPOTIFY_CLIENT_ID is not configured/,
+      );
+    });
+  });
 });
