@@ -22,7 +22,6 @@ describe('RoomsService', () => {
     description: null,
     kind: 'VOTE',
     visibility: 'PUBLIC',
-    licenseTier: 'FREE',
     ownerId: 'user-1',
     allowMembersEdit: true,
     voteWindow: 'ALWAYS',

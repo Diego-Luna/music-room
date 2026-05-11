@@ -34,6 +34,30 @@ model User {
   sentInvitations    RoomInvitation[]    @relation("InvitationInviter")
   receivedInvites    RoomInvitation[]    @relation("InvitationInvitee")
   deviceTokens       DeviceToken[]
+  sentFriendRequests     Friendship[]    @relation("FriendshipRequester")
+  receivedFriendRequests Friendship[]    @relation("FriendshipAddressee")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELED
+}
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId String
+  addressee   User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  respondedAt DateTime?
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
 }
 
 enum RoomKind {
@@ -45,11 +69,6 @@ enum RoomKind {
 enum RoomVisibility {
   PUBLIC
   PRIVATE
-}
-
-enum LicenseTier {
-  FREE
-  PREMIUM
 }
 
 enum VoteWindow {
@@ -77,7 +96,6 @@ model Room {
   description    String?
   kind           RoomKind
   visibility     RoomVisibility @default(PUBLIC)
-  licenseTier    LicenseTier    @default(FREE)
   ownerId        String
   owner          User           @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 

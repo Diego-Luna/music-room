@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { FriendsService } from './friends.service';
 import { Visibility } from './dto/update-user.dto';
 
 describe('UsersService', () => {
@@ -12,6 +13,7 @@ describe('UsersService', () => {
       update: ReturnType<typeof vi.fn>;
     };
   };
+  let friends: { areFriends: ReturnType<typeof vi.fn> };
 
   const existingUser = {
     id: 'user-1',
@@ -33,11 +35,13 @@ describe('UsersService', () => {
         update: vi.fn(),
       },
     };
+    friends = { areFriends: vi.fn().mockResolvedValue(false) };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         UsersService,
         { provide: PrismaService, useValue: prisma },
+        { provide: FriendsService, useValue: friends },
       ],
     }).compile();
 
@@ -136,6 +140,67 @@ describe('UsersService', () => {
       });
       const profile = await service.update('user-1', { displayName: 'X' });
       expect(profile.musicPreferences).toEqual([]);
+    });
+  });
+
+  describe('findOnePublic', () => {
+    it('returns the full self-view when caller targets themselves', async () => {
+      prisma.user.findUnique.mockResolvedValue(existingUser);
+      const profile = await service.findOnePublic('user-1', 'user-1');
+      expect(profile).toEqual({
+        id: 'user-1',
+        displayName: 'Alice',
+        avatarUrl: null,
+        visibility: 'PUBLIC',
+        musicPreferences: ['rock', 'jazz'],
+      });
+    });
+
+    it('returns the public profile when target is PUBLIC', async () => {
+      prisma.user.findUnique.mockResolvedValue(existingUser);
+      const profile = await service.findOnePublic('user-2', 'user-1');
+      expect(profile.id).toBe('user-1');
+      expect(profile).not.toHaveProperty('email');
+      expect(profile).not.toHaveProperty('emailVerified');
+    });
+
+    it('throws NotFoundException when target is PRIVATE and caller is not self', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        ...existingUser,
+        visibility: 'PRIVATE',
+      });
+      await expect(
+        service.findOnePublic('user-2', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException when target is FRIENDS_ONLY and caller is not a friend', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        ...existingUser,
+        visibility: 'FRIENDS_ONLY',
+      });
+      friends.areFriends.mockResolvedValueOnce(false);
+      await expect(
+        service.findOnePublic('user-2', 'user-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('returns the public profile when target is FRIENDS_ONLY and caller is a friend', async () => {
+      prisma.user.findUnique.mockResolvedValue({
+        ...existingUser,
+        visibility: 'FRIENDS_ONLY',
+      });
+      friends.areFriends.mockResolvedValueOnce(true);
+      const profile = await service.findOnePublic('user-2', 'user-1');
+      expect(profile.id).toBe('user-1');
+      expect(profile.visibility).toBe('FRIENDS_ONLY');
+    });
+
+    it('throws NotFoundException when the target user does not exist', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      await expect(
+        service.findOnePublic('user-2', 'ghost'),
+      ).rejects.toThrow(NotFoundException);
     });
   });
 });

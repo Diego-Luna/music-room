@@ -312,7 +312,6 @@ describe('Auth (e2e)', () => {
             id: roomId,
             ...data,
             visibility: data.visibility ?? 'PUBLIC',
-            licenseTier: data.licenseTier ?? 'FREE',
             allowMembersEdit: data.allowMembersEdit ?? true,
             voteWindow: data.voteWindow ?? 'ALWAYS',
             createdAt: new Date(),
