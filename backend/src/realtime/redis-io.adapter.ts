@@ -17,15 +17,31 @@ export class RedisIoAdapter extends IoAdapter {
 
   async connectToRedis(): Promise<void> {
     const config = this.app.get(ConfigService);
+  
     const host = config.get<string>('REDIS_HOST', 'localhost');
     const port = config.get<number>('REDIS_PORT', 6379);
+    const password = config.get<string>('REDIS_PASSWORD');
+    const useTls = config.get<string>('REDIS_TLS') === 'true';
 
-    this.pubClient = new Redis({ host, port });
+    this.pubClient = new Redis({
+      host,
+      port,
+      password,
+      tls: useTls ? {} : undefined,
+      maxRetriesPerRequest: 10,
+    });
+
     this.subClient = this.pubClient.duplicate();
+
+    // On écoute les erreurs pour éviter que le processus Node ne crash
+    this.pubClient.on('error', (err) => this.logger.error('Redis Pub Error', err));
+    this.subClient.on('error', (err) => this.logger.error('Redis Sub Error', err));
+
     await Promise.all([
       this.pubClient.connect().catch(() => undefined),
       this.subClient.connect().catch(() => undefined),
     ]);
+
     this.adapterFactory = createAdapter(this.pubClient, this.subClient);
     this.logger.log(`Socket.IO Redis adapter wired (${host}:${port})`);
   }
