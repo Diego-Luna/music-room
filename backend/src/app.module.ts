@@ -88,6 +88,7 @@ import { AppController } from './app.controller';
     SpotifyModule,
     HealthModule,
   ],
+  controllers: [AppController],
   providers: [
     {
       provide: APP_GUARD,
