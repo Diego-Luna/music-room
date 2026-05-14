@@ -4,7 +4,6 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 enum Visibility {
@@ -14,31 +13,268 @@ enum Visibility {
 }
 
 model User {
-  id                   String    @id @default(uuid())
-  email                String    @unique
-  passwordHash         String?
-  displayName          String
-  avatarUrl            String?
-  emailVerified        Boolean   @default(false)
-  emailVerifyToken     String?
-  resetPasswordToken   String?
-  resetPasswordExpires DateTime?
-  visibility           Visibility @default(PUBLIC)
-  musicPreferences     String[]  @default([])
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  id               String     @id @default(uuid())
+  email            String     @unique
+  passwordHash     String?
+  displayName      String
+  avatarUrl        String?
+  emailVerified    Boolean    @default(false)
+  visibility       Visibility @default(PUBLIC)
+  musicPreferences String[]   @default([])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
-  socialAccounts SocialAccount[]
+  socialAccounts     SocialAccount[]
+  refreshTokens      RefreshToken[]
+  emailVerifications EmailVerification[]
+  passwordResets     PasswordReset[]
+  ownedRooms         Room[]              @relation("RoomOwner")
+  delegatedRooms     Room[]              @relation("RoomDelegate")
+  roomMemberships    RoomMember[]
+  sentInvitations    RoomInvitation[]    @relation("InvitationInviter")
+  receivedInvites    RoomInvitation[]    @relation("InvitationInvitee")
+  deviceTokens       DeviceToken[]
+  sentFriendRequests     Friendship[]    @relation("FriendshipRequester")
+  receivedFriendRequests Friendship[]    @relation("FriendshipAddressee")
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELED
+}
+
+model Friendship {
+  id          String           @id @default(uuid())
+  requesterId String
+  requester   User             @relation("FriendshipRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addresseeId String
+  addressee   User             @relation("FriendshipAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  respondedAt DateTime?
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+  @@index([requesterId, status])
+}
+
+enum RoomKind {
+  VOTE
+  PLAYLIST
+  DELEGATE
+}
+
+enum RoomVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum VoteWindow {
+  ALWAYS
+  SCHEDULED
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+model Room {
+  id             String         @id @default(uuid())
+  name           String
+  description    String?
+  kind           RoomKind
+  visibility     RoomVisibility @default(PUBLIC)
+  ownerId        String
+  owner          User           @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  // PLAYLIST settings
+  allowMembersEdit Boolean @default(true)
+
+  // VOTE settings
+  voteWindow       VoteWindow @default(ALWAYS)
+  voteStartsAt     DateTime?
+  voteEndsAt       DateTime?
+  voteLocationLat  Float?
+  voteLocationLng  Float?
+  voteLocationRadiusM Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members     RoomMember[]
+  invitations RoomInvitation[]
+  tracks      Track[]
+
+  currentTrackId String? @unique
+  currentTrack   Track?  @relation("CurrentTrack", fields: [currentTrackId], references: [id], onDelete: SetNull)
+
+  delegateUserId    String?
+  delegate          User?     @relation("RoomDelegate", fields: [delegateUserId], references: [id], onDelete: SetNull)
+  delegateGrantedAt DateTime?
+
+  @@index([ownerId])
+  @@index([visibility])
+  @@index([kind])
+  @@index([delegateUserId])
+}
+
+model RoomMember {
+  id        String     @id @default(uuid())
+  roomId    String
+  room      Room       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      MemberRole @default(MEMBER)
+  joinedAt  DateTime   @default(now())
+
+  @@unique([roomId, userId])
+  @@index([userId])
+}
+
+model Track {
+  id             String   @id @default(uuid())
+  roomId         String
+  room           Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  provider       String   @default("spotify")
+  providerId     String
+  title          String
+  artist         String
+  durationMs     Int
+  artworkUrl     String?
+  addedById      String
+  addedAt        DateTime @default(now())
+  playedAt       DateTime?
+
+  votes          TrackVote[]
+  currentInRoom  Room?       @relation("CurrentTrack")
+
+  score          Int      @default(0)
+  position       String?
+
+  @@unique([roomId, provider, providerId])
+  @@index([roomId, score])
+  @@index([roomId, position])
+}
+
+model TrackVote {
+  id       String   @id @default(uuid())
+  roomId   String
+  trackId  String
+  track    Track    @relation(fields: [trackId], references: [id], onDelete: Cascade)
+  userId   String
+  value    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([trackId, userId])
+  @@index([roomId, trackId])
+}
+
+model RoomInvitation {
+  id         String           @id @default(uuid())
+  roomId     String
+  room       Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  inviterId  String
+  inviter    User             @relation("InvitationInviter", fields: [inviterId], references: [id], onDelete: Cascade)
+  inviteeId  String
+  invitee    User             @relation("InvitationInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  status     InvitationStatus @default(PENDING)
+  expiresAt  DateTime
+  createdAt  DateTime         @default(now())
+  respondedAt DateTime?
+
+  @@unique([roomId, inviteeId, status])
+  @@index([inviteeId])
+  @@index([expiresAt])
 }
 
 model SocialAccount {
-  id         String   @id @default(uuid())
-  provider   String
-  providerId String
-  userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt  DateTime @default(now())
+  id             String    @id @default(uuid())
+  provider       String
+  providerId     String
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  scope          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@unique([provider, providerId])
   @@unique([provider, userId])
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  deviceId   String?
+  userAgent  String?
+  ip         String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  replacedBy String?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model EmailVerification {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+  WEB
+}
+
+model DeviceToken {
+  id          String         @id @default(uuid())
+  userId      String
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token       String
+  platform    DevicePlatform
+  createdAt   DateTime       @default(now())
+  lastSeenAt  DateTime       @default(now())
+
+  @@unique([platform, token])
+  @@index([userId])
+}
+
+model PasswordReset {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
 }

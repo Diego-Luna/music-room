@@ -4,5 +4,5 @@ import { IsString } from 'class-validator';
 export class VerifyEmailDto {
   @ApiProperty({ description: 'Email verification token' })
   @IsString()
-  token: string;
+  token!: string;
 }

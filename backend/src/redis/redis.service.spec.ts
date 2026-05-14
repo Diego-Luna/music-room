@@ -4,15 +4,15 @@ import { RedisService } from './redis.service';
 
 // Mock ioredis
 vi.mock('ioredis', () => {
-  const RedisMock = vi.fn().mockImplementation(() => ({
-    connect: vi.fn().mockResolvedValue(undefined),
-    quit: vi.fn().mockResolvedValue(undefined),
-    ping: vi.fn().mockResolvedValue('PONG'),
-    set: vi.fn().mockResolvedValue('OK'),
-    get: vi.fn().mockResolvedValue(null),
-    del: vi.fn().mockResolvedValue(1),
-    exists: vi.fn().mockResolvedValue(0),
-  }));
+  class RedisMock {
+    connect = vi.fn().mockResolvedValue(undefined);
+    quit = vi.fn().mockResolvedValue(undefined);
+    ping = vi.fn().mockResolvedValue('PONG');
+    set = vi.fn().mockResolvedValue('OK');
+    get = vi.fn().mockResolvedValue(null);
+    del = vi.fn().mockResolvedValue(1);
+    exists = vi.fn().mockResolvedValue(0);
+  }
   return { default: RedisMock };
 });
 

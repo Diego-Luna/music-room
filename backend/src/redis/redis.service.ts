@@ -13,10 +13,23 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
 
   constructor(private readonly configService: ConfigService) {
+    const host = this.configService.get<string>('REDIS_HOST', 'localhost');
+    const port = this.configService.get<number>('REDIS_PORT', 6379);
+    const password = this.configService.get<string>('REDIS_PASSWORD');
+    const useTls = this.configService.get<string>('REDIS_TLS') === 'true';
+
     this.client = new Redis({
-      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6379),
+      host,
+      port,
+      password,
+      tls: useTls ? {} : undefined, // Crucial pour Upstash
       lazyConnect: true,
+      maxRetriesPerRequest: 10, // Évite le crash en boucle
+    });
+
+    // OBLIGATOIRE : Évite le crash "missing error handler" que tu as eu
+    this.client.on('error', (err) => {
+      this.logger.error('Redis Client Error', err);
     });
   }
 

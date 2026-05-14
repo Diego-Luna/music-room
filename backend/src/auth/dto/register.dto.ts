@@ -10,7 +10,7 @@ import {
 export class RegisterDto {
   @ApiProperty({ example: 'user@example.com' })
   @IsEmail()
-  email: string;
+  email!: string;
 
   @ApiProperty({ example: 'MyP@ssw0rd', minLength: 8 })
   @IsString()
@@ -20,11 +20,11 @@ export class RegisterDto {
     message:
       'password must contain at least one uppercase letter, one lowercase letter, and one number',
   })
-  password: string;
+  password!: string;
 
   @ApiProperty({ example: 'John Doe' })
   @IsString()
   @MinLength(1)
   @MaxLength(100)
-  displayName: string;
+  displayName!: string;
 }
