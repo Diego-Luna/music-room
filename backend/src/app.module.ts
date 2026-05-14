@@ -17,6 +17,7 @@ import { MailModule } from './mail/mail.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { envValidationSchema } from './config/env.validation';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -87,6 +88,7 @@ import { envValidationSchema } from './config/env.validation';
     SpotifyModule,
     HealthModule,
   ],
+  controllers: [AppController],
   providers: [
     {
       provide: APP_GUARD,

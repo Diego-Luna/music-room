@@ -33,10 +33,13 @@ export class RedisIoAdapter extends IoAdapter {
 
     this.subClient = this.pubClient.duplicate();
 
-    // On écoute les erreurs pour éviter que le processus Node ne crash
-    this.pubClient.on('error', (err) => this.logger.error('Redis Pub Error', err));
-    this.subClient.on('error', (err) => this.logger.error('Redis Sub Error', err));
-
+    if (this.pubClient && typeof this.pubClient.on === 'function') {
+      this.pubClient.on('error', (err) => this.logger.error('Redis Pub Error', err));
+    }
+    if (this.subClient && typeof this.subClient.on === 'function') {
+      this.subClient.on('error', (err) => this.logger.error('Redis Sub Error', err));
+    }
+    
     await Promise.all([
       this.pubClient.connect().catch(() => undefined),
       this.subClient.connect().catch(() => undefined),
