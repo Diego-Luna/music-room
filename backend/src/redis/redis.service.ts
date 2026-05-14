@@ -22,15 +22,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       host,
       port,
       password,
-      tls: useTls ? {} : undefined, // Crucial pour Upstash
+      tls: useTls ? {} : undefined,
       lazyConnect: true,
-      maxRetriesPerRequest: 10, // Évite le crash en boucle
+      maxRetriesPerRequest: 10,
     });
 
-    // OBLIGATOIRE : Évite le crash "missing error handler" que tu as eu
-    this.client.on('error', (err) => {
-      this.logger.error('Redis Client Error', err);
-    });
+    if (this.client && typeof this.client.on === 'function') {
+      this.client.on('error', (err) => {
+        this.logger.error('Redis Client Error', err);
+      });
+    }
   }
 
   async onModuleInit() {

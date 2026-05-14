@@ -22,7 +22,7 @@ async function bootstrap() {
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // unsafe-eval souvent nécessaire pour Flutter Web
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         imgSrc: ["'self'", 'data:', 'https:'],
         connectSrc: ["'self'", "https://music-room-7tvk.onrender.com", "wss://music-room-7tvk.onrender.com"],
