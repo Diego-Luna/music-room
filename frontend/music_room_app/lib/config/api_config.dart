@@ -8,4 +8,13 @@ class ApiConfig {
   static const String login = '/auth/login';
   static const String refresh = '/auth/refresh';
   static const String logout = '/auth/logout';
+
+  // * Feature endpoints
+  static const String events = '/events';
+  static const String playlists = '/playlists';
+  static const String profile = '/users/me';
+  static const String search = '/music/search';
+
+  // * Feature flags
+  static bool useMockData = true; // Use mock data while backend is auth-only
 }

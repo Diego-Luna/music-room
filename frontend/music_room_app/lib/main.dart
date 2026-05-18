@@ -15,6 +15,7 @@ void main() async {
   }
 
   setupLocator();
+  // await HiveConfig.init();
   await authProvider.tryAutoLogin();
   runApp(const AppState());
 }
@@ -38,6 +39,10 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: navigationProvider),
         ChangeNotifierProvider.value(value: authProvider),
         ChangeNotifierProvider.value(value: themeProvider),
+        ChangeNotifierProvider.value(value: eventsProvider),
+        ChangeNotifierProvider.value(value: playlistsProvider),
+        ChangeNotifierProvider.value(value: roomsProvider),
+        ChangeNotifierProvider.value(value: playerProvider),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProv, _) {

@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
+import 'package:music_room_app/providers/events_provider.dart';
 
 enum SwipeAction { like, dislike, none }
 
@@ -292,37 +294,52 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
   final GlobalKey<SwipeableTrackCardState> _cardKey =
       GlobalKey<SwipeableTrackCardState>();
 
-  void _handleVote(SwipeAction action) {
-    if (action == SwipeAction.like) {
-      // TODO: Call API provider to vote
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Voted: LIKE'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } else if (action == SwipeAction.dislike) {
-      // TODO: Call API provider to skip
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Voted: DISLIKE'),
-          duration: Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final eventsProvider = context.watch<EventsProvider>();
+    final activeEvent = eventsProvider.events.isNotEmpty
+        ? eventsProvider.events.first
+        : null;
+
+    if (activeEvent == null || activeEvent.tracks.isEmpty) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: Text('No tracks available for voting')),
+      );
+    }
+
+    // Show the first track in the voting interface
+    final eventTrack = activeEvent.tracks.first;
+    final track = eventTrack.track;
+
+    if (track == null) return const SizedBox.shrink();
+
+    void handleVote(SwipeAction action) {
+      final isLike = action == SwipeAction.like;
+      final scaffoldMessenger = ScaffoldMessenger.of(context);
+      eventsProvider.voteForTrack(activeEvent.id, track.id, isLike).then((_) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              isLike
+                  ? 'Voted UP for ${track.title}!'
+                  : 'Voted DOWN for ${track.title}!',
+            ),
+            duration: const Duration(seconds: 1),
+          ),
+        );
+      });
+    }
+
     return Column(
       children: [
         // 1. The Swipeable Card
         SwipeableTrackCard(
           key: _cardKey,
-          trackTitle: "Bohemian Rhapsody",
-          artistName: "Queen",
-          imageUrl: "placeholder",
-          onSwiped: _handleVote,
+          trackTitle: track.title,
+          artistName: track.artist,
+          imageUrl: track.albumArtUrl ?? "placeholder",
+          onSwiped: handleVote,
         ),
 
         const SizedBox(height: AppDimens.lg),
