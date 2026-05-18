@@ -7,12 +7,14 @@ class AuthTextField extends StatelessWidget {
   final String hintText;
   final IconData icon;
   final bool isPassword;
+  final TextEditingController? controller;
 
   const AuthTextField({
     super.key,
     required this.hintText,
     required this.icon,
     this.isPassword = false,
+    this.controller,
   });
 
   @override
@@ -30,6 +32,7 @@ class AuthTextField extends StatelessWidget {
         boxShadow: tokens?.neumorphicPressedShadow,
       ),
       child: TextField(
+        controller: controller,
         obscureText: isPassword,
         style: theme.textTheme.bodyLarge,
         decoration: InputDecoration(

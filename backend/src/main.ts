@@ -5,15 +5,41 @@ import {
 } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from '@fastify/helmet';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
+import { RedisIoAdapter } from './realtime/redis-io.adapter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter(),
+    { bufferLogs: true },
   );
+  app.useLogger(app.get(Logger));
 
-  app.enableCors();
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'", "https://music-room-7tvk.onrender.com", "wss://music-room-7tvk.onrender.com"],
+      },
+    },
+    crossOriginEmbedderPolicy: false,
+  });
+
+  app.enableCors({
+    origin: [
+      'https://diego-luna.github.io',
+      'http://localhost:3000',
+      'http://localhost:5173',
+    ],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -25,13 +51,34 @@ async function bootstrap() {
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Music Room API')
-    .setDescription('Music Room - Collaborative music platform API')
-    .setVersion('0.1.0')
+    .setDescription(
+      [
+        'Music Room — collaborative music platform (42 school subject).',
+        '',
+        'Endpoints are grouped by tag: Auth, Users, Rooms (members, tracks,',
+        'playlist, delegation, playback), Spotify, Notifications, Health.',
+        '',
+        'All routes outside `Auth` and `Health` require a Bearer JWT.',
+      ].join('\n'),
+    )
+    .setVersion('1.0.0')
     .addBearerAuth()
+    .addTag('Auth')
+    .addTag('Users')
+    .addTag('Rooms')
+    .addTag('Spotify')
+    .addTag('Notifications')
+    .addTag('Health')
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, document);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: { persistAuthorization: true },
+  });
+
+  const ioAdapter = new RedisIoAdapter(app);
+  await ioAdapter.connectToRedis();
+  app.useWebSocketAdapter(ioAdapter);
 
   const port = process.env.PORT ?? 3000;
   await app.listen(port, '0.0.0.0');

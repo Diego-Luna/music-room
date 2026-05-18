@@ -8,6 +8,7 @@ class PlaceholderCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? leading;
+  final Widget? trailing;
   final VoidCallback? onTap;
   final double? height;
 
@@ -16,6 +17,7 @@ class PlaceholderCard extends StatelessWidget {
     required this.title,
     this.subtitle,
     this.leading,
+    this.trailing,
     this.onTap,
     this.height = 64.0,
   });
@@ -62,6 +64,10 @@ class PlaceholderCard extends StatelessWidget {
               ],
             ),
           ),
+          if (trailing != null) ...[
+            const SizedBox(width: AppDimens.md),
+            trailing!,
+          ],
         ],
       ),
     );

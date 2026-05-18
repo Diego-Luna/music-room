@@ -47,6 +47,9 @@ dependencies:
   model_viewer_plus: ^1.10.0
   vector_math: ^2.2.0
   sensors_plus: ^7.0.0
+  hive_ce_flutter: ^2.3.4
+  connectivity_plus: ^7.1.1
+  device_info_plus: ^12.4.0
 
 dev_dependencies:
   flutter_test:
@@ -58,6 +61,8 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  # for the test and the dev
+  mocktail: ^1.0.5
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

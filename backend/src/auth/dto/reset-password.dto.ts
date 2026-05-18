@@ -4,7 +4,7 @@ import { IsString, MinLength, MaxLength, Matches } from 'class-validator';
 export class ResetPasswordDto {
   @ApiProperty({ description: 'Password reset token' })
   @IsString()
-  token: string;
+  token!: string;
 
   @ApiProperty({ example: 'NewP@ssw0rd', minLength: 8 })
   @IsString()
@@ -14,5 +14,5 @@ export class ResetPasswordDto {
     message:
       'password must contain at least one uppercase letter, one lowercase letter, and one number',
   })
-  newPassword: string;
+  newPassword!: string;
 }
