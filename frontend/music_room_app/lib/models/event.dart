@@ -1,21 +1,17 @@
+import 'package:music_room_app/models/base_session.dart';
 import 'package:music_room_app/models/event_track.dart';
 
-class Event {
-  final String id;
-  final String name;
-  final String ownerId;
-  final bool isPublic;
+class Event extends BaseSession {
   final List<EventTrack> tracks;
-  final DateTime createdAt;
 
   Event({
-    required this.id,
-    required this.name,
-    required this.ownerId,
-    this.isPublic = true,
+    required super.id,
+    required super.name,
+    required super.ownerId,
+    super.isPublic = true,
     this.tracks = const [],
-    DateTime? createdAt,
-  }) : createdAt = createdAt ?? DateTime.now();
+    super.createdAt,
+  });
 
   factory Event.fromJson(Map<String, dynamic> json) {
     return Event(
@@ -30,13 +26,10 @@ class Event {
     );
   }
 
+  @override
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'ownerId': ownerId,
-    'isPublic': isPublic,
+    ...super.toJson(),
     'tracks': tracks.map((t) => t.toJson()).toList(),
-    'createdAt': createdAt.toIso8601String(),
   };
 
   Event copyWith({String? name, bool? isPublic, List<EventTrack>? tracks}) {

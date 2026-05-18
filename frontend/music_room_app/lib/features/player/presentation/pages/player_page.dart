@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
@@ -6,6 +7,8 @@ import 'package:music_room_app/core/animations/neumorphic_interactive_container.
 import 'package:music_room_app/features/events/presentation/widgets/swipeable_track_card.dart';
 import 'package:music_room_app/features/player/presentation/widgets/audio_visualizer.dart';
 import 'package:music_room_app/widgets/interactive_3d/interactive_mpc.dart';
+import 'package:music_room_app/providers/player_provider.dart';
+import 'package:music_room_app/config/mock/mock_data.dart';
 
 // * Full-screen Player with swipe for voting.
 class PlayerPage extends StatefulWidget {
@@ -16,8 +19,6 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage> {
-  bool _isPlaying = true;
-
   void _showMpcBeatpad() {
     showModalBottomSheet(
       context: context,
@@ -74,6 +75,10 @@ class _PlayerPageState extends State<PlayerPage> {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppDesignTokens>();
     final isMobile = MediaQuery.of(context).size.width < 700;
+    final playerProvider = context.watch<PlayerProvider>();
+
+    // If no track is playing, load a default one
+    final track = playerProvider.currentTrack ?? MockData.tracks.first;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -132,7 +137,7 @@ class _PlayerPageState extends State<PlayerPage> {
                 const Spacer(),
 
                 // Visualizer
-                AudioVisualizer(isPlaying: _isPlaying),
+                AudioVisualizer(isPlaying: playerProvider.isPlaying),
                 const SizedBox(height: AppDimens.md),
 
                 // 3. Swipeable Card for Voting (The Core mechanic)
@@ -144,9 +149,10 @@ class _PlayerPageState extends State<PlayerPage> {
                         : 500,
                     width: isMobile ? double.infinity : 400,
                     child: SwipeableTrackCard(
-                      trackTitle: "Bohemian Rhapsody",
-                      artistName: "Queen",
-                      imageUrl: "placeholder",
+                      key: ValueKey(track.id),
+                      trackTitle: track.title,
+                      artistName: track.artist,
+                      imageUrl: track.albumArtUrl ?? "placeholder",
                       onSwiped: (action) {
                         if (action == SwipeAction.like) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -191,7 +197,7 @@ class _PlayerPageState extends State<PlayerPage> {
                         ),
                         child: FractionallySizedBox(
                           alignment: Alignment.centerLeft,
-                          widthFactor: 0.3,
+                          widthFactor: playerProvider.isPlaying ? 0.45 : 0.3,
                           child: Container(
                             decoration: BoxDecoration(
                               color: theme.colorScheme.primary,
@@ -211,14 +217,14 @@ class _PlayerPageState extends State<PlayerPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              '1:12',
+                              playerProvider.isPlaying ? '1:45' : '1:12',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.disabledColor,
                                 fontWeight: AppTypography.bold,
                               ),
                             ),
                             Text(
-                              '-3:45',
+                              playerProvider.isPlaying ? '-2:15' : '-3:45',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.disabledColor,
                                 fontWeight: AppTypography.bold,
@@ -251,9 +257,26 @@ class _PlayerPageState extends State<PlayerPage> {
                           ),
                           NeumorphicInteractiveContainer(
                             onTap: () {
-                              setState(() {
-                                _isPlaying = !_isPlaying;
-                              });
+                              if (playerProvider.isPlaying) {
+                                playerProvider.pause();
+                              } else {
+                                if (playerProvider.currentTrack == null) {
+                                  playerProvider.playTrack(track);
+                                } else {
+                                  playerProvider.resume();
+                                }
+                              }
+                              // Show alert if no permission
+                              if (playerProvider.error != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(playerProvider.error!),
+                                    backgroundColor: Colors.redAccent,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                                playerProvider.clearError();
+                              }
                             },
                             margin: const EdgeInsets.symmetric(
                               horizontal: AppDimens.xs,
@@ -263,7 +286,7 @@ class _PlayerPageState extends State<PlayerPage> {
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              _isPlaying
+                              playerProvider.isPlaying
                                   ? Icons.pause_rounded
                                   : Icons.play_arrow_rounded,
                               size: 48,

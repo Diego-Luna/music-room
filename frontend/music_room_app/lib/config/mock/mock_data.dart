@@ -4,6 +4,7 @@ import 'package:music_room_app/models/event.dart';
 import 'package:music_room_app/models/event_track.dart';
 import 'package:music_room_app/models/playlist.dart';
 import 'package:music_room_app/models/playlist_track.dart';
+import 'package:music_room_app/models/room.dart';
 
 class MockData {
   static final List<User> users = [
@@ -127,6 +128,24 @@ class MockData {
           track: tracks[1],
         ),
       ],
+    ),
+  ];
+
+  // Temporal date
+  static final List<Room> rooms = [
+    Room(
+      id: 'room-1',
+      name: 'Friday Rock Session',
+      ownerId: 'user-1',
+      currentControllerId: 'user-1',
+      connectedUsers: ['user-1', 'user-2'],
+    ),
+    Room(
+      id: 'room-2',
+      name: 'Electronic Beats Room',
+      ownerId: 'user-2',
+      currentControllerId: 'user-2',
+      connectedUsers: ['user-2', 'user-3'],
     ),
   ];
 }

@@ -1,8 +1,13 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_room_app/core/repositories/mock_api_repository.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/navigation_provider.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
+import 'package:music_room_app/providers/events_provider.dart';
+import 'package:music_room_app/providers/playlists_provider.dart';
+import 'package:music_room_app/providers/rooms_provider.dart';
+import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/features/home/presentation/pages/home_page.dart';
 import 'package:music_room_app/features/main/presentation/pages/main_screen.dart';
 import 'package:music_room_app/features/playlists/presentation/pages/playlists_page.dart';
@@ -20,27 +25,54 @@ import 'package:music_room_app/features/not_found/presentation/pages/not_found_p
 import 'package:music_room_app/core/routing/route_names.dart';
 
 //* Native lazy singletons
+MockApiRepository? _mockApiRepository;
 NavigationProvider? _navigationProvider;
 AuthProvider? _authProvider;
 ThemeProvider? _themeProvider;
+EventsProvider? _eventsProvider;
+PlaylistsProvider? _playlistsProvider;
+RoomsProvider? _roomsProvider;
+PlayerProvider? _playerProvider;
 
 //* Initialize singletons. safe to call multiple times.
 void setupLocator() {
-  if (_navigationProvider != null &&
-      _authProvider != null &&
-      _themeProvider != null) {
-    return;
-  }
+  // ! Temporal only for now
+  _mockApiRepository ??= MockApiRepository();
+
+  // * Providers
   _navigationProvider ??= NavigationProvider();
   _authProvider ??= AuthProvider();
   _themeProvider ??= ThemeProvider();
+  _eventsProvider ??= EventsProvider(repository: mockApiRepository);
+  _playlistsProvider ??= PlaylistsProvider(repository: mockApiRepository);
+  _roomsProvider ??= RoomsProvider(repository: mockApiRepository);
+  _playerProvider ??= PlayerProvider(
+    authProvider: authProvider,
+    roomsProvider: roomsProvider,
+  );
 }
 
 //* Accessors to retrieve the registered singletons.
+MockApiRepository get mockApiRepository =>
+    _mockApiRepository ??= MockApiRepository();
+
+ThemeProvider get themeProvider => _themeProvider ??= ThemeProvider();
+
 NavigationProvider get navigationProvider =>
     _navigationProvider ??= NavigationProvider();
+
 AuthProvider get authProvider => _authProvider ??= AuthProvider();
-ThemeProvider get themeProvider => _themeProvider ??= ThemeProvider();
+
+EventsProvider get eventsProvider =>
+    _eventsProvider ??= EventsProvider(repository: mockApiRepository);
+PlaylistsProvider get playlistsProvider =>
+    _playlistsProvider ??= PlaylistsProvider(repository: mockApiRepository);
+RoomsProvider get roomsProvider =>
+    _roomsProvider ??= RoomsProvider(repository: mockApiRepository);
+PlayerProvider get playerProvider => _playerProvider ??= PlayerProvider(
+  authProvider: authProvider,
+  roomsProvider: roomsProvider,
+);
 
 //* Helper for Apple-style transitions
 //* This ensures that when we navigate (push), the new page slides in from the right
