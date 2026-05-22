@@ -20,6 +20,7 @@ describe('PlaylistService', () => {
   let prisma: {
     room: { findUnique: Fn };
     roomMember: { findUnique: Fn };
+    roomInvitation: { findFirst: Fn };
     track: {
       findUnique: Fn;
       findFirst: Fn;
@@ -31,18 +32,20 @@ describe('PlaylistService', () => {
   };
   let realtime: { emitToRoom: Fn; emitToUser: Fn };
 
+  // PUBLIC playlist, editAccess EVERYONE — anyone may edit.
   const baseRoom = {
     id: 'r1',
     kind: 'PLAYLIST',
     ownerId: 'owner',
     visibility: 'PUBLIC',
-    allowMembersEdit: true,
+    editAccess: 'EVERYONE',
   };
 
   beforeEach(async () => {
     prisma = {
       room: { findUnique: vi.fn() },
       roomMember: { findUnique: vi.fn() },
+      roomInvitation: { findFirst: vi.fn() },
       track: {
         findUnique: vi.fn(),
         findFirst: vi.fn(),
@@ -80,36 +83,64 @@ describe('PlaylistService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('rejects non-members', async () => {
-      prisma.room.findUnique.mockResolvedValue(baseRoom);
+    it('rejects a non-member of a PRIVATE room', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        visibility: 'PRIVATE',
+      });
       prisma.roomMember.findUnique.mockResolvedValue(null);
       await expect(
         service.addItem('r1', 'stranger', { ...baseDto }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow(NotFoundException);
     });
 
-    it('rejects a regular member when allowMembersEdit=false', async () => {
+    it('lets any authenticated user add to a PUBLIC playlist (editAccess EVERYONE)', async () => {
+      prisma.room.findUnique.mockResolvedValue(baseRoom);
+      prisma.track.findUnique.mockResolvedValue(null);
+      prisma.track.findFirst.mockResolvedValue(null);
+      prisma.track.create.mockResolvedValue({ id: 't1', roomId: 'r1' });
+
+      const track = await service.addItem('r1', 'stranger', { ...baseDto });
+      expect(track.id).toBe('t1');
+    });
+
+    it('rejects a non-invited user when editAccess=INVITED_ONLY', async () => {
       prisma.room.findUnique.mockResolvedValue({
         ...baseRoom,
-        allowMembersEdit: false,
+        editAccess: 'INVITED_ONLY',
       });
-      prisma.roomMember.findUnique.mockResolvedValue({ role: 'MEMBER' });
+      prisma.roomInvitation.findFirst.mockResolvedValue(null);
       await expect(
         service.addItem('r1', 'someone', { ...baseDto }),
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('allows admin when allowMembersEdit=false', async () => {
+    it('allows an invited user when editAccess=INVITED_ONLY', async () => {
       prisma.room.findUnique.mockResolvedValue({
         ...baseRoom,
-        allowMembersEdit: false,
+        editAccess: 'INVITED_ONLY',
       });
-      prisma.roomMember.findUnique.mockResolvedValue({ role: 'ADMIN' });
+      prisma.roomInvitation.findFirst.mockResolvedValue({ id: 'inv-1' });
       prisma.track.findUnique.mockResolvedValue(null);
       prisma.track.findFirst.mockResolvedValue(null);
       prisma.track.create.mockResolvedValue({ id: 't1', roomId: 'r1' });
-      await service.addItem('r1', 'admin', { ...baseDto });
+
+      await service.addItem('r1', 'invited-user', { ...baseDto });
       expect(prisma.track.create).toHaveBeenCalled();
+    });
+
+    it('lets the owner edit even when editAccess=INVITED_ONLY', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        editAccess: 'INVITED_ONLY',
+      });
+      prisma.track.findUnique.mockResolvedValue(null);
+      prisma.track.findFirst.mockResolvedValue(null);
+      prisma.track.create.mockResolvedValue({ id: 't1', roomId: 'r1' });
+
+      await service.addItem('r1', 'owner', { ...baseDto });
+      expect(prisma.track.create).toHaveBeenCalled();
+      expect(prisma.roomInvitation.findFirst).not.toHaveBeenCalled();
     });
 
     it('rejects when both afterTrackId and beforeTrackId are given', async () => {
@@ -245,14 +276,12 @@ describe('PlaylistService', () => {
   });
 
   describe('removeItem', () => {
-    it('lets the author remove their own item', async () => {
+    it('lets any user remove an item on a PUBLIC playlist (editAccess EVERYONE)', async () => {
       prisma.room.findUnique.mockResolvedValue(baseRoom);
-      prisma.track.findUnique.mockResolvedValue({
-        id: 't1',
-        roomId: 'r1',
-        addedById: 'u1',
-      });
+      prisma.track.findUnique.mockResolvedValue({ id: 't1', roomId: 'r1' });
+
       await service.removeItem('r1', 't1', 'u1');
+
       expect(prisma.track.delete).toHaveBeenCalledWith({ where: { id: 't1' } });
       expect(realtime.emitToRoom).toHaveBeenCalledWith(
         'r1',
@@ -262,38 +291,36 @@ describe('PlaylistService', () => {
     });
 
     it('lets the owner remove any item', async () => {
-      prisma.room.findUnique.mockResolvedValue(baseRoom);
-      prisma.track.findUnique.mockResolvedValue({
-        id: 't1',
-        roomId: 'r1',
-        addedById: 'other',
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        editAccess: 'INVITED_ONLY',
       });
+      prisma.track.findUnique.mockResolvedValue({ id: 't1', roomId: 'r1' });
+
       await service.removeItem('r1', 't1', 'owner');
       expect(prisma.track.delete).toHaveBeenCalled();
     });
 
-    it('rejects a regular member removing another user item', async () => {
-      prisma.room.findUnique.mockResolvedValue(baseRoom);
-      prisma.track.findUnique.mockResolvedValue({
-        id: 't1',
-        roomId: 'r1',
-        addedById: 'other',
+    it('rejects removal by a non-invited user when editAccess=INVITED_ONLY', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        editAccess: 'INVITED_ONLY',
       });
-      prisma.roomMember.findUnique.mockResolvedValue({ role: 'MEMBER' });
+      prisma.roomInvitation.findFirst.mockResolvedValue(null);
       await expect(
         service.removeItem('r1', 't1', 'someone'),
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('allows an admin to remove any item', async () => {
-      prisma.room.findUnique.mockResolvedValue(baseRoom);
-      prisma.track.findUnique.mockResolvedValue({
-        id: 't1',
-        roomId: 'r1',
-        addedById: 'other',
+    it('allows an invited user to remove an item when editAccess=INVITED_ONLY', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        editAccess: 'INVITED_ONLY',
       });
-      prisma.roomMember.findUnique.mockResolvedValue({ role: 'ADMIN' });
-      await service.removeItem('r1', 't1', 'admin');
+      prisma.roomInvitation.findFirst.mockResolvedValue({ id: 'inv-1' });
+      prisma.track.findUnique.mockResolvedValue({ id: 't1', roomId: 'r1' });
+
+      await service.removeItem('r1', 't1', 'invited-user');
       expect(prisma.track.delete).toHaveBeenCalled();
     });
   });

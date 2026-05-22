@@ -29,13 +29,14 @@ model User {
   emailVerifications EmailVerification[]
   passwordResets     PasswordReset[]
   ownedRooms         Room[]              @relation("RoomOwner")
-  delegatedRooms     Room[]              @relation("RoomDelegate")
   roomMemberships    RoomMember[]
   sentInvitations    RoomInvitation[]    @relation("InvitationInviter")
   receivedInvites    RoomInvitation[]    @relation("InvitationInvitee")
   deviceTokens       DeviceToken[]
   sentFriendRequests     Friendship[]    @relation("FriendshipRequester")
   receivedFriendRequests Friendship[]    @relation("FriendshipAddressee")
+  delegationsGranted     MusicControlDelegation[] @relation("DelegationOwner")
+  delegationsReceived    MusicControlDelegation[] @relation("DelegationDelegate")
 }
 
 enum FriendshipStatus {
@@ -63,7 +64,6 @@ model Friendship {
 enum RoomKind {
   VOTE
   PLAYLIST
-  DELEGATE
 }
 
 enum RoomVisibility {
@@ -74,6 +74,20 @@ enum RoomVisibility {
 enum VoteWindow {
   ALWAYS
   SCHEDULED
+}
+
+// V.2.3 playlist edit license — who may edit the playlist, orthogonal to
+// the room's visibility (who may see it).
+enum EditAccess {
+  EVERYONE
+  INVITED_ONLY
+}
+
+// V.2.1 vote license — who may suggest/vote in a VOTE room, orthogonal to
+// the room's visibility (who may see it).
+enum VoteAccess {
+  EVERYONE
+  INVITED_ONLY
 }
 
 enum MemberRole {
@@ -100,9 +114,10 @@ model Room {
   owner          User           @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 
   // PLAYLIST settings
-  allowMembersEdit Boolean @default(true)
+  editAccess EditAccess @default(EVERYONE)
 
   // VOTE settings
+  voteAccess       VoteAccess @default(EVERYONE)
   voteWindow       VoteWindow @default(ALWAYS)
   voteStartsAt     DateTime?
   voteEndsAt       DateTime?
@@ -117,17 +132,13 @@ model Room {
   invitations RoomInvitation[]
   tracks      Track[]
 
-  currentTrackId String? @unique
-  currentTrack   Track?  @relation("CurrentTrack", fields: [currentTrackId], references: [id], onDelete: SetNull)
-
-  delegateUserId    String?
-  delegate          User?     @relation("RoomDelegate", fields: [delegateUserId], references: [id], onDelete: SetNull)
-  delegateGrantedAt DateTime?
+  currentTrackId        String?   @unique
+  currentTrack          Track?    @relation("CurrentTrack", fields: [currentTrackId], references: [id], onDelete: SetNull)
+  currentTrackStartedAt DateTime?
 
   @@index([ownerId])
   @@index([visibility])
   @@index([kind])
-  @@index([delegateUserId])
 }
 
 model RoomMember {
@@ -198,6 +209,22 @@ model RoomInvitation {
   @@unique([roomId, inviteeId, status])
   @@index([inviteeId])
   @@index([expiresAt])
+}
+
+// V.2.2 Music Control Delegation — account+device scoped, NOT room scoped.
+// A user delegates remote control of one of their devices to a friend.
+// Playback commands run against the device owner's Spotify token.
+model MusicControlDelegation {
+  id             String   @id @default(uuid())
+  ownerId        String
+  owner          User     @relation("DelegationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  deviceId       String
+  delegateUserId String
+  delegate       User     @relation("DelegationDelegate", fields: [delegateUserId], references: [id], onDelete: Cascade)
+  grantedAt      DateTime @default(now())
+
+  @@unique([ownerId, deviceId])
+  @@index([delegateUserId])
 }
 
 model SocialAccount {

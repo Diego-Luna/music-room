@@ -7,35 +7,29 @@ import { TracksController } from './tracks.controller';
 import { TracksService } from './tracks.service';
 import { PlaylistController } from './playlist.controller';
 import { PlaylistService } from './playlist.service';
-import { DelegationController } from './delegation.controller';
-import { DelegationService } from './delegation.service';
-import { PlaybackService } from './playback.service';
-import { SpotifyModule } from '../spotify/spotify.module';
+import { InvitationsController } from './invitations.controller';
+import { QueueProgressionService } from './queue-progression.service';
 
 @Module({
-  imports: [SpotifyModule],
   controllers: [
     RoomsController,
     RoomMembershipController,
     TracksController,
     PlaylistController,
-    DelegationController,
+    InvitationsController,
   ],
   providers: [
     RoomsService,
     RoomMembershipService,
     TracksService,
     PlaylistService,
-    DelegationService,
-    PlaybackService,
+    QueueProgressionService,
   ],
   exports: [
     RoomsService,
     RoomMembershipService,
     TracksService,
     PlaylistService,
-    DelegationService,
-    PlaybackService,
   ],
 })
 export class RoomsModule {}

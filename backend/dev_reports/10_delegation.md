@@ -1,9 +1,9 @@
-# Phase 10 — Music Control Delegation
+# Phase 10 — Music Control Delegation (V.2.2)
 
 ## Scope
 
-The third V.2 service: **delegate music control to a friend** while
-keeping ownership of the room. Subject text in full (V.2.2):
+The third V.2 service: **delegate music control to a friend**. Subject
+text in full (V.2.2):
 
 > "Music control delegation.
 >
@@ -11,131 +11,115 @@ keeping ownership of the room. Subject text in full (V.2.2):
 > specific for each device attached to the user's account. The user
 > can choose to give the music control to different friends."
 
-This is the shortest of the three service sections in the subject —
-**three sentences** — and intentionally ambiguous on the "per-device"
-phrasing. This report documents what we built and what we left out,
-honestly.
+Three sentences, and — unlike V.2.1 (event-scoped) and V.2.3
+(playlist-scoped) — **no mention of a room, event or playlist**. V.2.2
+is scoped to the *account and its devices*, not to a room.
 
 ## What we built
 
-A new room kind, `DELEGATE`, with a single optional `delegateUserId`
-column on the `Room` row. The owner of a DELEGATE room can grant
-DJ control to any of the room's members. Granted control means: the
-delegate can call the playback endpoints (`/rooms/:id/playback/{play,
-pause,next,previous,volume}`) which the `PlaybackService` translates
-into Spotify Web API calls.
+A standalone module, `src/delegation/`, with no coupling to rooms.
+
+### Data model
 
 ```prisma
-model Room {
-  ...
-  delegateUserId    String?
-  delegateGrantedAt DateTime?
-  ...
-}
-```
+model MusicControlDelegation {
+  id             String   @id @default(uuid())
+  ownerId        String
+  owner          User     @relation("DelegationOwner", ...)
+  deviceId       String
+  delegateUserId String
+  delegate       User     @relation("DelegationDelegate", ...)
+  grantedAt      DateTime @default(now())
 
-`DelegationService` enforces:
-- Only the room owner can `grant`
-- The delegate must be a room member
-- The delegate must have a `SocialAccount` for Spotify (otherwise
-  the playback calls will fail anyway, so we fail loudly upfront)
-- `revoke` can be called by the owner or by the delegate themself
-- All transitions emit realtime events (`delegate:granted`,
-  `delegate:revoked`) and push notifications to the delegate
-  (`PushService.sendToUser`)
-
-## What we did **not** build, and why
-
-The subject's "license must be specific for each device" is the
-sentence we did not fully honor.
-
-### Three valid interpretations of "per-device"
-
-1. **Per device of the owner**: Bob is logged in on iPhone + iPad;
-   on his iPhone he delegates to Alice, on his iPad to Charlie. The
-   same room has two simultaneous DJs, one per device-of-the-owner.
-2. **Per device of the delegate**: Alice is logged in on multiple
-   devices; the delegation specifies which of *Alice's* devices
-   receives the playback.
-3. **Per-device bookkeeping**: each user-device pair has its own
-   delegation record, but only one delegation is active at a time.
-
-Our impl satisfies **none** of these literally — there's a single
-`Room.delegateUserId`. The `X-Device` header (logged by V.6
-middleware) is captured but never consumed in the delegation
-business logic.
-
-### Path to fix (Lecture A, fully per-device of the owner)
-
-```prisma
-model DelegationGrant {
-  id              String   @id @default(uuid())
-  roomId          String
-  room            Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  ownerId         String
-  ownerDeviceId   String     // X-Device header at grant time
-  delegateUserId  String
-  grantedAt       DateTime @default(now())
-
-  @@unique([roomId, ownerId, ownerDeviceId])
+  @@unique([ownerId, deviceId])
   @@index([delegateUserId])
 }
 ```
 
-`DelegationService.grant(roomId, ownerId, ownerDeviceId,
-delegateUserId)`. `PlaybackService` resolves the active delegation
-by `(roomId, ownerId, ownerDeviceId)` derived from the caller's
-context. Estimated cost: 2–3 h of code + tests.
+`deviceId` is the value of the `X-Device` header — the same device
+identifier already captured by the V.6 logging middleware. The
+`@@unique([ownerId, deviceId])` constraint means **one delegate per
+device**: the owner can delegate their phone to Alice and their tablet
+to Bob independently, which is exactly *"give the music control to
+different friends"*.
 
-### Decision
+### Service — `DelegationService`
 
-**Documented as a known limitation** rather than rushed in. The
-project meets V.2 with 2 / 3 services fully complete (Vote, Playlist)
-and the third (Delegation) implemented with a single-delegate model.
-The subject explicitly allows 2 / 3 — see V.2 first sentence: *"user
-must access at least 2 functions out of the following 3 ones"*. So
-we cross the bar with margin.
+- `grant(ownerId, deviceId, delegateUserId)` — upsert on
+  `(ownerId, deviceId)`. Enforces: not self, delegate exists, and the
+  delegate **is a friend** (`FriendsService.areFriends`, else 403).
+  Emits `device:delegation:granted` to the delegate; if control moved
+  away from a previous delegate, emits `device:delegation:revoked` to
+  the old one.
+- `revoke(ownerId, deviceId)` — deletes the delegation, notifies the
+  ex-delegate.
+- `getCurrent` / `listMyDelegations` / `listControlledDevices` — reads.
+
+### Playback — `DelegationPlaybackService`
+
+The delegate is a **remote control, not the audio source**. Playback
+commands (`play`, `pause`, `next`, `previous`, `setVolume`) always run
+against the device **owner's** Spotify token. Either the owner or the
+current delegate of a delegation may issue commands; anyone else gets
+a 403.
+
+## Why this is per-device (and not per-room)
+
+The old implementation (`RoomKind.DELEGATE` + `Room.delegateUserId`)
+scoped a single "DJ" to a room. That conflated V.2.2 with the
+room-based services and had no notion of device — it did not match the
+subject. It was **removed entirely** (schema, services, controllers,
+routes) and replaced with the account+device model above.
+
+A VOTE room no longer has a DJ at all: its queue advances on its own
+(see `src/rooms/queue-progression.service.ts`). Playback control as a
+*delegated* capability is precisely and only what V.2.2 describes.
 
 ## Operations and endpoints
 
 ```
-POST   /rooms/:id/delegate      grant DJ control (owner only)
-DELETE /rooms/:id/delegate      revoke (owner or current delegate)
-GET    /rooms/:id/delegate      get current DJ (members)
+GET    /users/me/delegations                    devices I delegated
+GET    /users/me/controlled-devices             devices I can control
+GET    /users/me/devices/:deviceId/delegate     current delegate
+PUT    /users/me/devices/:deviceId/delegate     grant  { delegateUserId }
+DELETE /users/me/devices/:deviceId/delegate     revoke
 
-POST   /rooms/:id/playback/play       start/resume playback
-POST   /rooms/:id/playback/pause
-POST   /rooms/:id/playback/next
-POST   /rooms/:id/playback/previous
-PUT    /rooms/:id/playback/volume     body: { percent: 0..100 }
+POST   /delegations/:id/playback/play           { uris?, contextUri? }
+POST   /delegations/:id/playback/pause
+POST   /delegations/:id/playback/next
+POST   /delegations/:id/playback/previous
+PUT    /delegations/:id/playback/volume         { percent: 0..100 }
 ```
-
-All playback endpoints route through
-`DelegationService.requireDelegateOrOwner(roomId, userId)` — the
-caller must be either the owner or the current delegate.
 
 ## Soutenance defense points
 
-- *Where is "per-device" in your impl?* — Honest answer: not fully.
-  The subject's sentence is ambiguous, we built the simpler
-  single-delegate model, and we treat Delegation as 1 of the 3
-  services with a known limitation, not as a complete implementation
-  of the "per-device" license. We cross the V.2 bar with the other
-  two services regardless.
-- *Why did you make Spotify a hard prerequisite for the delegate?* —
-  Because the playback call will fail at Spotify if the delegate
-  has no token. Failing early at grant time gives a clear error to
-  the owner ("Delegate has no Spotify account linked") instead of a
-  generic 500 later.
-- *Can the owner revoke and re-grant fast enough to cause races?* —
-  Yes; `grant` overwrites `delegateUserId` atomically (single
-  `Room` row update). No partial state observable.
-- *What happens on `delegate:granted` to the delegate?* — Two
-  side-effects: a realtime event on the room channel
-  (`delegate:granted`) and a direct event to the user channel
-  (`delegate:you-are-dj`), plus a push notification if a device
-  token is registered. Multi-channel so the delegate finds out
-  regardless of whether their app is open or not.
-- *Is the delegation persisted across server restarts?* — Yes, it's
-  a column on the `Room` table. Survives backend redeploys and
-  Redis flushes.
+- *Where is "per-device" in your impl?* — The `MusicControlDelegation`
+  table is keyed `(ownerId, deviceId)` unique. Each device of the
+  account has its own, independent delegation. That is the literal
+  reading of *"specific for each device attached to the user's
+  account"*.
+- *Why account-level and not room-level?* — V.2.1 and V.2.3 name an
+  explicit container (event, playlist) with visibility rules; V.2.2
+  names none. We implemented V.2.2 literally — account+device, no
+  added container — to avoid over-interpretation.
+- *Why must the delegate be a friend?* — The subject says *"give the
+  music control to different friends"*. `grant` calls
+  `FriendsService.areFriends` and returns 403 otherwise.
+- *Whose Spotify plays?* — Always the **owner's**. The delegate's
+  commands proxy to the owner's token (`DelegationPlaybackService`).
+  The delegate is a remote control.
+- *What does `deviceId` target on Spotify?* — `deviceId` is our
+  app-level identifier (the `X-Device` header), used to scope which
+  app-device is delegated. The Spotify Web API call drives the active
+  session of the owner's account. The granularity lets the owner
+  revoke one device without affecting the others.
+- *Is the delegation persisted across restarts?* — Yes, it is a row
+  in `MusicControlDelegation`. Survives backend redeploys.
+
+## Tests
+
+- `src/delegation/delegation.service.spec.ts` — grant/revoke/listing
+- `src/delegation/delegation-playback.service.spec.ts` — authz + owner-token routing
+- `src/delegation/delegation.controller.spec.ts`,
+  `delegation-playback.controller.spec.ts` — routing
+- `test/e2e/delegation.e2e-spec.ts` — full grant → playback → revoke flow

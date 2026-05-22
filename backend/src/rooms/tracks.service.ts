@@ -9,6 +9,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { AddTrackDto, VoteTrackDto } from './dto/track.dto';
+import { QueueProgressionService } from './queue-progression.service';
 
 const EARTH_RADIUS_M = 6_371_000;
 
@@ -32,6 +33,8 @@ type Room = {
   kind: string;
   ownerId: string;
   visibility: string;
+  voteAccess: string;
+  currentTrackId: string | null;
   voteWindow: string;
   voteStartsAt: Date | null;
   voteEndsAt: Date | null;
@@ -45,6 +48,7 @@ export class TracksService {
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly realtime?: RealtimeService,
+    @Optional() private readonly queue?: QueueProgressionService,
   ) {}
 
   async addTrack(roomId: string, userId: string, dto: AddTrackDto) {
@@ -52,7 +56,7 @@ export class TracksService {
     if (room.kind !== 'VOTE') {
       throw new BadRequestException('Room is not a VOTE room');
     }
-    await this.requireMember(roomId, userId);
+    await this.requireVoter(room, userId);
 
     const provider = dto.provider ?? 'spotify';
     const existing = await this.prisma.track.findUnique({
@@ -81,6 +85,11 @@ export class TracksService {
       },
     });
     this.realtime?.emitToRoom(roomId, 'track:added', track);
+    // A VOTE room has no DJ: if it was idle, the track we just added
+    // starts now instead of waiting for the next progression tick.
+    if (!room.currentTrackId) {
+      await this.queue?.startIdle(roomId);
+    }
     return track;
   }
 
@@ -94,7 +103,7 @@ export class TracksService {
     if (room.kind !== 'VOTE') {
       throw new BadRequestException('Room is not a VOTE room');
     }
-    await this.requireMember(roomId, userId);
+    await this.requireVoter(room, userId);
     this.enforceVoteWindow(room);
     this.enforceGeoGate(room, dto);
 
@@ -134,10 +143,10 @@ export class TracksService {
       });
     });
 
+    // Votes are anonymous in the broadcast — only the resulting score is
+    // shared. The voter's identity stays server-side (the TrackVote row).
     this.realtime?.emitToRoom(roomId, 'track:voted', {
       trackId,
-      userId,
-      value: dto.value,
       score: updated.score,
     });
     return updated;
@@ -167,12 +176,7 @@ export class TracksService {
 
   async listRanked(roomId: string, userId: string) {
     const room = await this.requireRoom(roomId);
-    if (room.visibility === 'PRIVATE' && room.ownerId !== userId) {
-      const member = await this.prisma.roomMember.findUnique({
-        where: { roomId_userId: { roomId, userId } },
-      });
-      if (!member) throw new NotFoundException('Room not found');
-    }
+    await this.requireRoomAccess(room, userId);
     return this.prisma.track.findMany({
       where: { roomId, playedAt: null },
       orderBy: [{ score: 'desc' }, { addedAt: 'asc' }],
@@ -188,13 +192,38 @@ export class TracksService {
     return room;
   }
 
-  private async requireMember(roomId: string, userId: string) {
-    const room = await this.requireRoom(roomId);
+  // A PUBLIC room is open to any authenticated user — no membership row
+  // is required to suggest or vote (the subject: "all the users can find
+  // your event and vote if your event is public"). A PRIVATE room is
+  // reachable only by its owner or an invited member; otherwise 404, so
+  // the room's existence is not leaked.
+  private async requireRoomAccess(room: Room, userId: string): Promise<void> {
+    if (room.visibility === 'PUBLIC') return;
     if (room.ownerId === userId) return;
     const member = await this.prisma.roomMember.findUnique({
-      where: { roomId_userId: { roomId, userId } },
+      where: { roomId_userId: { roomId: room.id, userId } },
     });
-    if (!member) throw new ForbiddenException('Not a member of this room');
+    if (!member) throw new NotFoundException('Room not found');
+  }
+
+  // V.2.1 vote license: EVERYONE → anyone with room access may suggest or
+  // vote; INVITED_ONLY → only the owner and users the owner invited.
+  private async requireVoter(room: Room, userId: string): Promise<void> {
+    await this.requireRoomAccess(room, userId);
+    if (room.voteAccess === 'EVERYONE') return;
+    if (room.ownerId === userId) return;
+    const invitation = await this.prisma.roomInvitation.findFirst({
+      where: {
+        roomId: room.id,
+        inviteeId: userId,
+        status: { in: ['PENDING', 'ACCEPTED'] },
+      },
+    });
+    if (!invitation) {
+      throw new ForbiddenException(
+        'Only invited users can vote in this room',
+      );
+    }
   }
 
   private enforceVoteWindow(room: Room) {

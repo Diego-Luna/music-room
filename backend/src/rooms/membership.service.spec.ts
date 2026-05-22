@@ -20,6 +20,7 @@ describe('RoomMembershipService', () => {
 
   const publicRoom = {
     id: 'room-1',
+    name: 'Test Room',
     visibility: 'PUBLIC',
     ownerId: 'owner-1',
   };
@@ -39,6 +40,7 @@ describe('RoomMembershipService', () => {
         create: vi.fn(),
         findUnique: vi.fn(),
         findFirst: vi.fn(),
+        findMany: vi.fn(),
         update: vi.fn(),
       },
       user: { findUnique: vi.fn() },
@@ -289,7 +291,7 @@ describe('RoomMembershipService', () => {
       );
     });
 
-    it('emits invitation:new to the invitee', async () => {
+    it('emits invitation:new to the invitee with roomName', async () => {
       prisma.room.findUnique.mockResolvedValue(privateRoom);
       prisma.user.findUnique.mockResolvedValue({ id: 'invited' });
       prisma.roomMember.findUnique.mockResolvedValue(null);
@@ -300,7 +302,12 @@ describe('RoomMembershipService', () => {
       expect(realtime.emitToUser).toHaveBeenCalledWith(
         'invited',
         'invitation:new',
-        expect.objectContaining({ invitationId: 'inv-99', roomId: 'room-1' }),
+        expect.objectContaining({
+          invitationId: 'inv-99',
+          roomId: 'room-1',
+          roomName: 'Test Room',
+          inviterId: 'owner-1',
+        }),
       );
     });
 
@@ -315,8 +322,46 @@ describe('RoomMembershipService', () => {
       expect(realtime.emitToUser).toHaveBeenCalledWith(
         'kicked',
         'room:kicked',
-        { roomId: 'room-1' },
+        { roomId: 'room-1', roomName: 'Test Room' },
       );
+    });
+
+    it('member:removed room broadcast does NOT leak the acting admin identity', async () => {
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      prisma.roomMember.findUnique.mockResolvedValue({
+        userId: 'kicked',
+        role: 'MEMBER',
+      });
+
+      await service.removeMember('room-1', 'owner-1', 'kicked');
+
+      const call = realtime.emitToRoom.mock.calls.find(
+        (c: unknown[]) => c[1] === 'member:removed',
+      );
+      expect(call).toBeDefined();
+      const payload = call![2] as Record<string, unknown>;
+      expect(payload).not.toHaveProperty('by');
+      expect(payload).not.toHaveProperty('byUserId');
+      expect(payload).not.toHaveProperty('actingUserId');
+    });
+
+    it('room:kicked payload does NOT leak the acting admin identity', async () => {
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      prisma.roomMember.findUnique.mockResolvedValue({
+        userId: 'kicked',
+        role: 'MEMBER',
+      });
+
+      await service.removeMember('room-1', 'owner-1', 'kicked');
+
+      const call = realtime.emitToUser.mock.calls.find(
+        (c: unknown[]) => c[1] === 'room:kicked',
+      );
+      expect(call).toBeDefined();
+      const payload = call![2] as Record<string, unknown>;
+      expect(payload).not.toHaveProperty('byUserId');
+      expect(payload).not.toHaveProperty('actingUserId');
+      expect(payload).not.toHaveProperty('kickedById');
     });
   });
 
@@ -335,6 +380,239 @@ describe('RoomMembershipService', () => {
       const members = await service.listMembers('room-1', 'random');
       expect(members).toHaveLength(1);
       expect(members[0].role).toBe('OWNER');
+    });
+  });
+
+  describe('invitations inbox', () => {
+    const future = new Date(Date.now() + 60_000);
+    const past = new Date(Date.now() - 60_000);
+
+    it('lists only the caller pending non-expired invitations', async () => {
+      prisma.roomInvitation.findMany.mockResolvedValue([
+        { id: 'inv-1', roomId: 'room-1' },
+      ]);
+
+      const result = await service.listMyInvitations('invitee-1');
+
+      expect(prisma.roomInvitation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            inviteeId: 'invitee-1',
+            status: 'PENDING',
+            expiresAt: { gt: expect.any(Date) },
+          }),
+        }),
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('accept: 404 when invitation is missing or not the caller', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue(null);
+      await expect(
+        service.acceptInvitation('invitee-1', 'inv-x'),
+      ).rejects.toThrow(NotFoundException);
+
+      prisma.roomInvitation.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        inviteeId: 'someone-else',
+        status: 'PENDING',
+        expiresAt: future,
+      });
+      await expect(
+        service.acceptInvitation('invitee-1', 'inv-1'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('accept: conflict when invitation is not PENDING', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        inviteeId: 'invitee-1',
+        status: 'ACCEPTED',
+        expiresAt: future,
+      });
+      await expect(
+        service.acceptInvitation('invitee-1', 'inv-1'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('accept: rejects an expired invitation', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        roomId: 'room-1',
+        inviteeId: 'invitee-1',
+        status: 'PENDING',
+        expiresAt: past,
+      });
+      await expect(
+        service.acceptInvitation('invitee-1', 'inv-1'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('accept: delegates to join() and returns the roomId', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        roomId: 'room-1',
+        inviteeId: 'invitee-1',
+        inviterId: 'owner-1',
+        status: 'PENDING',
+        expiresAt: future,
+      });
+      const joinSpy = vi
+        .spyOn(service, 'join')
+        .mockResolvedValue(undefined as never);
+
+      const res = await service.acceptInvitation('invitee-1', 'inv-1');
+
+      expect(joinSpy).toHaveBeenCalledWith('room-1', 'invitee-1');
+      expect(res).toEqual({ message: 'Joined', roomId: 'room-1' });
+    });
+
+    it('lists sent invitations filtered to caller as inviter, PENDING, not expired', async () => {
+      prisma.roomInvitation.findMany.mockResolvedValue([
+        { id: 'inv-out', roomId: 'room-1', inviteeId: 'invitee-x' },
+      ]);
+
+      const result = await service.listSentInvitations('owner-1');
+
+      expect(prisma.roomInvitation.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            inviterId: 'owner-1',
+            status: 'PENDING',
+            expiresAt: { gt: expect.any(Date) },
+          }),
+        }),
+      );
+      expect(result).toHaveLength(1);
+    });
+
+    it('revoke: 404 when the invitation does not exist', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue(null);
+      await expect(
+        service.revokeInvitation('owner-1', 'inv-x'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('revoke: conflict when the invitation is not PENDING', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        inviterId: 'owner-1',
+        status: 'ACCEPTED',
+        expiresAt: future,
+      });
+      await expect(
+        service.revokeInvitation('owner-1', 'inv-1'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('revoke: forbidden when caller is neither inviter nor room admin', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        roomId: 'room-1',
+        inviterId: 'owner-1',
+        inviteeId: 'invitee-1',
+        status: 'PENDING',
+        expiresAt: future,
+      });
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      prisma.roomMember.findUnique.mockResolvedValue({
+        userId: 'random',
+        role: 'MEMBER',
+      });
+
+      await expect(
+        service.revokeInvitation('random', 'inv-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('revoke: the original inviter can cancel (status REVOKED, notifies invitee)', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        roomId: 'room-1',
+        inviterId: 'owner-1',
+        inviteeId: 'invitee-1',
+        status: 'PENDING',
+        expiresAt: future,
+        room: { name: 'Test Room' },
+      });
+      prisma.roomInvitation.update.mockResolvedValue({
+        id: 'inv-1',
+        status: 'REVOKED',
+      });
+
+      await service.revokeInvitation('owner-1', 'inv-1');
+
+      expect(prisma.roomInvitation.update).toHaveBeenCalledWith({
+        where: { id: 'inv-1' },
+        data: { status: 'REVOKED', respondedAt: expect.any(Date) },
+      });
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'invitee-1',
+        'invitation:revoked',
+        expect.objectContaining({
+          invitationId: 'inv-1',
+          roomId: 'room-1',
+          roomName: 'Test Room',
+        }),
+      );
+      // privacy: the invitee must NOT receive the revoking admin's identity.
+      const call = realtime.emitToUser.mock.calls.find(
+        (c: unknown[]) => c[1] === 'invitation:revoked',
+      );
+      const payload = call![2] as Record<string, unknown>;
+      expect(payload).not.toHaveProperty('revokedById');
+    });
+
+    it('revoke: a different admin (not the inviter) can also cancel', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        roomId: 'room-1',
+        inviterId: 'owner-1',
+        inviteeId: 'invitee-1',
+        status: 'PENDING',
+        expiresAt: future,
+        room: { name: 'Test Room' },
+      });
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      prisma.roomMember.findUnique.mockResolvedValue({
+        userId: 'admin-2',
+        role: 'ADMIN',
+      });
+      prisma.roomInvitation.update.mockResolvedValue({
+        id: 'inv-1',
+        status: 'REVOKED',
+      });
+
+      await service.revokeInvitation('admin-2', 'inv-1');
+
+      expect(prisma.roomInvitation.update).toHaveBeenCalled();
+    });
+
+    it('decline: marks DECLINED and notifies the inviter', async () => {
+      prisma.roomInvitation.findUnique.mockResolvedValue({
+        id: 'inv-1',
+        roomId: 'room-1',
+        inviteeId: 'invitee-1',
+        inviterId: 'owner-1',
+        status: 'PENDING',
+        expiresAt: future,
+      });
+      prisma.roomInvitation.update.mockResolvedValue({
+        id: 'inv-1',
+        status: 'DECLINED',
+      });
+
+      await service.declineInvitation('invitee-1', 'inv-1');
+
+      expect(prisma.roomInvitation.update).toHaveBeenCalledWith({
+        where: { id: 'inv-1' },
+        data: { status: 'DECLINED', respondedAt: expect.any(Date) },
+      });
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'owner-1',
+        'invitation:declined',
+        expect.objectContaining({ invitationId: 'inv-1', roomId: 'room-1' }),
+      );
     });
   });
 });

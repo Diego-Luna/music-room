@@ -3,8 +3,10 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { CreateRoomDto, VoteWindow } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 
@@ -12,7 +14,10 @@ const EDIT_ROLES = new Set(['OWNER', 'ADMIN']);
 
 @Injectable()
 export class RoomsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly realtime?: RealtimeService,
+  ) {}
 
   async create(userId: string, dto: CreateRoomDto) {
     this.validateVoteSettings(dto);
@@ -26,7 +31,8 @@ export class RoomsService {
           kind: dto.kind,
           visibility: dto.visibility ?? 'PUBLIC',
           ownerId: userId,
-          allowMembersEdit: dto.allowMembersEdit ?? true,
+          editAccess: dto.editAccess ?? 'EVERYONE',
+          voteAccess: dto.voteAccess ?? 'EVERYONE',
           voteWindow: dto.voteWindow ?? 'ALWAYS',
           voteStartsAt: dto.voteStartsAt ? new Date(dto.voteStartsAt) : null,
           voteEndsAt: dto.voteEndsAt ? new Date(dto.voteEndsAt) : null,
@@ -79,13 +85,17 @@ export class RoomsService {
     this.validateVoteSettings({ ...room, ...dto } as CreateRoomDto);
     this.validateLocationSettings({ ...room, ...dto } as CreateRoomDto);
 
-    return this.prisma.room.update({
+    const goingPrivate =
+      room.visibility === 'PUBLIC' && dto.visibility === 'PRIVATE';
+
+    const updated = await this.prisma.room.update({
       where: { id: roomId },
       data: {
         name: dto.name,
         description: dto.description,
         visibility: dto.visibility,
-        allowMembersEdit: dto.allowMembersEdit,
+        editAccess: dto.editAccess,
+        voteAccess: dto.voteAccess,
         voteWindow: dto.voteWindow,
         voteStartsAt: dto.voteStartsAt
           ? new Date(dto.voteStartsAt)
@@ -96,6 +106,50 @@ export class RoomsService {
         voteLocationRadiusM: dto.voteLocationRadiusM,
       },
     });
+
+    if (goingPrivate) {
+      await this.evictNonInvitedMembers(
+        roomId,
+        updated.name,
+        room.ownerId,
+      );
+    }
+    return updated;
+  }
+
+  /**
+   * When a room flips PUBLIC → PRIVATE, members who joined freely (without
+   * an invitation) lose their place: a private room may only contain
+   * invited users (V.2.1/V.2.3 — "only invited users can access"). They
+   * are removed and notified; the owner and invited users are kept.
+   */
+  private async evictNonInvitedMembers(
+    roomId: string,
+    roomName: string,
+    ownerId: string,
+  ): Promise<void> {
+    const invitations = await this.prisma.roomInvitation.findMany({
+      where: { roomId, status: { in: ['PENDING', 'ACCEPTED'] } },
+      select: { inviteeId: true },
+    });
+    const allowed = new Set(invitations.map((i) => i.inviteeId));
+    allowed.add(ownerId);
+
+    const members = await this.prisma.roomMember.findMany({
+      where: { roomId },
+      select: { userId: true },
+    });
+    const toEvict = members
+      .map((m) => m.userId)
+      .filter((id) => !allowed.has(id));
+    if (toEvict.length === 0) return;
+
+    await this.prisma.roomMember.deleteMany({
+      where: { roomId, userId: { in: toEvict } },
+    });
+    for (const userId of toEvict) {
+      this.realtime?.emitToUser(userId, 'room:kicked', { roomId, roomName });
+    }
   }
 
   async remove(roomId: string, userId: string) {

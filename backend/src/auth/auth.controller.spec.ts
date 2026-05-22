@@ -13,11 +13,12 @@ describe('AuthController', () => {
 
   beforeEach(async () => {
     authService = {
-      register: vi.fn().mockResolvedValue(mockTokens),
+      register: vi.fn().mockResolvedValue({ message: 'verify your email' }),
       login: vi.fn().mockResolvedValue(mockTokens),
       socialLogin: vi.fn().mockResolvedValue(mockTokens),
       linkSocial: vi.fn().mockResolvedValue(undefined),
       verifyEmail: vi.fn().mockResolvedValue(undefined),
+      resendVerification: vi.fn().mockResolvedValue(undefined),
       forgotPassword: vi.fn().mockResolvedValue(undefined),
       resetPassword: vi.fn().mockResolvedValue(undefined),
       refresh: vi.fn().mockResolvedValue(mockTokens),
@@ -57,21 +58,17 @@ describe('AuthController', () => {
   } as never;
 
   describe('register', () => {
-    it('should register and return tokens with device context', async () => {
-      const result = await controller.register(fakeReq, {
+    it('should register and return a message (no session issued)', async () => {
+      const result = await controller.register({
         email: 'user@example.com',
         password: 'MyP@ssw0rd',
         displayName: 'User',
       });
 
-      expect(result).toEqual(mockTokens);
+      expect(result).toHaveProperty('message');
+      expect(result).not.toHaveProperty('accessToken');
       expect(authService.register).toHaveBeenCalledWith(
         expect.objectContaining({ email: 'user@example.com' }),
-        expect.objectContaining({
-          deviceId: 'iPhone-15',
-          userAgent: 'TestAgent/1.0',
-          ip: '1.2.3.4',
-        }),
       );
     });
   });
@@ -122,6 +119,18 @@ describe('AuthController', () => {
     it('should verify email', async () => {
       const result = await controller.verifyEmail({ token: 'verify-token' });
       expect(result.message).toBe('Email verified successfully');
+    });
+  });
+
+  describe('resendVerification', () => {
+    it('should resend the verification link', async () => {
+      const result = await controller.resendVerification({
+        email: 'user@example.com',
+      });
+      expect(result).toHaveProperty('message');
+      expect(authService.resendVerification).toHaveBeenCalledWith(
+        'user@example.com',
+      );
     });
   });
 

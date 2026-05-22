@@ -8,6 +8,7 @@ import {
 import { TracksService } from './tracks.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { QueueProgressionService } from './queue-progression.service';
 
 type Fn = ReturnType<typeof vi.fn>;
 
@@ -16,6 +17,7 @@ describe('TracksService', () => {
   let prisma: {
     room: { findUnique: Fn };
     roomMember: { findUnique: Fn };
+    roomInvitation: { findFirst: Fn };
     track: {
       findUnique: Fn;
       findMany: Fn;
@@ -32,12 +34,14 @@ describe('TracksService', () => {
     $transaction: Fn;
   };
   let realtime: { emitToRoom: Fn; emitToUser: Fn };
+  let queue: { startIdle: Fn };
 
   const baseRoom = {
     id: 'r1',
     kind: 'VOTE',
     ownerId: 'owner',
     visibility: 'PUBLIC',
+    voteAccess: 'EVERYONE',
     voteWindow: 'ALWAYS',
     voteStartsAt: null,
     voteEndsAt: null,
@@ -50,6 +54,7 @@ describe('TracksService', () => {
     prisma = {
       room: { findUnique: vi.fn() },
       roomMember: { findUnique: vi.fn() },
+      roomInvitation: { findFirst: vi.fn() },
       track: {
         findUnique: vi.fn(),
         findMany: vi.fn(),
@@ -70,12 +75,14 @@ describe('TracksService', () => {
       ),
     };
     realtime = { emitToRoom: vi.fn(), emitToUser: vi.fn() };
+    queue = { startIdle: vi.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TracksService,
         { provide: PrismaService, useValue: prisma },
         { provide: RealtimeService, useValue: realtime },
+        { provide: QueueProgressionService, useValue: queue },
       ],
     }).compile();
 
@@ -95,8 +102,11 @@ describe('TracksService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('rejects a non-member', async () => {
-      prisma.room.findUnique.mockResolvedValue(baseRoom);
+    it('rejects a non-member of a PRIVATE room', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        visibility: 'PRIVATE',
+      });
       prisma.roomMember.findUnique.mockResolvedValue(null);
       await expect(
         service.addTrack('r1', 'stranger', {
@@ -105,7 +115,57 @@ describe('TracksService', () => {
           artist: 'a',
           durationMs: 1000,
         }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('lets any authenticated user add to a PUBLIC room (no membership)', async () => {
+      prisma.room.findUnique.mockResolvedValue(baseRoom);
+      prisma.roomMember.findUnique.mockResolvedValue(null);
+      prisma.track.findUnique.mockResolvedValue(null);
+      prisma.track.create.mockResolvedValue({ id: 't1', roomId: 'r1' });
+
+      const track = await service.addTrack('r1', 'stranger', {
+        providerId: 'p1',
+        title: 't',
+        artist: 'a',
+        durationMs: 1000,
+      });
+
+      expect(track.id).toBe('t1');
+    });
+
+    it('rejects a non-invited user when voteAccess=INVITED_ONLY', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        voteAccess: 'INVITED_ONLY',
+      });
+      prisma.roomInvitation.findFirst.mockResolvedValue(null);
+      await expect(
+        service.addTrack('r1', 'stranger', {
+          providerId: 'p1',
+          title: 't',
+          artist: 'a',
+          durationMs: 1000,
+        }),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows an invited user to suggest when voteAccess=INVITED_ONLY', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        voteAccess: 'INVITED_ONLY',
+      });
+      prisma.roomInvitation.findFirst.mockResolvedValue({ id: 'inv-1' });
+      prisma.track.findUnique.mockResolvedValue(null);
+      prisma.track.create.mockResolvedValue({ id: 't1', roomId: 'r1' });
+
+      const track = await service.addTrack('r1', 'invited-user', {
+        providerId: 'p1',
+        title: 't',
+        artist: 'a',
+        durationMs: 1000,
+      });
+      expect(track.id).toBe('t1');
     });
 
     it('rejects a duplicate track', async () => {
@@ -140,6 +200,39 @@ describe('TracksService', () => {
         expect.objectContaining({ id: 't1' }),
       );
     });
+
+    it('starts the track immediately when the VOTE room is idle', async () => {
+      prisma.room.findUnique.mockResolvedValue(baseRoom);
+      prisma.track.findUnique.mockResolvedValue(null);
+      prisma.track.create.mockResolvedValue({ id: 't1', roomId: 'r1' });
+
+      await service.addTrack('r1', 'owner', {
+        providerId: 'p1',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 200_000,
+      });
+
+      expect(queue.startIdle).toHaveBeenCalledWith('r1');
+    });
+
+    it('does not start a track when the room already has one playing', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        currentTrackId: 'already-playing',
+      });
+      prisma.track.findUnique.mockResolvedValue(null);
+      prisma.track.create.mockResolvedValue({ id: 't2', roomId: 'r1' });
+
+      await service.addTrack('r1', 'owner', {
+        providerId: 'p2',
+        title: 'Song 2',
+        artist: 'Artist',
+        durationMs: 200_000,
+      });
+
+      expect(queue.startIdle).not.toHaveBeenCalled();
+    });
   });
 
   describe('vote', () => {
@@ -164,8 +257,23 @@ describe('TracksService', () => {
       expect(realtime.emitToRoom).toHaveBeenCalledWith(
         'r1',
         'track:voted',
-        expect.objectContaining({ trackId: 't1', value: 1, score: 1 }),
+        { trackId: 't1', score: 1 },
       );
+    });
+
+    it('track:voted broadcast does NOT leak the voter identity', async () => {
+      prisma.trackVote.findUnique.mockResolvedValue(null);
+      prisma.track.update.mockResolvedValue({ id: 't1', score: 1 });
+
+      await service.vote('r1', 't1', 'u1', { value: 1 });
+
+      const call = realtime.emitToRoom.mock.calls.find(
+        (c: unknown[]) => c[1] === 'track:voted',
+      );
+      expect(call).toBeDefined();
+      const payload = call![2] as Record<string, unknown>;
+      expect(payload).not.toHaveProperty('userId');
+      expect(payload).not.toHaveProperty('value');
     });
 
     it('flipping -1 → +1 applies a delta of +2', async () => {
@@ -269,6 +377,50 @@ describe('TracksService', () => {
       await expect(
         service.vote('r1', 't1', 'u1', { value: 1 }),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('lets any authenticated user vote in a PUBLIC room (no membership)', async () => {
+      prisma.roomMember.findUnique.mockResolvedValue(null);
+      prisma.trackVote.findUnique.mockResolvedValue(null);
+      prisma.track.update.mockResolvedValue({ id: 't1', score: 1 });
+
+      const res = await service.vote('r1', 't1', 'stranger', { value: 1 });
+      expect(res.score).toBe(1);
+    });
+
+    it('rejects voting in a PRIVATE room for a non-member', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        visibility: 'PRIVATE',
+      });
+      prisma.roomMember.findUnique.mockResolvedValue(null);
+      await expect(
+        service.vote('r1', 't1', 'stranger', { value: 1 }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('rejects a non-invited user when voteAccess=INVITED_ONLY', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        voteAccess: 'INVITED_ONLY',
+      });
+      prisma.roomInvitation.findFirst.mockResolvedValue(null);
+      await expect(
+        service.vote('r1', 't1', 'stranger', { value: 1 }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('allows an invited user to vote when voteAccess=INVITED_ONLY', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        voteAccess: 'INVITED_ONLY',
+      });
+      prisma.roomInvitation.findFirst.mockResolvedValue({ id: 'inv-1' });
+      prisma.trackVote.findUnique.mockResolvedValue(null);
+      prisma.track.update.mockResolvedValue({ id: 't1', score: 1 });
+
+      const res = await service.vote('r1', 't1', 'invited-user', { value: 1 });
+      expect(res.score).toBe(1);
     });
   });
 

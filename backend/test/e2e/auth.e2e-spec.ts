@@ -312,7 +312,8 @@ describe('Auth (e2e)', () => {
             id: roomId,
             ...data,
             visibility: data.visibility ?? 'PUBLIC',
-            allowMembersEdit: data.allowMembersEdit ?? true,
+            editAccess: data.editAccess ?? 'EVERYONE',
+            voteAccess: data.voteAccess ?? 'EVERYONE',
             voteWindow: data.voteWindow ?? 'ALWAYS',
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -603,8 +604,42 @@ describe('Auth (e2e)', () => {
     await app.close();
   });
 
+  // Registers, verifies the email (token captured from the mail mock),
+  // then logs in — returns the issued token pair. Device headers, if
+  // given, are applied to the login call (where the session is created).
+  const registerVerifyLogin = async (
+    email: string,
+    headers?: Record<string, string>,
+    displayName = email.split('@')[0],
+  ): Promise<{ accessToken: string; refreshToken: string }> => {
+    const password = 'MyP@ssw0rd';
+    mailService.sendVerificationEmail.mockClear();
+    await app.inject({
+      method: 'POST',
+      url: '/auth/register',
+      payload: { email, password, displayName },
+    });
+    const token = mailService.sendVerificationEmail.mock
+      .calls[0][1] as string;
+    await app.inject({
+      method: 'POST',
+      url: '/auth/verify-email',
+      payload: { token },
+    });
+    const login = await app.inject({
+      method: 'POST',
+      url: '/auth/login',
+      payload: { email, password },
+      ...(headers ? { headers } : {}),
+    });
+    return JSON.parse(login.payload) as {
+      accessToken: string;
+      refreshToken: string;
+    };
+  };
+
   describe('POST /auth/register', () => {
-    it('should register a new user, send verification email, return tokens', async () => {
+    it('should create an account and send a verification email (no session)', async () => {
       const result = await app.inject({
         method: 'POST',
         url: '/auth/register',
@@ -617,8 +652,8 @@ describe('Auth (e2e)', () => {
 
       expect(result.statusCode).toBe(201);
       const body = JSON.parse(result.payload);
-      expect(body).toHaveProperty('accessToken');
-      expect(body).toHaveProperty('refreshToken');
+      expect(body).toHaveProperty('message');
+      expect(body).not.toHaveProperty('accessToken');
       expect(mailService.sendVerificationEmail).toHaveBeenCalled();
     });
 
@@ -675,15 +710,8 @@ describe('Auth (e2e)', () => {
 
   describe('POST /auth/login', () => {
     beforeAll(async () => {
-      await app.inject({
-        method: 'POST',
-        url: '/auth/register',
-        payload: {
-          email: 'login@example.com',
-          password: 'MyP@ssw0rd',
-          displayName: 'Login User',
-        },
-      });
+      // registers AND verifies login@example.com
+      await registerVerifyLogin('login@example.com');
     });
 
     it('should login with valid credentials', async () => {
@@ -696,6 +724,24 @@ describe('Auth (e2e)', () => {
       const body = JSON.parse(result.payload);
       expect(body).toHaveProperty('accessToken');
       expect(body).toHaveProperty('refreshToken');
+    });
+
+    it('should reject login when the email is not verified', async () => {
+      await app.inject({
+        method: 'POST',
+        url: '/auth/register',
+        payload: {
+          email: 'unverified@example.com',
+          password: 'MyP@ssw0rd',
+          displayName: 'Unverified',
+        },
+      });
+      const result = await app.inject({
+        method: 'POST',
+        url: '/auth/login',
+        payload: { email: 'unverified@example.com', password: 'MyP@ssw0rd' },
+      });
+      expect(result.statusCode).toBe(403);
     });
 
     it('should return 401 for wrong password', async () => {
@@ -770,6 +816,7 @@ describe('Auth (e2e)', () => {
 
     it('should reset password using token from email', async () => {
       mailService.sendPasswordResetEmail.mockClear();
+      mailService.sendVerificationEmail.mockClear();
 
       await app.inject({
         method: 'POST',
@@ -779,6 +826,15 @@ describe('Auth (e2e)', () => {
           password: 'OldP@ssw0rd',
           displayName: 'Reset User',
         },
+      });
+
+      // verify the email so the login attempts below are not blocked
+      const verifyToken = mailService.sendVerificationEmail.mock
+        .calls[0][1] as string;
+      await app.inject({
+        method: 'POST',
+        url: '/auth/verify-email',
+        payload: { token: verifyToken },
       });
 
       await app.inject({
@@ -826,16 +882,9 @@ describe('Auth (e2e)', () => {
 
   describe('POST /auth/refresh', () => {
     it('should return new tokens for valid refresh token and revoke the old one', async () => {
-      const registerResult = await app.inject({
-        method: 'POST',
-        url: '/auth/register',
-        payload: {
-          email: 'refresh@example.com',
-          password: 'MyP@ssw0rd',
-          displayName: 'Refresh User',
-        },
-      });
-      const { refreshToken } = JSON.parse(registerResult.payload);
+      const { refreshToken } = await registerVerifyLogin(
+        'refresh@example.com',
+      );
 
       const result = await app.inject({
         method: 'POST',
@@ -868,16 +917,8 @@ describe('Auth (e2e)', () => {
 
   describe('POST /auth/logout', () => {
     it('should logout with valid access token', async () => {
-      const registerResult = await app.inject({
-        method: 'POST',
-        url: '/auth/register',
-        payload: {
-          email: 'logout@example.com',
-          password: 'MyP@ssw0rd',
-          displayName: 'Logout User',
-        },
-      });
-      const { accessToken, refreshToken } = JSON.parse(registerResult.payload);
+      const { accessToken, refreshToken } =
+        await registerVerifyLogin('logout@example.com');
 
       const result = await app.inject({
         method: 'POST',
@@ -911,26 +952,16 @@ describe('Auth (e2e)', () => {
   });
 
   describe('Sessions and /users/me', () => {
-    const registerAnd = async (email: string) => {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/auth/register',
-        payload: {
-          email,
-          password: 'MyP@ssw0rd',
-          displayName: 'Session User',
-        },
-        headers: {
+    const registerAnd = (email: string) =>
+      registerVerifyLogin(
+        email,
+        {
           'x-device': 'Pixel-8',
           'user-agent': 'MusicRoom/1.0',
           'x-forwarded-for': '10.0.0.7',
         },
-      });
-      return JSON.parse(res.payload) as {
-        accessToken: string;
-        refreshToken: string;
-      };
-    };
+        'Session User',
+      );
 
     it('GET /users/me returns the authenticated profile', async () => {
       const { accessToken } = await registerAnd('me@example.com');
@@ -1005,19 +1036,10 @@ describe('Auth (e2e)', () => {
 
   describe('Rooms', () => {
     const register = async (email: string) => {
-      const res = await app.inject({
-        method: 'POST',
-        url: '/auth/register',
-        payload: {
-          email,
-          password: 'MyP@ssw0rd',
-          displayName: email.split('@')[0],
-        },
-      });
-      const body = JSON.parse(res.payload) as { accessToken: string };
+      const { accessToken } = await registerVerifyLogin(email);
       // user id is created in the in-memory store; look it up by email
       const userRow = Object.values(users).find((u) => u.email === email)!;
-      return { accessToken: body.accessToken, userId: userRow.id as string };
+      return { accessToken, userId: userRow.id as string };
     };
 
     it('POST /rooms creates a room and adds the caller as OWNER', async () => {

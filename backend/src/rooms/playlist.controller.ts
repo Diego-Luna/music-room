@@ -11,6 +11,8 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -20,6 +22,8 @@ import {
   AddPlaylistItemDto,
   MovePlaylistItemDto,
 } from './dto/playlist.dto';
+import { TrackDto } from './dto/track-response.dto';
+import { MessageResponseDto } from '../common/dto/api-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
 
@@ -31,6 +35,11 @@ export class PlaylistController {
 
   @Get()
   @ApiOperation({ summary: 'List playlist items in order' })
+  @ApiOkResponse({
+    type: TrackDto,
+    isArray: true,
+    description: 'Playlist tracks ordered by their fractional `position`',
+  })
   async list(
     @CurrentUser() user: JwtPayload,
     @Param('id') roomId: string,
@@ -40,7 +49,7 @@ export class PlaylistController {
 
   @Post()
   @ApiOperation({ summary: 'Add a track to the playlist' })
-  @ApiResponse({ status: 201, description: 'Item added' })
+  @ApiCreatedResponse({ type: TrackDto, description: 'The added playlist item' })
   @ApiResponse({ status: 409, description: 'Item already in the playlist' })
   async add(
     @CurrentUser() user: JwtPayload,
@@ -53,6 +62,10 @@ export class PlaylistController {
   @Patch(':trackId/move')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reorder an item via fractional indices' })
+  @ApiOkResponse({
+    type: TrackDto,
+    description: 'The moved item with its new `position`',
+  })
   async move(
     @CurrentUser() user: JwtPayload,
     @Param('id') roomId: string,
@@ -65,6 +78,7 @@ export class PlaylistController {
   @Delete(':trackId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Remove an item (author, owner or admin)' })
+  @ApiOkResponse({ type: MessageResponseDto })
   async remove(
     @CurrentUser() user: JwtPayload,
     @Param('id') roomId: string,

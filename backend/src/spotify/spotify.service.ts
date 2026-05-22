@@ -207,7 +207,7 @@ export class SpotifyService {
     if (body) init.body = JSON.stringify(body);
     const res = await fetch(`${SPOTIFY_API_BASE}${path}`, init);
     if (res.status === 404) {
-      throw new NotFoundException('No active Spotify device for the delegate');
+      throw new NotFoundException('No active Spotify device for this user');
     }
     if (!res.ok && res.status !== 204) {
       const text = await res.text().catch(() => '');
