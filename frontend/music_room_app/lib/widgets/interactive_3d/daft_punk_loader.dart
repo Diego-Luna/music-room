@@ -1,10 +1,12 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+
+// ! dart:io is only available on native platforms
+import 'platform_stub.dart' if (dart.library.io) 'dart:io' show Platform;
 
 /// A loading widget that spins the Daft Punk helmet using native 3D rotation,
 /// influenced by the phone's gyroscope with a fallback to pure native rotation.

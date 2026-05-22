@@ -77,8 +77,12 @@ class _PlayerPageState extends State<PlayerPage> {
     final isMobile = MediaQuery.of(context).size.width < 700;
     final playerProvider = context.watch<PlayerProvider>();
 
-    // If no track is playing, load a default one
-    final track = playerProvider.currentTrack ?? MockData.tracks.first;
+    // * Fallback: get first available track from any room
+    final fallbackTrack = MockData.rooms.expand((r) => r.tracks).firstOrNull;
+    final track = playerProvider.currentTrack ?? fallbackTrack;
+    if (track == null) {
+      return const Scaffold(body: Center(child: Text('No track available')));
+    }
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -152,7 +156,7 @@ class _PlayerPageState extends State<PlayerPage> {
                       key: ValueKey(track.id),
                       trackTitle: track.title,
                       artistName: track.artist,
-                      imageUrl: track.albumArtUrl ?? "placeholder",
+                      imageUrl: track.artworkUrl ?? "placeholder",
                       onSwiped: (action) {
                         if (action == SwipeAction.like) {
                           ScaffoldMessenger.of(context).showSnackBar(

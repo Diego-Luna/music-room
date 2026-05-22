@@ -35,9 +35,10 @@ void main() {
     test('playTrack() changes state if no active room (has permission)', () {
       final track = Track(
         id: 't-1',
+        providerId: 'spotify:track:1',
         title: 'Song',
         artist: 'Artist',
-        durationSeconds: 180,
+        durationMs: 180000,
       );
       when(() => mockRoomsProvider.currentActiveRoom).thenReturn(null);
 
@@ -53,9 +54,10 @@ void main() {
       () {
         final track = Track(
           id: 't-1',
+          providerId: 'spotify:track:1',
           title: 'Song',
           artist: 'Artist',
-          durationSeconds: 180,
+          durationMs: 180000,
         );
         final room = Room(
           id: 'r-1',
@@ -82,9 +84,10 @@ void main() {
     test('playTrack() succeeds if in room and user is controller', () {
       final track = Track(
         id: 't-1',
+        providerId: 'spotify:track:1',
         title: 'Song',
         artist: 'Artist',
-        durationSeconds: 180,
+        durationMs: 180000,
       );
       final room = Room(
         id: 'r-1',

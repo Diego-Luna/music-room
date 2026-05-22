@@ -1,24 +1,24 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:music_room_app/core/repositories/mock_api_repository.dart';
-import 'package:music_room_app/models/event.dart';
+import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 
-class MockMockApiRepository extends Mock implements MockApiRepository {}
+class MockRoomRepository extends Mock implements RoomRepository {}
 
 class FakeTrack extends Fake implements Track {}
 
 void main() {
   late EventsProvider eventsProvider;
-  late MockMockApiRepository mockRepository;
+  late MockRoomRepository mockRepository;
 
   setUpAll(() {
     registerFallbackValue(FakeTrack());
   });
 
   setUp(() {
-    mockRepository = MockMockApiRepository();
+    mockRepository = MockRoomRepository();
     eventsProvider = EventsProvider(repository: mockRepository);
   });
 
@@ -29,25 +29,27 @@ void main() {
       expect(eventsProvider.error, isNull);
     });
 
-    test('fetchEvents sets events on success', () async {
-      final mockEvents = [
-        Event(id: 'event-1', name: 'Party', ownerId: 'user-1', tracks: []),
-      ];
-
+    test('fetchEvents returns only VOTE rooms', () async {
+      final voteRoom = Room(
+        id: 'room-1',
+        name: 'Party',
+        ownerId: 'user-1',
+        kind: RoomKind.vote,
+      );
       when(
-        () => mockRepository.getEvents(),
-      ).thenAnswer((_) async => mockEvents);
+        () => mockRepository.getRooms(kind: RoomKind.vote),
+      ).thenAnswer((_) async => [voteRoom]);
 
       await eventsProvider.fetchEvents();
 
-      expect(eventsProvider.events, equals(mockEvents));
+      expect(eventsProvider.events, equals([voteRoom]));
       expect(eventsProvider.isLoading, false);
       expect(eventsProvider.error, isNull);
     });
 
     test('fetchEvents sets error on failure', () async {
       when(
-        () => mockRepository.getEvents(),
+        () => mockRepository.getRooms(kind: RoomKind.vote),
       ).thenThrow(Exception('Network Error'));
 
       await eventsProvider.fetchEvents();
@@ -60,33 +62,38 @@ void main() {
     test('voteForTrack calls repository and reloads events', () async {
       when(
         () => mockRepository.voteForTrack(any(), any(), any()),
-      ).thenAnswer((_) async => {});
-      when(() => mockRepository.getEvents()).thenAnswer((_) async => []);
+      ).thenAnswer((_) async {});
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.vote),
+      ).thenAnswer((_) async => []);
 
-      await eventsProvider.voteForTrack('event-1', 'track-1', true);
+      await eventsProvider.voteForTrack('room-1', 'track-1', 1);
 
       verify(
-        () => mockRepository.voteForTrack('event-1', 'track-1', true),
+        () => mockRepository.voteForTrack('room-1', 'track-1', 1),
       ).called(1);
-      verify(() => mockRepository.getEvents()).called(1);
+      verify(() => mockRepository.getRooms(kind: RoomKind.vote)).called(1);
     });
 
     test('suggestTrack calls repository and reloads events', () async {
       final track = Track(
-        id: 't-1',
+        id: 'uuid-1',
+        providerId: 'spotify:track:1',
         title: 'Song',
         artist: 'Artist',
-        durationSeconds: 180,
+        durationMs: 180000,
       );
       when(
-        () => mockRepository.suggestTrack(any(), any()),
-      ).thenAnswer((_) async => {});
-      when(() => mockRepository.getEvents()).thenAnswer((_) async => []);
+        () => mockRepository.addVoteTrack(any(), any()),
+      ).thenAnswer((_) async => track);
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.vote),
+      ).thenAnswer((_) async => []);
 
-      await eventsProvider.suggestTrack('event-1', track);
+      await eventsProvider.suggestTrack('room-1', track);
 
-      verify(() => mockRepository.suggestTrack('event-1', any())).called(1);
-      verify(() => mockRepository.getEvents()).called(1);
+      verify(() => mockRepository.addVoteTrack('room-1', any())).called(1);
+      verify(() => mockRepository.getRooms(kind: RoomKind.vote)).called(1);
     });
   });
 }

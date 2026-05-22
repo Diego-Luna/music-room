@@ -8,8 +8,7 @@ import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
-import 'package:music_room_app/models/playlist.dart';
-import 'package:music_room_app/config/mock/mock_data.dart';
+import 'package:music_room_app/models/room.dart';
 
 class PlaylistDetailPage extends StatelessWidget {
   const PlaylistDetailPage({super.key});
@@ -19,13 +18,13 @@ class PlaylistDetailPage extends StatelessWidget {
     final theme = Theme.of(context);
     final playlistsProvider = context.watch<PlaylistsProvider>();
     final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
-    final Playlist? initialPlaylist = extra?['playlist'] as Playlist?;
+    final Room? initialPlaylist = extra?['playlist'] as Room?;
 
     if (initialPlaylist == null) {
       return const Scaffold(body: Center(child: Text('No playlist selected')));
     }
 
-    final playlist = playlistsProvider.playlists.firstWhere(
+    final Room playlist = playlistsProvider.playlists.firstWhere(
       (p) => p.id == initialPlaylist.id,
       orElse: () => initialPlaylist,
     );
@@ -48,9 +47,9 @@ class PlaylistDetailPage extends StatelessWidget {
                 const SizedBox(height: AppDimens.md),
                 Expanded(
                   child: ListView.builder(
-                    itemCount: MockData.tracks.length,
+                    itemCount: playlist.tracks.length,
                     itemBuilder: (context, index) {
-                      final track = MockData.tracks[index];
+                      final track = playlist.tracks[index];
                       return ListTile(
                         leading: const Icon(Icons.music_note),
                         title: Text(track.title),
@@ -182,10 +181,7 @@ class PlaylistDetailPage extends StatelessWidget {
             sliver: SliverList(
               delegate: SliverChildBuilderDelegate((context, i) {
                 if (i >= playlist.tracks.length) return null;
-                final playlistTrack = playlist.tracks[i];
-                final track = playlistTrack.track;
-
-                if (track == null) return const SizedBox.shrink();
+                final track = playlist.tracks[i];
 
                 return StaggeredList(
                   index: i,

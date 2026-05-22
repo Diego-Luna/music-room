@@ -69,6 +69,11 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
 
     try {
+      print('Registering user...');
+      print('Email: $email');
+      print('Password: $password');
+      print('Display Name: $displayName');
+
       final response = await _apiClient.post(
         ApiConfig.register,
         data: {
@@ -85,6 +90,8 @@ class AuthProvider extends ChangeNotifier {
       _user = User.decodeFromToken(accessToken);
       notifyListeners();
     } on DioException catch (e) {
+      print('Error in registration:');
+      print(e.response?.data.toString());
       _error = e.response?.data['message']?.toString() ?? 'Registration failed';
     } catch (e) {
       _error = 'An unexpected error occurred';

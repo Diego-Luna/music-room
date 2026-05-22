@@ -309,19 +309,16 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
     }
 
     // Show the first track in the voting interface
-    final eventTrack = activeEvent.tracks.first;
-    final track = eventTrack.track;
-
-    if (track == null) return const SizedBox.shrink();
+    final track = activeEvent.tracks.first;
 
     void handleVote(SwipeAction action) {
-      final isLike = action == SwipeAction.like;
+      final value = action == SwipeAction.like ? 1 : -1;
       final scaffoldMessenger = ScaffoldMessenger.of(context);
-      eventsProvider.voteForTrack(activeEvent.id, track.id, isLike).then((_) {
+      eventsProvider.voteForTrack(activeEvent.id, track.id, value).then((_) {
         scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text(
-              isLike
+              value > 0
                   ? 'Voted UP for ${track.title}!'
                   : 'Voted DOWN for ${track.title}!',
             ),
@@ -338,7 +335,7 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
           key: _cardKey,
           trackTitle: track.title,
           artistName: track.artist,
-          imageUrl: track.albumArtUrl ?? "placeholder",
+          imageUrl: track.artworkUrl ?? "placeholder",
           onSwiped: handleVote,
         ),
 

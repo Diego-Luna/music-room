@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:music_room_app/core/repositories/mock_api_repository.dart';
-import 'package:music_room_app/models/playlist.dart';
+import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 
+// * Manages PLAYLIST-kind rooms
+// * Its importnat for the collaborative ordered queues
 class PlaylistsProvider extends ChangeNotifier {
-  final MockApiRepository _repository;
-  List<Playlist> _playlists = [];
+  final RoomRepository _repository;
+  List<Room> _playlists = [];
   bool _isLoading = false;
   String? _error;
 
-  PlaylistsProvider({required MockApiRepository repository})
+  PlaylistsProvider({required RoomRepository repository})
     : _repository = repository;
 
-  List<Playlist> get playlists => _playlists;
+  List<Room> get playlists => _playlists;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -21,7 +23,7 @@ class PlaylistsProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _playlists = await _repository.getPlaylists();
+      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -30,10 +32,10 @@ class PlaylistsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addTrack(String playlistId, Track track) async {
+  Future<void> addTrack(String roomId, Track track) async {
     try {
-      await _repository.addTrackToPlaylist(playlistId, track);
-      _playlists = await _repository.getPlaylists();
+      await _repository.addPlaylistTrack(roomId, track);
+      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
       notifyListeners();
     } catch (e) {
       _error = e.toString();
@@ -41,10 +43,25 @@ class PlaylistsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> removeTrack(String playlistId, String trackId) async {
+  Future<void> removeTrack(String roomId, String trackId) async {
     try {
-      await _repository.removeTrackFromPlaylist(playlistId, trackId);
-      _playlists = await _repository.getPlaylists();
+      await _repository.removePlaylistTrack(roomId, trackId);
+      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  Future<void> moveTrack(
+    String roomId,
+    String trackId,
+    String newPosition,
+  ) async {
+    try {
+      await _repository.movePlaylistTrack(roomId, trackId, newPosition);
+      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
       notifyListeners();
     } catch (e) {
       _error = e.toString();
