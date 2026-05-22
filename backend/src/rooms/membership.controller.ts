@@ -11,8 +11,9 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
-  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { RoomMembershipService } from './membership.service';
@@ -20,6 +21,9 @@ import {
   InviteMemberDto,
   UpdateMemberRoleDto,
 } from './dto/invite-member.dto';
+import { RoomMemberDto } from './dto/room-response.dto';
+import { RoomInvitationDto } from './dto/invitation-response.dto';
+import { MessageResponseDto } from '../common/dto/api-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
 
@@ -31,6 +35,7 @@ export class RoomMembershipController {
 
   @Get('members')
   @ApiOperation({ summary: 'List members of a room' })
+  @ApiOkResponse({ type: RoomMemberDto, isArray: true })
   async list(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     return this.membership.listMembers(id, user.sub);
   }
@@ -38,6 +43,7 @@ export class RoomMembershipController {
   @Post('join')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Join a room (PUBLIC) or accept invitation (PRIVATE)' })
+  @ApiOkResponse({ type: MessageResponseDto })
   async join(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     await this.membership.join(id, user.sub);
     return { message: 'Joined' };
@@ -46,6 +52,7 @@ export class RoomMembershipController {
   @Post('leave')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Leave a room' })
+  @ApiOkResponse({ type: MessageResponseDto })
   async leave(@CurrentUser() user: JwtPayload, @Param('id') id: string) {
     await this.membership.leave(id, user.sub);
     return { message: 'Left' };
@@ -53,7 +60,10 @@ export class RoomMembershipController {
 
   @Post('invitations')
   @ApiOperation({ summary: 'Invite a user (owner/admin)' })
-  @ApiResponse({ status: 201, description: 'Invitation created' })
+  @ApiCreatedResponse({
+    type: RoomInvitationDto,
+    description: 'The created PENDING invitation',
+  })
   async invite(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -64,6 +74,7 @@ export class RoomMembershipController {
 
   @Patch('members/:userId/role')
   @ApiOperation({ summary: 'Change a member role (owner only)' })
+  @ApiOkResponse({ type: RoomMemberDto, description: 'The updated member' })
   async updateRole(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,
@@ -76,6 +87,7 @@ export class RoomMembershipController {
   @Delete('members/:userId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Remove a member (owner/admin)' })
+  @ApiOkResponse({ type: MessageResponseDto })
   async removeMember(
     @CurrentUser() user: JwtPayload,
     @Param('id') id: string,

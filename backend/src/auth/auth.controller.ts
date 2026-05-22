@@ -13,6 +13,8 @@ import {
   ApiTags,
   ApiOperation,
   ApiResponse,
+  ApiOkResponse,
+  ApiCreatedResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { Throttle, SkipThrottle } from '@nestjs/throttler';
@@ -29,9 +31,12 @@ import { LoginDto } from './dto/login.dto';
 import { SocialLoginDto } from './dto/social-login.dto';
 import { LinkSocialDto } from './dto/link-social.dto';
 import { VerifyEmailDto } from './dto/verify-email.dto';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { AuthTokensDto, SessionDto } from './dto/auth-response.dto';
+import { MessageResponseDto } from '../common/dto/api-response.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -57,21 +62,27 @@ export class AuthController {
   @Public()
   @Post('register')
   @ApiOperation({ summary: 'Register with email and password' })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  @ApiCreatedResponse({
+    type: MessageResponseDto,
+    description:
+      'Account created and a verification email sent. No session is ' +
+      'issued — the email must be verified before login.',
+  })
   @ApiResponse({ status: 409, description: 'Email already registered' })
-  async register(
-    @Req() req: FastifyRequest,
-    @Body() dto: RegisterDto,
-  ): Promise<TokenPair> {
-    return this.authService.register(dto, this.deviceContext(req));
+  async register(@Body() dto: RegisterDto): Promise<{ message: string }> {
+    return this.authService.register(dto);
   }
 
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
-  @ApiResponse({ status: 200, description: 'Login successful' })
+  @ApiOkResponse({
+    type: AuthTokensDto,
+    description: 'Login successful; returns the token pair',
+  })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 403, description: 'Email not verified' })
   async login(
     @Req() req: FastifyRequest,
     @Body() dto: LoginDto,
@@ -87,7 +98,10 @@ export class AuthController {
   @Post('social')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login or register via social provider' })
-  @ApiResponse({ status: 200, description: 'Social login successful' })
+  @ApiOkResponse({
+    type: AuthTokensDto,
+    description: 'Social login successful; returns the token pair',
+  })
   @ApiResponse({ status: 401, description: 'Invalid social token' })
   async socialLogin(
     @Req() req: FastifyRequest,
@@ -100,7 +114,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Link a social account to current user' })
-  @ApiResponse({ status: 200, description: 'Social account linked' })
+  @ApiOkResponse({ type: MessageResponseDto })
   @ApiResponse({ status: 409, description: 'Social account already linked' })
   async linkSocial(
     @CurrentUser() user: JwtPayload,
@@ -114,7 +128,7 @@ export class AuthController {
   @Post('verify-email')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify email address' })
-  @ApiResponse({ status: 200, description: 'Email verified' })
+  @ApiOkResponse({ type: MessageResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid token' })
   async verifyEmail(@Body() dto: VerifyEmailDto): Promise<{ message: string }> {
     await this.authService.verifyEmail(dto.token);
@@ -122,10 +136,32 @@ export class AuthController {
   }
 
   @Public()
+  @Post('resend-verification')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Resend the email verification link' })
+  @ApiOkResponse({
+    type: MessageResponseDto,
+    description: 'Always 200 (anti-enumeration)',
+  })
+  async resendVerification(
+    @Body() dto: ResendVerificationDto,
+  ): Promise<{ message: string }> {
+    await this.authService.resendVerification(dto.email);
+    return {
+      message:
+        'If an unverified account exists for that email, a new ' +
+        'verification link has been sent.',
+    };
+  }
+
+  @Public()
   @Post('forgot-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request password reset' })
-  @ApiResponse({ status: 200, description: 'Reset email sent (if account exists)' })
+  @ApiOkResponse({
+    type: MessageResponseDto,
+    description: 'Reset email sent (if the account exists)',
+  })
   async forgotPassword(
     @Body() dto: ForgotPasswordDto,
   ): Promise<{ message: string }> {
@@ -137,7 +173,7 @@ export class AuthController {
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Reset password with token' })
-  @ApiResponse({ status: 200, description: 'Password reset successful' })
+  @ApiOkResponse({ type: MessageResponseDto })
   @ApiResponse({ status: 400, description: 'Invalid or expired token' })
   async resetPassword(
     @Body() dto: ResetPasswordDto,
@@ -150,7 +186,10 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Refresh access token' })
-  @ApiResponse({ status: 200, description: 'Tokens refreshed' })
+  @ApiOkResponse({
+    type: AuthTokensDto,
+    description: 'Returns a fresh token pair; the old refresh token is revoked',
+  })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   async refresh(
     @Req() req: FastifyRequest,
@@ -165,7 +204,7 @@ export class AuthController {
   @Get('sessions')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List active sessions for the current user' })
-  @ApiResponse({ status: 200, description: 'List of active sessions' })
+  @ApiOkResponse({ type: SessionDto, isArray: true })
   async listSessions(
     @CurrentUser() user: JwtPayload,
   ): Promise<SessionSummary[]> {
@@ -176,7 +215,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Revoke a specific session' })
-  @ApiResponse({ status: 200, description: 'Session revoked' })
+  @ApiOkResponse({ type: MessageResponseDto })
   @ApiResponse({ status: 404, description: 'Session not found' })
   async revokeSession(
     @CurrentUser() user: JwtPayload,
@@ -190,7 +229,7 @@ export class AuthController {
   @ApiBearerAuth()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Logout and blacklist tokens' })
-  @ApiResponse({ status: 200, description: 'Logged out' })
+  @ApiOkResponse({ type: MessageResponseDto })
   async logout(
     @Req() req: FastifyRequest,
     @Body() body: { refreshToken?: string },

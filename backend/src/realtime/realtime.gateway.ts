@@ -20,7 +20,13 @@ import { RoomsService } from '../rooms/rooms.service';
 import { RealtimeService, roomChannel, userChannel } from './realtime.service';
 
 interface AuthedSocket extends Socket {
-  data: { userId: string; email: string };
+  data: {
+    userId: string;
+    email: string;
+    platform?: string;
+    device?: string;
+    appVersion?: string;
+  };
 }
 
 @Injectable()
@@ -61,9 +67,12 @@ export class RealtimeGateway
       (socket as AuthedSocket).data = {
         userId: payload.sub,
         email: payload.email,
+        platform: this.header(socket, 'x-platform'),
+        device: this.header(socket, 'x-device'),
+        appVersion: this.header(socket, 'x-app-version'),
       };
       await socket.join(userChannel(payload.sub));
-      this.logger.log(`socket ${socket.id} authed as ${payload.sub}`);
+      this.logAction(socket as AuthedSocket, 'connect', `socket=${socket.id}`);
     } catch (err) {
       this.logger.warn(
         `socket ${socket.id} auth failed: ${(err as Error).message}`,
@@ -89,6 +98,7 @@ export class RealtimeGateway
     try {
       await this.roomsService.findOne(roomId, socket.data.userId);
     } catch {
+      this.logAction(socket, 'room:join:denied', `room=${roomId}`);
       return { ok: false, error: 'not allowed' };
     }
 
@@ -97,6 +107,7 @@ export class RealtimeGateway
       userId: socket.data.userId,
       at: new Date().toISOString(),
     });
+    this.logAction(socket, 'room:join', `room=${roomId}`);
     return { ok: true };
   }
 
@@ -114,7 +125,32 @@ export class RealtimeGateway
       userId: socket.data.userId,
       at: new Date().toISOString(),
     });
+    this.logAction(socket, 'room:leave', `room=${roomId}`);
     return { ok: true };
+  }
+
+  /**
+   * Logs a websocket action with the same client tags as the HTTP request
+   * logger (V.6: every action from the mobile app must produce a log line
+   * carrying Platform / Device / App-Version).
+   */
+  private logAction(
+    socket: AuthedSocket,
+    action: string,
+    detail: string,
+  ): void {
+    const d = socket.data;
+    this.logger.log(
+      `WS ${action} ${detail} user=${d?.userId ?? 'N/A'} ` +
+        `[platform=${d?.platform ?? 'N/A'} device=${d?.device ?? 'N/A'} ` +
+        `version=${d?.appVersion ?? 'N/A'}]`,
+    );
+  }
+
+  private header(socket: Socket, name: string): string | undefined {
+    const value = socket.handshake.headers[name];
+    if (Array.isArray(value)) return value[0];
+    return value;
   }
 
   private extractToken(socket: Socket): string | null {

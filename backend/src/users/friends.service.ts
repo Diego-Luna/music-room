@@ -4,8 +4,11 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
+import { PushService } from '../notifications/push.service';
 
 export type FriendshipStatus =
   | 'PENDING'
@@ -24,7 +27,11 @@ export interface FriendshipView {
 
 @Injectable()
 export class FriendsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly realtime?: RealtimeService,
+    @Optional() private readonly push?: PushService,
+  ) {}
 
   async request(
     requesterId: string,
@@ -64,12 +71,30 @@ export class FriendsService {
           respondedAt: null,
         },
       });
+      this.notifyNewRequest(targetUserId, reopened.id, requesterId);
       return reopened as unknown as FriendshipView;
     }
     const created = await this.prisma.friendship.create({
       data: { requesterId, addresseeId: targetUserId, status: 'PENDING' },
     });
+    this.notifyNewRequest(targetUserId, created.id, requesterId);
     return created as unknown as FriendshipView;
+  }
+
+  private notifyNewRequest(
+    addresseeId: string,
+    friendshipId: string,
+    requesterId: string,
+  ) {
+    this.realtime?.emitToUser(addresseeId, 'friend:request:new', {
+      friendshipId,
+      requesterId,
+    });
+    void this.push?.sendToUser(addresseeId, {
+      title: 'New friend request',
+      body: 'Someone wants to be your friend',
+      data: { type: 'friend:request:new', friendshipId, requesterId },
+    });
   }
 
   async accept(addresseeId: string, friendshipId: string) {
@@ -82,10 +107,15 @@ export class FriendsService {
     if (f.status !== 'PENDING') {
       throw new BadRequestException(`Friendship is ${f.status}, not PENDING`);
     }
-    return this.prisma.friendship.update({
+    const updated = await this.prisma.friendship.update({
       where: { id: friendshipId },
       data: { status: 'ACCEPTED', respondedAt: new Date() },
     });
+    this.realtime?.emitToUser(f.requesterId, 'friend:request:accepted', {
+      friendshipId,
+      addresseeId,
+    });
+    return updated;
   }
 
   async decline(addresseeId: string, friendshipId: string) {
@@ -98,10 +128,15 @@ export class FriendsService {
     if (f.status !== 'PENDING') {
       throw new BadRequestException(`Friendship is ${f.status}, not PENDING`);
     }
-    return this.prisma.friendship.update({
+    const updated = await this.prisma.friendship.update({
       where: { id: friendshipId },
       data: { status: 'DECLINED', respondedAt: new Date() },
     });
+    this.realtime?.emitToUser(f.requesterId, 'friend:request:declined', {
+      friendshipId,
+      addresseeId,
+    });
+    return updated;
   }
 
   async cancel(userId: string, friendshipId: string) {
@@ -114,13 +149,23 @@ export class FriendsService {
     if (f.status === 'ACCEPTED') {
       // unfriend → fully delete
       await this.prisma.friendship.delete({ where: { id: friendshipId } });
+      const otherUserId = isRequester ? f.addresseeId : f.requesterId;
+      this.realtime?.emitToUser(otherUserId, 'friend:removed', {
+        friendshipId,
+        byUserId: userId,
+      });
       return { id: friendshipId, removed: true };
     }
     if (f.status === 'PENDING' && isRequester) {
-      return this.prisma.friendship.update({
+      const updated = await this.prisma.friendship.update({
         where: { id: friendshipId },
         data: { status: 'CANCELED', respondedAt: new Date() },
       });
+      this.realtime?.emitToUser(f.addresseeId, 'friend:request:canceled', {
+        friendshipId,
+        requesterId: userId,
+      });
+      return updated;
     }
     throw new BadRequestException(
       `Cannot cancel a friendship in state ${f.status}`,

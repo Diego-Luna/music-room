@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { FriendsService } from './friends.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeService } from '../realtime/realtime.service';
+import { PushService } from '../notifications/push.service';
 
 type Fn = ReturnType<typeof vi.fn>;
 
@@ -23,6 +25,8 @@ describe('FriendsService', () => {
       delete: Fn;
     };
   };
+  let realtime: { emitToUser: Fn; emitToRoom: Fn };
+  let push: { sendToUser: Fn };
 
   beforeEach(async () => {
     prisma = {
@@ -36,10 +40,14 @@ describe('FriendsService', () => {
         delete: vi.fn(),
       },
     };
+    realtime = { emitToUser: vi.fn(), emitToRoom: vi.fn() };
+    push = { sendToUser: vi.fn().mockResolvedValue(undefined) };
     const mod: TestingModule = await Test.createTestingModule({
       providers: [
         FriendsService,
         { provide: PrismaService, useValue: prisma },
+        { provide: RealtimeService, useValue: realtime },
+        { provide: PushService, useValue: push },
       ],
     }).compile();
     service = mod.get(FriendsService);
@@ -291,6 +299,119 @@ describe('FriendsService', () => {
       prisma.friendship.findFirst.mockResolvedValue(null);
       const r = await service.areFriends('a', 'b');
       expect(r).toBe(false);
+    });
+  });
+
+  describe('realtime + push notifications', () => {
+    it('request: notifies the addressee on a fresh create', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'bob' });
+      prisma.friendship.findFirst.mockResolvedValue(null);
+      prisma.friendship.create.mockResolvedValue({ id: 'fr-1' });
+
+      await service.request('alice', 'bob');
+
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'bob',
+        'friend:request:new',
+        expect.objectContaining({ friendshipId: 'fr-1', requesterId: 'alice' }),
+      );
+      expect(push.sendToUser).toHaveBeenCalledWith(
+        'bob',
+        expect.objectContaining({
+          data: expect.objectContaining({ type: 'friend:request:new' }),
+        }),
+      );
+    });
+
+    it('request: notifies the addressee when reopening a DECLINED row', async () => {
+      prisma.user.findUnique.mockResolvedValue({ id: 'bob' });
+      prisma.friendship.findFirst.mockResolvedValue({
+        id: 'fr-old',
+        status: 'DECLINED',
+      });
+      prisma.friendship.update.mockResolvedValue({ id: 'fr-old' });
+
+      await service.request('alice', 'bob');
+
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'bob',
+        'friend:request:new',
+        expect.objectContaining({ friendshipId: 'fr-old' }),
+      );
+      expect(push.sendToUser).toHaveBeenCalled();
+    });
+
+    it('accept: notifies the requester', async () => {
+      prisma.friendship.findUnique.mockResolvedValue({
+        id: 'fr-1',
+        requesterId: 'alice',
+        addresseeId: 'bob',
+        status: 'PENDING',
+      });
+      prisma.friendship.update.mockResolvedValue({ id: 'fr-1' });
+
+      await service.accept('bob', 'fr-1');
+
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'alice',
+        'friend:request:accepted',
+        expect.objectContaining({ friendshipId: 'fr-1', addresseeId: 'bob' }),
+      );
+    });
+
+    it('decline: notifies the requester', async () => {
+      prisma.friendship.findUnique.mockResolvedValue({
+        id: 'fr-1',
+        requesterId: 'alice',
+        addresseeId: 'bob',
+        status: 'PENDING',
+      });
+      prisma.friendship.update.mockResolvedValue({ id: 'fr-1' });
+
+      await service.decline('bob', 'fr-1');
+
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'alice',
+        'friend:request:declined',
+        expect.objectContaining({ friendshipId: 'fr-1', addresseeId: 'bob' }),
+      );
+    });
+
+    it('cancel pending: notifies the addressee', async () => {
+      prisma.friendship.findUnique.mockResolvedValue({
+        id: 'fr-1',
+        requesterId: 'alice',
+        addresseeId: 'bob',
+        status: 'PENDING',
+      });
+      prisma.friendship.update.mockResolvedValue({ id: 'fr-1' });
+
+      await service.cancel('alice', 'fr-1');
+
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'bob',
+        'friend:request:canceled',
+        expect.objectContaining({ friendshipId: 'fr-1', requesterId: 'alice' }),
+      );
+    });
+
+    it('unfriend (ACCEPTED → delete): notifies the other party', async () => {
+      prisma.friendship.findUnique.mockResolvedValue({
+        id: 'fr-1',
+        requesterId: 'alice',
+        addresseeId: 'bob',
+        status: 'ACCEPTED',
+      });
+      prisma.friendship.delete.mockResolvedValue({ id: 'fr-1' });
+
+      // Bob unfriends; Alice should be notified.
+      await service.cancel('bob', 'fr-1');
+
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'alice',
+        'friend:removed',
+        expect.objectContaining({ friendshipId: 'fr-1', byUserId: 'bob' }),
+      );
     });
   });
 });

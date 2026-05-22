@@ -9,6 +9,7 @@ import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { RoomsModule } from './rooms/rooms.module';
+import { DelegationModule } from './delegation/delegation.module';
 import { RealtimeCoreModule } from './realtime/realtime-core.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SpotifyModule } from './spotify/spotify.module';
@@ -84,6 +85,7 @@ import { AppController } from './app.controller';
     RealtimeCoreModule,
     NotificationsModule,
     RoomsModule,
+    DelegationModule,
     RealtimeModule,
     SpotifyModule,
     HealthModule,

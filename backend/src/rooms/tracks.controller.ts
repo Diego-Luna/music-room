@@ -10,12 +10,16 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
 import { TracksService } from './tracks.service';
 import { AddTrackDto, VoteTrackDto } from './dto/track.dto';
+import { TrackDto } from './dto/track-response.dto';
+import { MessageResponseDto } from '../common/dto/api-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
 
@@ -27,6 +31,7 @@ export class TracksController {
 
   @Get()
   @ApiOperation({ summary: 'List tracks for a VOTE room, ranked by score' })
+  @ApiOkResponse({ type: TrackDto, isArray: true })
   async list(
     @CurrentUser() user: JwtPayload,
     @Param('id') roomId: string,
@@ -36,7 +41,7 @@ export class TracksController {
 
   @Post()
   @ApiOperation({ summary: 'Add a track suggestion to the queue' })
-  @ApiResponse({ status: 201, description: 'Track added' })
+  @ApiCreatedResponse({ type: TrackDto, description: 'The added track' })
   @ApiResponse({ status: 409, description: 'Track already in the queue' })
   async add(
     @CurrentUser() user: JwtPayload,
@@ -49,7 +54,10 @@ export class TracksController {
   @Post(':trackId/vote')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Vote on a track (+1 / -1 / 0 to clear)' })
-  @ApiResponse({ status: 200, description: 'Vote recorded' })
+  @ApiOkResponse({
+    type: TrackDto,
+    description: 'The track with its updated score',
+  })
   @ApiResponse({ status: 403, description: 'Voting closed or out of range' })
   async vote(
     @CurrentUser() user: JwtPayload,
@@ -63,6 +71,7 @@ export class TracksController {
   @Delete(':trackId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Remove a track (author, owner or admin)' })
+  @ApiOkResponse({ type: MessageResponseDto })
   async remove(
     @CurrentUser() user: JwtPayload,
     @Param('id') roomId: string,

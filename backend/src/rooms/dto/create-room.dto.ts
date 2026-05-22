@@ -1,6 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsBoolean,
   IsEnum,
   IsInt,
   IsISO8601,
@@ -16,7 +15,6 @@ import {
 export enum RoomKind {
   VOTE = 'VOTE',
   PLAYLIST = 'PLAYLIST',
-  DELEGATE = 'DELEGATE',
 }
 
 export enum RoomVisibility {
@@ -27,6 +25,16 @@ export enum RoomVisibility {
 export enum VoteWindow {
   ALWAYS = 'ALWAYS',
   SCHEDULED = 'SCHEDULED',
+}
+
+export enum EditAccess {
+  EVERYONE = 'EVERYONE',
+  INVITED_ONLY = 'INVITED_ONLY',
+}
+
+export enum VoteAccess {
+  EVERYONE = 'EVERYONE',
+  INVITED_ONLY = 'INVITED_ONLY',
 }
 
 export class CreateRoomDto {
@@ -51,10 +59,23 @@ export class CreateRoomDto {
   @IsEnum(RoomVisibility)
   visibility?: RoomVisibility;
 
-  @ApiPropertyOptional({ description: 'Whether non-owner members can edit the playlist (PLAYLIST rooms only)' })
+  @ApiPropertyOptional({
+    enum: EditAccess,
+    default: EditAccess.EVERYONE,
+    description: 'Who may edit the playlist (PLAYLIST rooms)',
+  })
   @IsOptional()
-  @IsBoolean()
-  allowMembersEdit?: boolean;
+  @IsEnum(EditAccess)
+  editAccess?: EditAccess;
+
+  @ApiPropertyOptional({
+    enum: VoteAccess,
+    default: VoteAccess.EVERYONE,
+    description: 'Who may suggest/vote (VOTE rooms)',
+  })
+  @IsOptional()
+  @IsEnum(VoteAccess)
+  voteAccess?: VoteAccess;
 
   @ApiPropertyOptional({ enum: VoteWindow, default: VoteWindow.ALWAYS })
   @IsOptional()

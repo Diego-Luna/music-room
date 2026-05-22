@@ -1,10 +1,21 @@
-import { IsArray, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class GrantDelegationDto {
-  @ApiProperty({ description: 'User id to make DJ' })
+  @ApiProperty({
+    description: 'User id of the friend who will control the device',
+  })
+  @IsString()
   @IsUUID()
-  userId!: string;
+  delegateUserId!: string;
 }
 
 export class PlayPlaybackDto {
