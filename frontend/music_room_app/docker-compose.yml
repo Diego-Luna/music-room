@@ -1,11 +1,13 @@
 services:
   # Service to build Flutter Web and Android APK
   flutter-linux:
-    image: instrumentisto/flutter:latest
+    image: instrumentisto/flutter:3.41
+    platform: linux/amd64
     volumes:
       - .:/app
+      - ../build:/app/build
+      - /app/.dart_tool/
     working_dir: /app
-    user: "1000:1000"
 
   # ! Work in progress
   # --- START OF macOS-BUILDER SERVICE DEFINITION ---
@@ -34,4 +36,4 @@ services:
     ports:
       - 8080:80
     volumes:
-      - ./build/web:/usr/share/nginx/html
+      - ../build/web:/usr/share/nginx/html
