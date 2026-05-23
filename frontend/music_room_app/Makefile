@@ -40,7 +40,7 @@ else
 	fi
 endif
 
-# * Build the web assets and spin up the Nginx local web server on port 8080
+# * Build the web assets and spin up the Nginx local web server on port 5173
 run: build-web
 	$(COMPOSE) up -d web-server
 

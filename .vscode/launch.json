@@ -1,0 +1,15 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Music Room App (Web 5173)",
+			"request": "launch",
+			"type": "dart",
+			"cwd": "frontend/music_room_app",
+			"args": [
+				"--web-port",
+				"5173"
+			]
+		}
+	]
+}

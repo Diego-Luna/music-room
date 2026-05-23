@@ -1,10 +1,9 @@
 class ApiConfig {
   // * Base URL for the NestJS API
   // * Defaults to localhost for local development
-  static const String baseUrl = String.fromEnvironment(
-    'BACKEND_API_URL',
-    defaultValue: 'http://localhost:3000',
-  );
+  static const String baseUrl = String.fromEnvironment('BACKEND_API_URL') != ''
+      ? String.fromEnvironment('BACKEND_API_URL')
+      : 'http://localhost:3000';
 
   // * WebSocket base URL
   static String get wsUrl => baseUrl;
