@@ -10,6 +10,7 @@ export interface UserProfile {
   avatarUrl: string | null;
   emailVerified: boolean;
   visibility: Visibility;
+  subscriptionTier: string;
   musicPreferences: string[];
   createdAt: Date;
   updatedAt: Date;
@@ -105,6 +106,7 @@ export class UsersService {
       avatarUrl: (user.avatarUrl as string | null) ?? null,
       emailVerified: user.emailVerified as boolean,
       visibility: user.visibility as Visibility,
+      subscriptionTier: user.subscriptionTier as string,
       musicPreferences: (user.musicPreferences as string[]) ?? [],
       createdAt: user.createdAt as Date,
       updatedAt: user.updatedAt as Date,

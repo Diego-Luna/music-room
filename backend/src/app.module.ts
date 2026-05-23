@@ -14,6 +14,7 @@ import { RealtimeCoreModule } from './realtime/realtime-core.module';
 import { RealtimeModule } from './realtime/realtime.module';
 import { SpotifyModule } from './spotify/spotify.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { SubscriptionModule } from './subscription/subscription.module';
 import { MailModule } from './mail/mail.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -88,6 +89,7 @@ import { AppController } from './app.controller';
     DelegationModule,
     RealtimeModule,
     SpotifyModule,
+    SubscriptionModule,
     HealthModule,
   ],
   controllers: [AppController],

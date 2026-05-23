@@ -260,6 +260,45 @@ describe('RoomMembershipService', () => {
         service.removeMember('room-1', 'owner-1', 'owner-1'),
       ).rejects.toThrow(BadRequestException);
     });
+
+    it('lets the owner kick an ADMIN', async () => {
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      // Owner caller → requireAdmin returns early; only the target lookup fires.
+      prisma.roomMember.findUnique.mockResolvedValue({
+        userId: 'admin-2',
+        role: 'ADMIN',
+      });
+      await service.removeMember('room-1', 'owner-1', 'admin-2');
+      expect(prisma.roomMember.delete).toHaveBeenCalled();
+    });
+
+    it('refuses an ADMIN trying to kick another ADMIN (only owner can)', async () => {
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      prisma.roomMember.findUnique
+        .mockResolvedValueOnce({ userId: 'admin-1', role: 'ADMIN' }) // requireAdmin
+        .mockResolvedValueOnce({ userId: 'admin-2', role: 'ADMIN' }); // target
+      await expect(
+        service.removeMember('room-1', 'admin-1', 'admin-2'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.roomMember.delete).not.toHaveBeenCalled();
+    });
+
+    it('still lets an ADMIN kick a regular MEMBER', async () => {
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      prisma.roomMember.findUnique
+        .mockResolvedValueOnce({ userId: 'admin-1', role: 'ADMIN' }) // requireAdmin
+        .mockResolvedValueOnce({ userId: 'kicked', role: 'MEMBER' }); // target
+      await service.removeMember('room-1', 'admin-1', 'kicked');
+      expect(prisma.roomMember.delete).toHaveBeenCalled();
+    });
+
+    it('rejects an ADMIN trying to kick themselves (use leave instead)', async () => {
+      prisma.room.findUnique.mockResolvedValue(publicRoom);
+      await expect(
+        service.removeMember('room-1', 'admin-1', 'admin-1'),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.roomMember.delete).not.toHaveBeenCalled();
+    });
   });
 
   describe('realtime broadcasts', () => {

@@ -9,6 +9,7 @@ import { generateKeyBetween } from 'fractional-indexing';
 import { PlaylistService } from './playlist.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 
 const keyA = generateKeyBetween(null, null);
 const keyB = generateKeyBetween(keyA, null);
@@ -31,6 +32,7 @@ describe('PlaylistService', () => {
     };
   };
   let realtime: { emitToRoom: Fn; emitToUser: Fn };
+  let subscription: { assertPremium: Fn };
 
   // PUBLIC playlist, editAccess EVERYONE — anyone may edit.
   const baseRoom = {
@@ -56,12 +58,14 @@ describe('PlaylistService', () => {
       },
     };
     realtime = { emitToRoom: vi.fn(), emitToUser: vi.fn() };
+    subscription = { assertPremium: vi.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         PlaylistService,
         { provide: PrismaService, useValue: prisma },
         { provide: RealtimeService, useValue: realtime },
+        { provide: SubscriptionService, useValue: subscription },
       ],
     }).compile();
 
@@ -211,6 +215,14 @@ describe('PlaylistService', () => {
         service.addItem('r1', 'owner', { ...baseDto, afterTrackId: 'a' }),
       ).rejects.toThrow(NotFoundException);
     });
+
+    it('rejects a FREE user — the Playlist Editor is premium-only (VI.3)', async () => {
+      prisma.room.findUnique.mockResolvedValue(baseRoom);
+      subscription.assertPremium.mockRejectedValue(new ForbiddenException());
+      await expect(
+        service.addItem('r1', 'free-user', { ...baseDto }),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 
   describe('moveItem', () => {
@@ -323,6 +335,15 @@ describe('PlaylistService', () => {
       await service.removeItem('r1', 't1', 'invited-user');
       expect(prisma.track.delete).toHaveBeenCalled();
     });
+
+    it('rejects a FREE user from removing — premium-only editor (VI.3)', async () => {
+      prisma.room.findUnique.mockResolvedValue(baseRoom);
+      prisma.track.findUnique.mockResolvedValue({ id: 't1', roomId: 'r1' });
+      subscription.assertPremium.mockRejectedValue(new ForbiddenException());
+      await expect(
+        service.removeItem('r1', 't1', 'free-user'),
+      ).rejects.toThrow(ForbiddenException);
+    });
   });
 
   describe('listOrdered', () => {
@@ -346,6 +367,13 @@ describe('PlaylistService', () => {
       await expect(service.listOrdered('r1', 'stranger')).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('does not require premium to view the playlist (VI.3 — viewing is free)', async () => {
+      prisma.room.findUnique.mockResolvedValue(baseRoom);
+      prisma.track.findMany.mockResolvedValue([]);
+      await service.listOrdered('r1', 'free-user');
+      expect(subscription.assertPremium).not.toHaveBeenCalled();
     });
   });
 });

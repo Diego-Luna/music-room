@@ -12,6 +12,13 @@ enum Visibility {
   PRIVATE
 }
 
+// VI.3 bonus — free vs paid subscription. The Music Playlist Editor
+// (creating playlist rooms) is reserved to PREMIUM accounts.
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+}
+
 model User {
   id               String     @id @default(uuid())
   email            String     @unique
@@ -20,6 +27,7 @@ model User {
   avatarUrl        String?
   emailVerified    Boolean    @default(false)
   visibility       Visibility @default(PUBLIC)
+  subscriptionTier SubscriptionTier @default(FREE)
   musicPreferences String[]   @default([])
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
