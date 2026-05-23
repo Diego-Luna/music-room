@@ -73,6 +73,7 @@ class AuthProvider extends ChangeNotifier {
       print('Email: $email');
       print('Password: $password');
       print('Display Name: $displayName');
+      print('wsUrl: ${ApiConfig.wsUrl}');
 
       final response = await _apiClient.post(
         ApiConfig.register,
