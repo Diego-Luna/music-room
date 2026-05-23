@@ -1,0 +1,39 @@
+services:
+  # Service to build Flutter Web and Android APK
+  flutter-linux:
+    image: instrumentisto/flutter:3.41
+    platform: linux/amd64
+    volumes:
+      - .:/app
+      - ../build:/app/build
+      - /app/.dart_tool/
+    working_dir: /app
+
+  # ! Work in progress
+  # --- START OF macOS-BUILDER SERVICE DEFINITION ---
+  macos-builder:
+    image: dockurr/macos
+    container_name: macos-builder
+    environment:
+      VERSION: "15"
+      DISK_SIZE: "100G"
+      KVM: "N"
+    devices:
+      - /dev/net/tun
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - 8006:8006
+      - 5900:5900/tcp
+      - 5900:5900/udp
+    volumes:
+      - .:/storage
+    restart: always
+
+  # Lightweight Nginx server to host the local web build
+  web-server:
+    image: nginx:alpine
+    ports:
+      - 3000:80
+    volumes:
+      - ../build/web:/usr/share/nginx/html

@@ -87,14 +87,11 @@ class RoomDetailPage extends StatelessWidget {
                     ListView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      itemCount: room.connectedUsers.length,
+                      // TODO > implement real members API instead of mock data
+                      // TODO: replace with real members API when available
+                      itemCount: MockData.users.length,
                       itemBuilder: (context, index) {
-                        final participantId = room.connectedUsers[index];
-                        // Find participant details from MockData.users
-                        final participant = MockData.users.firstWhere(
-                          (u) => u.id == participantId,
-                          orElse: () => MockData.users.first,
-                        );
+                        final participant = MockData.users[index];
 
                         final isCurrentController =
                             room.currentControllerId == participant.id;

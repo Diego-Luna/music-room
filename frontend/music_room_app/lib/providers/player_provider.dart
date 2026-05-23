@@ -69,4 +69,29 @@ class PlayerProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
   }
+
+  // * Handler methods for socket events
+  void handlePlaybackPlayed(Track track) {
+    _currentTrack = track;
+    _isPlaying = true;
+    _error = null;
+    notifyListeners();
+  }
+
+  void handlePlaybackPaused() {
+    _isPlaying = false;
+    _error = null;
+    notifyListeners();
+  }
+
+  void handlePlaybackSkipped(Track track) {
+    _currentTrack = track;
+    _isPlaying = true;
+    _error = null;
+    notifyListeners();
+  }
+
+  void handlePlaybackVolumeChanged(double volume) {
+    // * Local player volume adjustment logic
+  }
 }

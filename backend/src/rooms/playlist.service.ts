@@ -9,6 +9,7 @@ import {
 import { generateKeyBetween } from 'fractional-indexing';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { AddPlaylistItemDto, MovePlaylistItemDto } from './dto/playlist.dto';
 
 type Room = {
@@ -16,7 +17,7 @@ type Room = {
   kind: string;
   ownerId: string;
   visibility: string;
-  allowMembersEdit: boolean;
+  editAccess: string;
 };
 
 type TrackRow = {
@@ -26,18 +27,18 @@ type TrackRow = {
   addedById: string;
 };
 
-const EDIT_ROLES = new Set(['OWNER', 'ADMIN']);
-
 @Injectable()
 export class PlaylistService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly subscription: SubscriptionService,
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
   async addItem(roomId: string, userId: string, dto: AddPlaylistItemDto) {
     const room = await this.requirePlaylistRoom(roomId);
     await this.requireEditor(room, userId);
+    await this.subscription.assertPremium(userId);
 
     if (dto.afterTrackId && dto.beforeTrackId) {
       throw new BadRequestException(
@@ -88,6 +89,7 @@ export class PlaylistService {
   ) {
     const room = await this.requirePlaylistRoom(roomId);
     await this.requireEditor(room, userId);
+    await this.subscription.assertPremium(userId);
 
     if (!dto.afterTrackId && !dto.beforeTrackId) {
       throw new BadRequestException(
@@ -129,21 +131,13 @@ export class PlaylistService {
 
   async removeItem(roomId: string, trackId: string, userId: string) {
     const room = await this.requirePlaylistRoom(roomId);
+    await this.requireEditor(room, userId);
+    await this.subscription.assertPremium(userId);
     const track = await this.prisma.track.findUnique({
       where: { id: trackId },
     });
     if (!track || track.roomId !== roomId) {
       throw new NotFoundException('Track not found');
-    }
-    const isOwner = room.ownerId === userId;
-    const isAuthor = track.addedById === userId;
-    if (!isOwner && !isAuthor) {
-      const member = await this.prisma.roomMember.findUnique({
-        where: { roomId_userId: { roomId, userId } },
-      });
-      if (member?.role !== 'ADMIN') {
-        throw new ForbiddenException('Not allowed to remove this track');
-      }
     }
     await this.prisma.track.delete({ where: { id: trackId } });
     this.realtime?.emitToRoom(roomId, 'playlist:item-removed', { trackId });
@@ -151,12 +145,7 @@ export class PlaylistService {
 
   async listOrdered(roomId: string, userId: string) {
     const room = await this.requirePlaylistRoom(roomId);
-    if (room.visibility === 'PRIVATE' && room.ownerId !== userId) {
-      const member = await this.prisma.roomMember.findUnique({
-        where: { roomId_userId: { roomId, userId } },
-      });
-      if (!member) throw new NotFoundException('Room not found');
-    }
+    await this.requireRoomAccess(room, userId);
     return this.prisma.track.findMany({
       where: { roomId, position: { not: null } },
       orderBy: [{ position: 'asc' }, { addedAt: 'asc' }],
@@ -175,15 +164,34 @@ export class PlaylistService {
     return room;
   }
 
-  private async requireEditor(room: Room, userId: string) {
+  // PUBLIC room → reachable by any authenticated user; PRIVATE → owner or
+  // member, else 404 (do not leak the room's existence).
+  private async requireRoomAccess(room: Room, userId: string): Promise<void> {
+    if (room.visibility === 'PUBLIC') return;
     if (room.ownerId === userId) return;
     const member = await this.prisma.roomMember.findUnique({
       where: { roomId_userId: { roomId: room.id, userId } },
     });
-    if (!member) throw new ForbiddenException('Not a member of this room');
-    if (room.allowMembersEdit) return;
-    if (!EDIT_ROLES.has(member.role)) {
-      throw new ForbiddenException('Only the owner or an admin can edit');
+    if (!member) throw new NotFoundException('Room not found');
+  }
+
+  // V.2.3 edit license: EVERYONE → anyone with room access may edit;
+  // INVITED_ONLY → only the owner and users the owner invited.
+  private async requireEditor(room: Room, userId: string): Promise<void> {
+    await this.requireRoomAccess(room, userId);
+    if (room.editAccess === 'EVERYONE') return;
+    if (room.ownerId === userId) return;
+    const invitation = await this.prisma.roomInvitation.findFirst({
+      where: {
+        roomId: room.id,
+        inviteeId: userId,
+        status: { in: ['PENDING', 'ACCEPTED'] },
+      },
+    });
+    if (!invitation) {
+      throw new ForbiddenException(
+        'Only invited users can edit this playlist',
+      );
     }
   }
 

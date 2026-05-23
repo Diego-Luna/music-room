@@ -26,7 +26,7 @@ Tous les chemins de fichiers sont relatifs à `backend/` sauf mention contraire.
 |---|---|---|
 | V.1 | Inscription via email/mot de passe | `src/auth/auth.controller.ts:57-67` (`POST /auth/register`) ; `src/auth/auth.service.ts:69-91` |
 | V.1 | Inscription via réseau social (Google ou Facebook) | `src/auth/auth.controller.ts:86-97` (`POST /auth/social`) ; `src/auth/auth.service.ts:131-181` (handle les deux providers) |
-| V.1 | Validation email obligatoire si email/mdp | `src/auth/auth.service.ts:87, 93-103` (token créé à l'inscription) ; `src/auth/auth.controller.ts:113-122` (`POST /auth/verify-email`) ; `src/mail/mail.service.ts` (envoi) ; modèle `EmailVerification` dans `prisma/schema.prisma:237-248` |
+| V.1 | Validation email **exigée** si email/mdp ("must demand") | `register()` n'émet **aucune session** (renvoie un message) ; `login()` rejette en **403** tout compte email/mdp non vérifié (`src/auth/auth.service.ts`) ; `POST /auth/verify-email` + `POST /auth/resend-verification` (`src/auth/auth.controller.ts`) ; `src/mail/mail.service.ts` (envoi, capté par Mailpit en dev) ; modèle `EmailVerification` |
 | V.1 | Forgot password / changement de mdp | `src/auth/auth.controller.ts:124-147` ; `src/auth/auth.service.ts:248-295` ; modèle `PasswordReset` dans `prisma/schema.prisma:269-280` |
 | V.1 | Lier compte social après inscription | `src/auth/auth.controller.ts:99-111` (`POST /auth/link-social`) ; `src/auth/auth.service.ts:183-218` |
 | V.1 | Music preferences modifiables | `src/users/dto/update-user.dto.ts:37-42` ; `src/users/users.service.ts:46-48` ; champ `musicPreferences` dans `prisma/schema.prisma:23` |
@@ -41,6 +41,16 @@ Tous les chemins de fichiers sont relatifs à `backend/` sauf mention contraire.
 | V.2.1 | License : tout le monde par défaut | `requireMember` autorise tout membre (`src/rooms/tracks.service.ts:191-198`) |
 | V.2.1 | License : voter à un lieu + un horaire | `voteWindow ALWAYS\|SCHEDULED` + `voteLocationLat/Lng/RadiusM` dans `prisma/schema.prisma:106-111` ; enforcement `src/rooms/tracks.service.ts:200-231` (Haversine) |
 | V.2.1 | Concurrence sur les votes | `prisma.$transaction` + `score: { increment: delta }` atomique : `src/rooms/tracks.service.ts:114-135` |
+| V.2.1 | Progression automatique de la file | `src/rooms/queue-progression.service.ts` (tick serveur, avance le morceau quand il se termine, broadcast `track:nowPlaying`) ; champ `Room.currentTrackStartedAt` dans `prisma/schema.prisma:122` |
+
+### V.2.2 — Music Control Delegation
+
+| # | Consigne | Fichier(s) |
+|---|---|---|
+| V.2.2 | Déléguer le contrôle musical à des amis | `src/delegation/delegation.service.ts` (`grant`/`revoke`) ; gate amitié via `FriendsService.areFriends` (un non-ami → 403) |
+| V.2.2 | Spécifique à chaque device du compte | Table `MusicControlDelegation`, clé `(ownerId, deviceId)` unique : `prisma/schema.prisma:202` ; `deviceId` = valeur du header `X-Device` |
+| V.2.2 | Donner le contrôle à *différents* amis | Une délégation par device → chaque device est délégable indépendamment ; routes `PUT/DELETE/GET /users/me/devices/:deviceId/delegate` dans `src/delegation/delegation.controller.ts` |
+| V.2.2 | Contrôle effectif de la lecture | `src/delegation/delegation-playback.service.ts` (play/pause/next/previous/volume) exécuté contre le token Spotify **du propriétaire** ; routes `/delegations/:id/playback/*` dans `src/delegation/delegation-playback.controller.ts` |
 
 ### V.2.3 — Music Playlist Editor
 
@@ -62,7 +72,7 @@ Tous les chemins de fichiers sont relatifs à `backend/` sauf mention contraire.
 |---|---|---|
 | V.4 | API REST | Tous les controllers : `@Controller(...)` + `@Get/@Post/@Patch/@Delete` ; routes resource-oriented (`/rooms/:id/tracks/:trackId/vote`) |
 | V.4 | Échanges JSON | `ValidationPipe` global avec class-transformer (`src/main.ts:36-42`) |
-| V.4 | Documentation API auto-générée | `src/main.ts:44-67` (Swagger `DocumentBuilder`, exposé sur `/api/docs`) ; `@ApiTags`, `@ApiOperation`, `@ApiResponse` sur tous les controllers |
+| V.4 | Documentation API auto-générée (méthodes, inputs ET outputs) | `src/main.ts` (Swagger `DocumentBuilder`, exposé sur `/api/docs`) ; `@ApiTags` + `@ApiOperation` sur tous les controllers ; **inputs** via les DTOs class-validator ; **outputs** via des classes de réponse typées câblées en `@ApiOkResponse`/`@ApiCreatedResponse({ type })` (`src/**/dto/*-response.dto.ts`) — 60/64 endpoints exposent un schéma de réponse |
 
 ### V.5 — Mobile (côté back-end)
 
@@ -86,7 +96,7 @@ Tous les chemins de fichiers sont relatifs à `backend/` sauf mention contraire.
 
 | # | Consigne | Fichier(s) |
 |---|---|---|
-| V.7 | Évaluation et mesure de la charge supportée par les 3 services | `loadtest/01_auth_burst.js` (auth) ; `loadtest/02_vote_surge.js` (vote) ; `loadtest/03_playlist_reorder.js` (playlist) ; `loadtest/04_realtime_fanout.js` (realtime) — k6 avec `thresholds` |
+| V.7 | Évaluation et mesure de la charge supportée par les 3 services | `loadtest/02_vote_surge.js` (vote), `loadtest/03_playlist_reorder.js` (playlist), `loadtest/05_delegation.js` (delegation) couvrent les 3 services obligatoires ; `loadtest/01_auth_burst.js` (auth) + `loadtest/04_realtime_fanout.js` (realtime) couvrent les couches sous-jacentes — k6 avec `thresholds` |
 | V.7 | Spécification du serveur (CPU, RAM, etc.) | `loadtest/README.md:8-41` (tableau host + container) |
 | V.7 | Nombre d'utilisateurs cohérent avec la plateforme | `loadtest/README.md:155-170` (par scénario) |
 
@@ -94,8 +104,8 @@ Tous les chemins de fichiers sont relatifs à `backend/` sauf mention contraire.
 
 | # | Consigne | Fichier(s) |
 |---|---|---|
-| V.8 | Tests unitaires par couche | 38 fichiers `*.spec.ts` dans `src/` ; lancement `make test` |
-| V.8 | Tests e2e | `test/e2e/auth.e2e-spec.ts`, `hardening.e2e-spec.ts`, `health.e2e-spec.ts`, `rate-limit.e2e-spec.ts`, `realtime.e2e-spec.ts` ; lancement `make test-e2e` |
+| V.8 | Tests unitaires par couche | 40 fichiers `*.spec.ts` dans `src/` ; lancement `make test` |
+| V.8 | Tests e2e | `test/e2e/auth.e2e-spec.ts`, `delegation.e2e-spec.ts`, `hardening.e2e-spec.ts`, `health.e2e-spec.ts`, `rate-limit.e2e-spec.ts`, `realtime.e2e-spec.ts` ; lancement `make test-e2e` |
 
 ---
 
@@ -151,28 +161,13 @@ La migration `prisma/migrations/20260510190655_drop_license_tier/` montre qu'un 
 
 ## 3. Consignes NON RÉALISÉES (🔴)
 
-### 🔴 V.2.2 — Music Control Delegation par device
-
-**Texte du sujet :**
-> *"A license management must be integrated to the service. It must be **specific for each device attached to the user's account**. The user can choose to give the music control to different friends."*
-
-**Implémentation actuelle :**
-- Un seul `delegateUserId` par room (`prisma/schema.prisma:123`).
-- Le modèle `DeviceToken` (`prisma/schema.prisma:256-267`) sert uniquement aux push notifications, **pas** à la délégation.
-- Aucune table reliant `(device, friend)` ; impossible de donner le contrôle de l'iPhone à Alice et celui de l'iPad à Bob.
-
-**Ce qu'il faut ajouter (pour conformité stricte) :**
-- Une table `DeviceDelegation { userId, deviceId, delegateUserId }` OU un champ `delegateUserId` directement sur `DeviceToken`.
-- Routes : `PUT /me/devices/:deviceId/delegate`, `DELETE /me/devices/:deviceId/delegate`, `GET /me/devices/:deviceId/delegate`.
-- Le `PlaybackService` doit cibler le device-token actif au lieu de la room.
-
-**Effort :** ≈ 150 LOC + 1 migration. C'est le seul écart **net** avec la lettre du sujet et donc le plus risqué pour la soutenance.
+**Aucune.** V.2.2 (Music Control Delegation par device) — qui était le dernier écart net avec la lettre du sujet — a été implémentée le 2026-05-21. Voir §1, section V.2.2. La délégation est désormais au niveau **compte + device** (table `MusicControlDelegation`), conformément à *"specific for each device attached to the user's account"*. L'ancien modèle `RoomKind.DELEGATE` (DJ scopé à une room) a été entièrement retiré.
 
 ---
 
 ## 4. Bonus (VI) — État
 
-Rappel : le bonus n'est évalué **que si** la partie obligatoire est PARFAITE. Tant que V.2.2 n'est pas conforme, aucun bonus ne sera regardé.
+Rappel : le bonus n'est évalué **que si** la partie obligatoire est PARFAITE.
 
 | # | Bonus | Fait | Détail |
 |---|---|---|---|
@@ -185,8 +180,8 @@ Rappel : le bonus n'est évalué **que si** la partie obligatoire est PARFAITE. 
 
 ## 5. Checklist finale avant soutenance
 
-1. **🔴 V.2.2** : implémenter la délégation par device (ou défendre solidement le choix actuel).
+1. **✅ V.2.2** : délégation par device implémentée (`src/delegation/`). Reste à appliquer les 2 migrations (`20260521000000`, `20260521120000`) sur la base de soutenance.
 2. **🟡 V.1** : décider visibilité globale vs par-champ et documenter.
 3. **🟡 V.2.3** : clarifier la sémantique de `allowMembersEdit=false`.
-4. **V.7** : faire tourner les 4 scripts k6 et déposer la sortie dans `loadtest/results.YYYYMMDD.md` (la procédure est déjà dans `loadtest/README.md:135-148`).
+4. **V.7** : faire tourner les 5 scripts k6 et déposer la sortie dans `loadtest/results.YYYYMMDD.md` (la procédure est déjà dans `loadtest/README.md`).
 5. Re-vérifier que `git status` ne montre aucun `.env` ni `node_modules`.

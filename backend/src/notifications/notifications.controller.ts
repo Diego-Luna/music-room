@@ -6,12 +6,21 @@ import {
   HttpStatus,
   Post,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import { PushService } from './push.service';
 import {
   RegisterTokenBody,
   UnregisterTokenBody,
 } from './dto/register-token.dto';
+import {
+  RegisterTokenResultDto,
+  UnregisterTokenResultDto,
+} from './dto/notification-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
 
@@ -24,6 +33,7 @@ export class NotificationsController {
   @Post('register')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Register a device token for push notifications' })
+  @ApiOkResponse({ type: RegisterTokenResultDto })
   async register(
     @CurrentUser() user: JwtPayload,
     @Body() dto: RegisterTokenBody,
@@ -38,6 +48,7 @@ export class NotificationsController {
   @Delete('register')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Unregister a device token' })
+  @ApiOkResponse({ type: UnregisterTokenResultDto })
   async unregister(
     @CurrentUser() user: JwtPayload,
     @Body() dto: UnregisterTokenBody,

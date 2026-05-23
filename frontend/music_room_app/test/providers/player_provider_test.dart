@@ -35,9 +35,10 @@ void main() {
     test('playTrack() changes state if no active room (has permission)', () {
       final track = Track(
         id: 't-1',
+        providerId: 'spotify:track:1',
         title: 'Song',
         artist: 'Artist',
-        durationSeconds: 180,
+        durationMs: 180000,
       );
       when(() => mockRoomsProvider.currentActiveRoom).thenReturn(null);
 
@@ -53,9 +54,10 @@ void main() {
       () {
         final track = Track(
           id: 't-1',
+          providerId: 'spotify:track:1',
           title: 'Song',
           artist: 'Artist',
-          durationSeconds: 180,
+          durationMs: 180000,
         );
         final room = Room(
           id: 'r-1',
@@ -82,9 +84,10 @@ void main() {
     test('playTrack() succeeds if in room and user is controller', () {
       final track = Track(
         id: 't-1',
+        providerId: 'spotify:track:1',
         title: 'Song',
         artist: 'Artist',
-        durationSeconds: 180,
+        durationMs: 180000,
       );
       final room = Room(
         id: 'r-1',
@@ -114,6 +117,64 @@ void main() {
       playerProvider.pause();
 
       expect(playerProvider.isPlaying, false);
+    });
+
+    test(
+      'handlePlaybackPlayed updates current track and sets playing to true',
+      () {
+        final track = Track(
+          id: 'track-1',
+          providerId: 'p-1',
+          provider: 'spotify',
+          title: 'Song',
+          artist: 'Artist',
+          durationMs: 180000,
+        );
+        playerProvider.handlePlaybackPlayed(track);
+        expect(playerProvider.currentTrack?.id, equals('track-1'));
+        expect(playerProvider.isPlaying, isTrue);
+        expect(playerProvider.error, isNull);
+      },
+    );
+
+    test('handlePlaybackPaused sets playing to false', () {
+      final track = Track(
+        id: 'track-1',
+        providerId: 'p-1',
+        provider: 'spotify',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 180000,
+      );
+      playerProvider.handlePlaybackPlayed(track);
+      expect(playerProvider.isPlaying, isTrue);
+
+      playerProvider.handlePlaybackPaused();
+      expect(playerProvider.isPlaying, isFalse);
+      expect(playerProvider.error, isNull);
+    });
+
+    test(
+      'handlePlaybackSkipped updates current track and sets playing to true',
+      () {
+        final track = Track(
+          id: 'track-1',
+          providerId: 'p-1',
+          provider: 'spotify',
+          title: 'Song',
+          artist: 'Artist',
+          durationMs: 180000,
+        );
+        playerProvider.handlePlaybackSkipped(track);
+        expect(playerProvider.currentTrack?.id, equals('track-1'));
+        expect(playerProvider.isPlaying, isTrue);
+        expect(playerProvider.error, isNull);
+      },
+    );
+
+    test('handlePlaybackVolumeChanged executes without errors', () {
+      // Just verify call completes successfully
+      playerProvider.handlePlaybackVolumeChanged(0.5);
     });
   });
 }

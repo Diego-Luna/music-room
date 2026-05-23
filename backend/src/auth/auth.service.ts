@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
   Logger,
 } from '@nestjs/common';
@@ -66,7 +67,7 @@ export class AuthService {
   ) {}
 
   // ── Registration ───────────────────────────────────────────────
-  async register(dto: RegisterDto, ctx?: DeviceContext): Promise<TokenPair> {
+  async register(dto: RegisterDto): Promise<{ message: string }> {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -86,8 +87,13 @@ export class AuthService {
 
     await this.issueEmailVerification(user.id, user.email);
 
-    this.logger.log(`User registered: ${user.id}`);
-    return this.issueTokenPair(user.id, user.email, ctx);
+    this.logger.log(`User registered (pending verification): ${user.id}`);
+    // No session is issued: the subject demands a mail validation — the
+    // account cannot be used until the email is verified (see login()).
+    return {
+      message:
+        'Account created. Check your email to verify it before logging in.',
+    };
   }
 
   private async issueEmailVerification(userId: string, email: string) {
@@ -106,7 +112,7 @@ export class AuthService {
   async validateUser(
     email: string,
     password: string,
-  ): Promise<{ id: string; email: string }> {
+  ): Promise<{ id: string; email: string; emailVerified: boolean }> {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
@@ -115,7 +121,11 @@ export class AuthService {
     if (!ok) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return { id: user.id, email: user.email };
+    return {
+      id: user.id,
+      email: user.email,
+      emailVerified: user.emailVerified,
+    };
   }
 
   async login(
@@ -124,6 +134,13 @@ export class AuthService {
     ctx?: DeviceContext,
   ): Promise<TokenPair> {
     const user = await this.validateUser(email, password);
+    // V.1: the application must demand a mail validation — an email/password
+    // account cannot log in until its address is verified.
+    if (!user.emailVerified) {
+      throw new ForbiddenException(
+        'Email not verified. Check your inbox to verify your account.',
+      );
+    }
     return this.issueTokenPair(user.id, user.email, ctx);
   }
 
@@ -242,6 +259,15 @@ export class AuthService {
       where: { id: record.userId },
       data: { emailVerified: true },
     });
+  }
+
+  // Re-sends the verification email. Anti-enumeration: always succeeds
+  // silently, whether or not the address maps to an unverified account.
+  async resendVerification(email: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (user && !user.emailVerified) {
+      await this.issueEmailVerification(user.id, user.email);
+    }
   }
 
   // ── Forgot / reset password ────────────────────────────────────
@@ -462,6 +488,7 @@ export class AuthService {
       await this.verifyGoogleAudience(accessToken);
       url = 'https://www.googleapis.com/oauth2/v2/userinfo';
     } else if (provider === 'facebook') {
+      await this.verifyFacebookApp(accessToken);
       url = 'https://graph.facebook.com/me?fields=id,name,email,picture';
     } else {
       throw new BadRequestException(`Unsupported provider: ${provider}`);
@@ -477,25 +504,34 @@ export class AuthService {
 
     const data = (await response.json()) as Record<string, unknown>;
 
-    if (provider === 'google') {
-      return {
-        id: data.id as string,
-        email: data.email as string,
-        name: data.name as string,
-        picture: data.picture as string | undefined,
-      };
-    }
+    const profile: SocialProfile =
+      provider === 'google'
+        ? {
+            id: data.id as string,
+            email: data.email as string,
+            name: data.name as string,
+            picture: data.picture as string | undefined,
+          }
+        : {
+            id: data.id as string,
+            email: data.email as string,
+            name: data.name as string,
+            picture: (
+              (data.picture as Record<string, unknown>)?.data as
+                | Record<string, unknown>
+                | undefined
+            )?.url as string | undefined,
+          };
 
-    // Facebook
-    return {
-      id: data.id as string,
-      email: data.email as string,
-      name: data.name as string,
-      picture: ((data.picture as Record<string, unknown>)?.data as Record<
-        string,
-        unknown
-      >)?.url as string | undefined,
-    };
+    // A provider may withhold the email (a Facebook account without one, or
+    // the email permission denied). We cannot create an account without it —
+    // email is the unique account key.
+    if (!profile.id || !profile.email) {
+      throw new BadRequestException(
+        `The ${provider} account did not provide an email address`,
+      );
+    }
+    return profile;
   }
 
   private async verifyGoogleAudience(accessToken: string): Promise<void> {
@@ -511,6 +547,31 @@ export class AuthService {
     const info = (await response.json()) as Record<string, unknown>;
     if (info.aud !== expectedAud) {
       throw new UnauthorizedException('Google token audience mismatch');
+    }
+  }
+
+  // Mirror of verifyGoogleAudience for Facebook: confirms the user token was
+  // issued for OUR Facebook app, not another one — a token from any other
+  // Facebook app would otherwise pass /me and let an attacker impersonate.
+  private async verifyFacebookApp(accessToken: string): Promise<void> {
+    const appId = this.configService.get<string>('FACEBOOK_APP_ID');
+    const appSecret = this.configService.get<string>('FACEBOOK_APP_SECRET');
+    if (!appId || !appSecret) return; // dev mode without a real Facebook app
+
+    const appToken = `${appId}|${appSecret}`;
+    const response = await fetch(
+      `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(accessToken)}&access_token=${encodeURIComponent(appToken)}`,
+    );
+    if (!response.ok) {
+      throw new UnauthorizedException('Invalid facebook token');
+    }
+    const body = (await response.json()) as {
+      data?: { app_id?: string; is_valid?: boolean };
+    };
+    if (body.data?.is_valid !== true || body.data?.app_id !== appId) {
+      throw new UnauthorizedException(
+        'Facebook token was not issued for this app',
+      );
     }
   }
 }

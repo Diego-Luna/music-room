@@ -5,6 +5,7 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
@@ -137,7 +138,7 @@ describe('AuthService', () => {
     prismaService.socialAccount as Record<string, ReturnType<typeof vi.fn>>;
 
   describe('register', () => {
-    it('should register, send verification email, and return tokens', async () => {
+    it('should register, send a verification email, and NOT issue a session', async () => {
       userTable().findUnique.mockResolvedValue(null);
 
       const result = await service.register({
@@ -146,18 +147,13 @@ describe('AuthService', () => {
         displayName: 'New User',
       });
 
-      expect(result).toHaveProperty('accessToken');
-      expect(result).toHaveProperty('refreshToken');
+      // V.1: no session until the email is verified
+      expect(result).toHaveProperty('message');
+      expect(result).not.toHaveProperty('accessToken');
       expect(bcrypt.hash).toHaveBeenCalledWith('MyP@ssw0rd', 12);
       expect(emailVerifTable().create).toHaveBeenCalledTimes(1);
       expect(mailService.sendVerificationEmail).toHaveBeenCalledTimes(1);
-      const mailArgs = (mailService.sendVerificationEmail as ReturnType<
-        typeof vi.fn
-      >).mock.calls[0];
-      expect(mailArgs[0]).toBe('test@example.com');
-      expect(typeof mailArgs[1]).toBe('string');
-      expect(mailArgs[1].length).toBeGreaterThan(20);
-      expect(refreshTable().create).toHaveBeenCalledTimes(1);
+      expect(refreshTable().create).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException on duplicate email', async () => {
@@ -183,7 +179,11 @@ describe('AuthService', () => {
         'test@example.com',
         'password',
       );
-      expect(result).toEqual({ id: 'user-1', email: 'test@example.com' });
+      expect(result).toEqual({
+        id: 'user-1',
+        email: 'test@example.com',
+        emailVerified: false,
+      });
     });
 
     it('should throw UnauthorizedException when user missing', async () => {
@@ -214,7 +214,10 @@ describe('AuthService', () => {
 
   describe('login', () => {
     it('should return tokens and persist a refresh token row', async () => {
-      userTable().findUnique.mockResolvedValue(mockUser);
+      userTable().findUnique.mockResolvedValue({
+        ...mockUser,
+        emailVerified: true,
+      });
       (bcrypt.compare as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
       const result = await service.login('test@example.com', 'password');
@@ -229,7 +232,10 @@ describe('AuthService', () => {
     });
 
     it('should record device metadata when provided', async () => {
-      userTable().findUnique.mockResolvedValue(mockUser);
+      userTable().findUnique.mockResolvedValue({
+        ...mockUser,
+        emailVerified: true,
+      });
       (bcrypt.compare as ReturnType<typeof vi.fn>).mockResolvedValue(true);
 
       await service.login('test@example.com', 'password', {
@@ -242,6 +248,47 @@ describe('AuthService', () => {
       expect(created.data.deviceId).toBe('dev-42');
       expect(created.data.userAgent).toBe('iPhone');
       expect(created.data.ip).toBe('1.2.3.4');
+    });
+
+    it('should reject login when the email is not verified', async () => {
+      userTable().findUnique.mockResolvedValue(mockUser); // emailVerified: false
+      (bcrypt.compare as ReturnType<typeof vi.fn>).mockResolvedValue(true);
+
+      await expect(
+        service.login('test@example.com', 'password'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(refreshTable().create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('resendVerification', () => {
+    it('re-issues a verification email for an unverified account', async () => {
+      userTable().findUnique.mockResolvedValue(mockUser); // emailVerified: false
+
+      await service.resendVerification('test@example.com');
+
+      expect(emailVerifTable().create).toHaveBeenCalledTimes(1);
+      expect(mailService.sendVerificationEmail).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing for an already-verified account', async () => {
+      userTable().findUnique.mockResolvedValue({
+        ...mockUser,
+        emailVerified: true,
+      });
+
+      await service.resendVerification('test@example.com');
+
+      expect(emailVerifTable().create).not.toHaveBeenCalled();
+      expect(mailService.sendVerificationEmail).not.toHaveBeenCalled();
+    });
+
+    it('does nothing for an unknown email (anti-enumeration)', async () => {
+      userTable().findUnique.mockResolvedValue(null);
+
+      await service.resendVerification('ghost@example.com');
+
+      expect(mailService.sendVerificationEmail).not.toHaveBeenCalled();
     });
   });
 
@@ -314,6 +361,20 @@ describe('AuthService', () => {
       await expect(
         service.socialLogin({ provider: 'google', accessToken: 'bad' }),
       ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should reject a social account that provides no email', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ id: 'fb-123', name: 'No Email User' }),
+      });
+      await expect(
+        service.socialLogin({
+          provider: 'facebook',
+          accessToken: 'valid-token',
+        }),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 

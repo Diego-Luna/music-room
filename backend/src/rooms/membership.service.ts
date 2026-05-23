@@ -128,12 +128,18 @@ export class RoomMembershipService {
     this.emitUser(dto.userId, 'invitation:new', {
       invitationId: invitation.id,
       roomId,
+      roomName: room.name,
       inviterId,
     });
     void this.push?.sendToUser(dto.userId, {
       title: 'New room invitation',
-      body: 'You were invited to join a Music Room',
-      data: { type: 'invitation:new', roomId, invitationId: invitation.id },
+      body: `You were invited to join ${room.name}`,
+      data: {
+        type: 'invitation:new',
+        roomId,
+        roomName: room.name,
+        invitationId: invitation.id,
+      },
     });
     return invitation;
   }
@@ -178,6 +184,11 @@ export class RoomMembershipService {
     if (targetUserId === room.ownerId) {
       throw new BadRequestException('Cannot remove the room owner');
     }
+    if (actingUserId === targetUserId) {
+      throw new BadRequestException(
+        'You cannot remove yourself; leave the room instead',
+      );
+    }
     await this.requireAdmin(roomId, room, actingUserId);
 
     const target = await this.prisma.roomMember.findUnique({
@@ -185,15 +196,142 @@ export class RoomMembershipService {
     });
     if (!target) throw new NotFoundException('Member not found');
 
+    // Managing the admin team is reserved to the owner: any admin can
+    // kick a regular MEMBER, but only the OWNER can remove an ADMIN —
+    // prevents an admin from unilaterally dismantling the mod team.
+    if (target.role === 'ADMIN' && room.ownerId !== actingUserId) {
+      throw new ForbiddenException('Only the owner can remove an admin');
+    }
+
     await this.prisma.roomMember.delete({
       where: { roomId_userId: { roomId, userId: targetUserId } },
     });
+    // Kick is anonymous — neither the room broadcast nor the targeted
+    // user's toast reveals the acting admin's identity (privacy).
     this.emit(roomId, 'member:removed', {
       roomId,
       userId: targetUserId,
-      by: actingUserId,
     });
-    this.emitUser(targetUserId, 'room:kicked', { roomId });
+    this.emitUser(targetUserId, 'room:kicked', {
+      roomId,
+      roomName: room.name,
+    });
+  }
+
+  // ── invitations management (both sides) ─────────────────────────
+  async listMyInvitations(userId: string) {
+    return this.prisma.roomInvitation.findMany({
+      where: {
+        inviteeId: userId,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        room: {
+          select: { id: true, name: true, kind: true, visibility: true },
+        },
+        inviter: {
+          select: { id: true, displayName: true, avatarUrl: true },
+        },
+      },
+    });
+  }
+
+  async listSentInvitations(userId: string) {
+    return this.prisma.roomInvitation.findMany({
+      where: {
+        inviterId: userId,
+        status: 'PENDING',
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        room: {
+          select: { id: true, name: true, kind: true, visibility: true },
+        },
+        invitee: {
+          select: { id: true, displayName: true, avatarUrl: true },
+        },
+      },
+    });
+  }
+
+  async acceptInvitation(userId: string, invitationId: string) {
+    const invitation = await this.requireOwnPendingInvitation(
+      userId,
+      invitationId,
+    );
+    if (invitation.expiresAt <= new Date()) {
+      throw new BadRequestException('Invitation has expired');
+    }
+    // Reuse join(): it flips the matching PENDING invite to ACCEPTED,
+    // creates the membership and emits member:joined. No duplication.
+    await this.join(invitation.roomId, userId);
+    return { message: 'Joined', roomId: invitation.roomId };
+  }
+
+  async declineInvitation(userId: string, invitationId: string) {
+    const invitation = await this.requireOwnPendingInvitation(
+      userId,
+      invitationId,
+    );
+    const updated = await this.prisma.roomInvitation.update({
+      where: { id: invitationId },
+      data: { status: 'DECLINED', respondedAt: new Date() },
+    });
+    this.emitUser(invitation.inviterId, 'invitation:declined', {
+      invitationId,
+      roomId: invitation.roomId,
+      inviteeId: userId,
+    });
+    return updated;
+  }
+
+  async revokeInvitation(actingUserId: string, invitationId: string) {
+    const invitation = await this.prisma.roomInvitation.findUnique({
+      where: { id: invitationId },
+      include: { room: { select: { name: true } } },
+    });
+    if (!invitation) throw new NotFoundException('Invitation not found');
+    if (invitation.status !== 'PENDING') {
+      throw new ConflictException('Invitation is no longer pending');
+    }
+    // The original inviter can always revoke their own invite.
+    // Any current owner/admin of the room can also revoke (symmetric
+    // with the create-side authorization in `invite()`).
+    if (invitation.inviterId !== actingUserId) {
+      const room = await this.requireRoom(invitation.roomId);
+      await this.requireAdmin(invitation.roomId, room, actingUserId);
+    }
+    const updated = await this.prisma.roomInvitation.update({
+      where: { id: invitationId },
+      data: { status: 'REVOKED', respondedAt: new Date() },
+    });
+    // Toast payload: only the contextual info the invitee needs.
+    // The acting admin's identity is intentionally NOT leaked (privacy).
+    this.emitUser(invitation.inviteeId, 'invitation:revoked', {
+      invitationId,
+      roomId: invitation.roomId,
+      roomName: invitation.room.name,
+    });
+    return updated;
+  }
+
+  private async requireOwnPendingInvitation(
+    userId: string,
+    invitationId: string,
+  ) {
+    const invitation = await this.prisma.roomInvitation.findUnique({
+      where: { id: invitationId },
+    });
+    if (!invitation || invitation.inviteeId !== userId) {
+      throw new NotFoundException('Invitation not found');
+    }
+    if (invitation.status !== 'PENDING') {
+      throw new ConflictException('Invitation is no longer pending');
+    }
+    return invitation;
   }
 
   // ── helpers ─────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiOkResponse,
   ApiOperation,
   ApiResponse,
   ApiTags,
@@ -11,6 +12,7 @@ import {
   UsersService,
 } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UserProfileDto, PublicUserProfileDto } from './dto/user-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
 
@@ -22,14 +24,20 @@ export class UsersController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
-  @ApiResponse({ status: 200, description: 'Current user profile' })
+  @ApiOkResponse({
+    type: UserProfileDto,
+    description: 'The full private profile of the authenticated user',
+  })
   async me(@CurrentUser() user: JwtPayload): Promise<UserProfile> {
     return this.users.findOne(user.sub);
   }
 
   @Patch('me')
   @ApiOperation({ summary: 'Update current user profile' })
-  @ApiResponse({ status: 200, description: 'Profile updated' })
+  @ApiOkResponse({
+    type: UserProfileDto,
+    description: 'The updated profile',
+  })
   async updateMe(
     @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateUserDto,
@@ -41,7 +49,10 @@ export class UsersController {
   @ApiOperation({
     summary: 'Get another user public profile (respects visibility)',
   })
-  @ApiResponse({ status: 200, description: 'Public profile' })
+  @ApiOkResponse({
+    type: PublicUserProfileDto,
+    description: 'The visibility-filtered public profile',
+  })
   @ApiResponse({
     status: 404,
     description: 'User not found or not visible to caller',

@@ -1,7 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiOkResponse,
+  ApiResponse,
+} from '@nestjs/swagger';
 import { PrismaService } from '../prisma/prisma.service';
 import { RedisService } from '../redis/redis.service';
+import { HealthStatusDto } from './dto/health-response.dto';
 import { Public } from '../common/decorators/public.decorator';
 
 interface HealthStatus {
@@ -22,7 +28,7 @@ export class HealthController {
   @Public()
   @Get()
   @ApiOperation({ summary: 'Health check' })
-  @ApiResponse({ status: 200, description: 'Service is healthy' })
+  @ApiOkResponse({ type: HealthStatusDto, description: 'Service is healthy' })
   @ApiResponse({ status: 503, description: 'Service is unhealthy' })
   async check(): Promise<HealthStatus> {
     const [dbHealthy, redisHealthy] = await Promise.all([

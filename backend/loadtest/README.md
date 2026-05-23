@@ -1,9 +1,10 @@
 # Music Room — Load Tests (k6)
 
-Load tests covering the V.7 ramp-up requirement of the 42 subject. Four
+Load tests covering the V.7 ramp-up requirement of the 42 subject. Five
 scenarios stress the hot paths of the platform — auth, vote, playlist
-reorder, realtime fan-out — and assert latency / error budgets via k6
-thresholds.
+reorder, realtime fan-out, delegation — and assert latency / error
+budgets via k6 thresholds. They cover the 3 mandatory services (Vote,
+Playlist, Delegation) plus the auth and realtime layers underneath.
 
 ## Server specifications used for the baseline runs
 
@@ -97,6 +98,15 @@ violates them exits with a non-zero status, useful for CI gating.
 | Scope  | 100 clients connect WebSocket, subscribe to one room; backend emits 500 events (vote flips), each fanned out via `@socket.io/redis-adapter` |
 | Why    | This is the realtime contract that powers the live UI. Validates the Redis adapter (Pub/Sub) actually fans out at the expected rate without dropping messages. |
 
+### 5) `05_delegation.js` — Music Control Delegation grant/revoke
+
+| Goal | Stress the V.2.2 delegation hot path (grant / list / revoke) under concurrent load |
+|------|---|
+| Shape  | `ramping-vus` 5 → 40 → 40 over 100 s |
+| Asserts | `http_req_failed < 1%`, `p(95) < 800 ms`, delegation-checks `> 98%` |
+| Scope  | Each VU registers an owner + a friend, befriends them, then loops `PUT`/`DELETE /users/me/devices/:deviceId/delegate` plus the two list endpoints |
+| Why    | V.2.2 is one of the 3 mandatory services and must be measured for V.7. Delegation is friendship-gated and keyed `(ownerId, deviceId)` — this proves the `upsert` + access checks hold under load. Playback endpoints are excluded: they proxy to the real Spotify API. |
+
 ## Running
 
 ```sh
@@ -112,7 +122,10 @@ k6 run loadtest/03_playlist_reorder.js
 # 4) Realtime fan-out (websocket)
 k6 run loadtest/04_realtime_fanout.js
 
-# All four sequentially (CI mode)
+# 5) Delegation grant/revoke
+k6 run loadtest/05_delegation.js
+
+# All five sequentially (CI mode)
 for f in loadtest/0*.js; do k6 run "$f" || break; done
 ```
 
@@ -121,7 +134,7 @@ threshold fails — wire that into a pre-defense smoke test if needed.
 
 ## Target thresholds and how to record real baselines
 
-The four scripts encode their **target thresholds** in `options.thresholds`
+The five scripts encode their **target thresholds** in `options.thresholds`
 (a run that violates them exits non-zero). The expected order of
 magnitude on the 2 vCPU / 1.9 GiB Colima VM described above is:
 
@@ -131,6 +144,7 @@ magnitude on the 2 vCPU / 1.9 GiB Colima VM described above is:
 | `02_vote_surge.js`     | `http_req_failed < 1%`, `p95 < 600 ms`, `vote-checks > 98%` | ~50 concurrent voters, Postgres CPU is the first bottleneck above this VU count |
 | `03_playlist_reorder.js` | `http_req_failed < 2%`, `p95 < 700 ms` | 20 concurrent editors, fractional indexing serializes through Postgres without row-level contention |
 | `04_realtime_fanout.js` | `ws_msgs_received > 2000`, `p95 ws_session_duration < 60 s` | 100 WS clients × 500 events ≈ 50 000 deliveries, Redis Pub/Sub is the limiting factor |
+| `05_delegation.js`     | `http_req_failed < 1%`, `p95 < 800 ms`, `delegation-checks > 98%` | ~40 concurrent owner/friend pairs; the p95 budget is wider because each iteration does two bcrypt registrations before the delegation calls |
 
 ### Recording your own baseline
 

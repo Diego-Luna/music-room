@@ -107,10 +107,7 @@ class _EventsPageState extends State<EventsPage> {
                       final queueTracks = activeEvent.tracks.skip(1).toList();
                       if (index >= queueTracks.length) return null;
 
-                      final eventTrack = queueTracks[index];
-                      final track = eventTrack.track;
-
-                      if (track == null) return const SizedBox.shrink();
+                      final track = queueTracks[index];
 
                       return Padding(
                         padding: const EdgeInsets.symmetric(
@@ -121,8 +118,7 @@ class _EventsPageState extends State<EventsPage> {
                           index: index,
                           child: PlaceholderCard(
                             title: track.title,
-                            subtitle:
-                                '${track.artist} • ${eventTrack.voteCount} votes',
+                            subtitle: '${track.artist} • ${track.score} votes',
                             leading: Container(
                               decoration: BoxDecoration(
                                 color: Theme.of(context).colorScheme.surface,
