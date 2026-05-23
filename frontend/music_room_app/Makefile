@@ -25,12 +25,12 @@ build-apk: clean pub-get
 # If the host is Linux/Windows, we spin up the virtualized macOS container.
 build-ios:
 ifeq ($(UNAME_S),Darwin)
-	@echo "🍎 macOS detected! Building iOS natively..."
+	@echo "[NATIVE] macOS detected! Building iOS natively..."
 	flutter clean
 	flutter pub get
 	flutter build ios --release --no-codesign
 else
-	@echo "🐧/🪟 Non-macOS environment detected. Using dockurr/macos container..."
+	@echo "[EXPERIMENTAL] Non-macOS environment detected. Using dockurr/macos container..."
 	@if ! $(COMPOSE) ps --services --filter "status=running" | grep -q "^macos-builder$$"; then \
 		echo "Container 'macos-builder' is not running. Spinning it up..."; \
 		$(COMPOSE) up -d macos-builder; \

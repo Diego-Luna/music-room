@@ -34,6 +34,6 @@ services:
   web-server:
     image: nginx:alpine
     ports:
-      - 8080:80
+      - 3000:80
     volumes:
       - ../build/web:/usr/share/nginx/html
