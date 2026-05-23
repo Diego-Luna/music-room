@@ -7,6 +7,7 @@ import {
 import { RoomsService } from './rooms.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import {
   RoomKind,
   RoomVisibility,
@@ -20,6 +21,7 @@ describe('RoomsService', () => {
     emitToUser: ReturnType<typeof vi.fn>;
     emitToRoom: ReturnType<typeof vi.fn>;
   };
+  let subscription: { assertPremium: ReturnType<typeof vi.fn> };
 
   const roomRow = {
     id: 'room-1',
@@ -63,12 +65,14 @@ describe('RoomsService', () => {
       $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(prisma)),
     };
     realtime = { emitToUser: vi.fn(), emitToRoom: vi.fn() };
+    subscription = { assertPremium: vi.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RoomsService,
         { provide: PrismaService, useValue: prisma },
         { provide: RealtimeService, useValue: realtime },
+        { provide: SubscriptionService, useValue: subscription },
       ],
     }).compile();
 
@@ -127,6 +131,28 @@ describe('RoomsService', () => {
           voteLocationLat: 48.85,
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('lets a PREMIUM user create a PLAYLIST room (VI.3)', async () => {
+      subscription.assertPremium.mockResolvedValue(undefined);
+      await expect(
+        service.create('user-1', { name: 'PL', kind: RoomKind.PLAYLIST }),
+      ).resolves.toBeDefined();
+    });
+
+    it('rejects a FREE user creating a PLAYLIST room (VI.3 premium gate)', async () => {
+      subscription.assertPremium.mockRejectedValue(new ForbiddenException());
+      await expect(
+        service.create('user-1', { name: 'PL', kind: RoomKind.PLAYLIST }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('does not gate VOTE room creation by subscription tier', async () => {
+      subscription.assertPremium.mockRejectedValue(new ForbiddenException());
+      await expect(
+        service.create('user-1', { name: 'V', kind: RoomKind.VOTE }),
+      ).resolves.toBeDefined();
+      expect(subscription.assertPremium).not.toHaveBeenCalled();
     });
   });
 

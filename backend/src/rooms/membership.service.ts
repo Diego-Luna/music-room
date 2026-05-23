@@ -184,12 +184,24 @@ export class RoomMembershipService {
     if (targetUserId === room.ownerId) {
       throw new BadRequestException('Cannot remove the room owner');
     }
+    if (actingUserId === targetUserId) {
+      throw new BadRequestException(
+        'You cannot remove yourself; leave the room instead',
+      );
+    }
     await this.requireAdmin(roomId, room, actingUserId);
 
     const target = await this.prisma.roomMember.findUnique({
       where: { roomId_userId: { roomId, userId: targetUserId } },
     });
     if (!target) throw new NotFoundException('Member not found');
+
+    // Managing the admin team is reserved to the owner: any admin can
+    // kick a regular MEMBER, but only the OWNER can remove an ADMIN —
+    // prevents an admin from unilaterally dismantling the mod team.
+    if (target.role === 'ADMIN' && room.ownerId !== actingUserId) {
+      throw new ForbiddenException('Only the owner can remove an admin');
+    }
 
     await this.prisma.roomMember.delete({
       where: { roomId_userId: { roomId, userId: targetUserId } },

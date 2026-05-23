@@ -9,6 +9,7 @@ import {
 import { generateKeyBetween } from 'fractional-indexing';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { AddPlaylistItemDto, MovePlaylistItemDto } from './dto/playlist.dto';
 
 type Room = {
@@ -30,12 +31,14 @@ type TrackRow = {
 export class PlaylistService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly subscription: SubscriptionService,
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
   async addItem(roomId: string, userId: string, dto: AddPlaylistItemDto) {
     const room = await this.requirePlaylistRoom(roomId);
     await this.requireEditor(room, userId);
+    await this.subscription.assertPremium(userId);
 
     if (dto.afterTrackId && dto.beforeTrackId) {
       throw new BadRequestException(
@@ -86,6 +89,7 @@ export class PlaylistService {
   ) {
     const room = await this.requirePlaylistRoom(roomId);
     await this.requireEditor(room, userId);
+    await this.subscription.assertPremium(userId);
 
     if (!dto.afterTrackId && !dto.beforeTrackId) {
       throw new BadRequestException(
@@ -128,6 +132,7 @@ export class PlaylistService {
   async removeItem(roomId: string, trackId: string, userId: string) {
     const room = await this.requirePlaylistRoom(roomId);
     await this.requireEditor(room, userId);
+    await this.subscription.assertPremium(userId);
     const track = await this.prisma.track.findUnique({
       where: { id: trackId },
     });

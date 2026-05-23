@@ -8,6 +8,8 @@ export class UserProfileDto {
   @ApiProperty() emailVerified!: boolean;
   @ApiProperty({ example: 'PUBLIC', description: 'PUBLIC | FRIENDS_ONLY | PRIVATE' })
   visibility!: string;
+  @ApiProperty({ example: 'FREE', description: 'FREE | PREMIUM' })
+  subscriptionTier!: string;
   @ApiProperty({ type: [String] }) musicPreferences!: string[];
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;

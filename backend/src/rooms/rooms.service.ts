@@ -7,7 +7,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
-import { CreateRoomDto, VoteWindow } from './dto/create-room.dto';
+import { SubscriptionService } from '../subscription/subscription.service';
+import { CreateRoomDto, RoomKind, VoteWindow } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 
 const EDIT_ROLES = new Set(['OWNER', 'ADMIN']);
@@ -16,12 +17,14 @@ const EDIT_ROLES = new Set(['OWNER', 'ADMIN']);
 export class RoomsService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly subscription: SubscriptionService,
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
   async create(userId: string, dto: CreateRoomDto) {
     this.validateVoteSettings(dto);
     this.validateLocationSettings(dto);
+    await this.requirePlaylistEntitlement(userId, dto.kind);
 
     return this.prisma.$transaction(async (tx) => {
       const room = await tx.room.create({
@@ -183,6 +186,19 @@ export class RoomsService {
       throw new ForbiddenException('Insufficient role for this action');
     }
     return room;
+  }
+
+  // VI.3 — the Music Playlist Editor is a premium feature: only PREMIUM
+  // accounts may create (host) playlist rooms. Free accounts keep VOTE
+  // rooms and delegation. Editing playlist items is gated the same way in
+  // PlaylistService. Downgrading never deletes existing playlist rooms.
+  private async requirePlaylistEntitlement(
+    userId: string,
+    kind: RoomKind,
+  ): Promise<void> {
+    if (kind === RoomKind.PLAYLIST) {
+      await this.subscription.assertPremium(userId);
+    }
   }
 
   private validateVoteSettings(dto: Partial<CreateRoomDto>) {

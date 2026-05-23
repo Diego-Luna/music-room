@@ -10,6 +10,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AuthModule } from '@/auth/auth.module';
 import { UsersModule } from '@/users/users.module';
 import { RoomsModule } from '@/rooms/rooms.module';
+import { SubscriptionModule } from '@/subscription/subscription.module';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { PrismaService } from '@/prisma/prisma.service';
 import { RedisModule } from '@/redis/redis.module';
@@ -78,6 +79,7 @@ describe('Auth (e2e)', () => {
             ...data,
             emailVerified: data.emailVerified ?? false,
             visibility: 'PUBLIC',
+            subscriptionTier: 'FREE',
             musicPreferences: [],
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -570,6 +572,7 @@ describe('Auth (e2e)', () => {
         AuthModule,
         UsersModule,
         RoomsModule,
+        SubscriptionModule,
       ],
       providers: [
         {
@@ -1063,7 +1066,7 @@ describe('Auth (e2e)', () => {
         method: 'POST',
         url: '/rooms',
         headers: { authorization: `Bearer ${accessToken}` },
-        payload: { name: 'Mine', kind: 'PLAYLIST' },
+        payload: { name: 'Mine', kind: 'VOTE' },
       });
       const res = await app.inject({
         method: 'GET',
@@ -1100,7 +1103,7 @@ describe('Auth (e2e)', () => {
         method: 'POST',
         url: '/rooms',
         headers: { authorization: `Bearer ${ownerToken}` },
-        payload: { name: 'Edit me', kind: 'PLAYLIST' },
+        payload: { name: 'Edit me', kind: 'VOTE' },
       });
       const room = JSON.parse(created.payload);
 
@@ -1205,6 +1208,61 @@ describe('Auth (e2e)', () => {
         headers: { authorization: `Bearer ${ownerToken}` },
       });
       expect(ok.statusCode).toBe(200);
+    });
+  });
+
+  describe('Subscription (VI.3 bonus)', () => {
+    it('blocks a FREE user from creating a PLAYLIST room, allows PREMIUM', async () => {
+      const { accessToken } = await registerVerifyLogin('sub-vi3@example.com');
+      const auth = { authorization: `Bearer ${accessToken}` };
+
+      const mine = await app.inject({
+        method: 'GET',
+        url: '/subscription/me',
+        headers: auth,
+      });
+      expect(JSON.parse(mine.payload).tier).toBe('FREE');
+
+      const blocked = await app.inject({
+        method: 'POST',
+        url: '/rooms',
+        headers: auth,
+        payload: { name: 'PL', kind: 'PLAYLIST' },
+      });
+      expect(blocked.statusCode).toBe(403);
+
+      const upgraded = await app.inject({
+        method: 'PUT',
+        url: '/subscription/me',
+        headers: auth,
+        payload: { tier: 'PREMIUM' },
+      });
+      expect(upgraded.statusCode).toBe(200);
+      expect(JSON.parse(upgraded.payload).tier).toBe('PREMIUM');
+
+      const allowed = await app.inject({
+        method: 'POST',
+        url: '/rooms',
+        headers: auth,
+        payload: { name: 'PL', kind: 'PLAYLIST' },
+      });
+      expect(allowed.statusCode).toBe(201);
+    });
+
+    it('GET /subscription/plans lists the two offers', async () => {
+      const { accessToken } = await registerVerifyLogin(
+        'sub-plans@example.com',
+      );
+      const res = await app.inject({
+        method: 'GET',
+        url: '/subscription/plans',
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+      expect(res.statusCode).toBe(200);
+      const tiers = JSON.parse(res.payload).map(
+        (p: { tier: string }) => p.tier,
+      );
+      expect(tiers).toEqual(['FREE', 'PREMIUM']);
     });
   });
 });

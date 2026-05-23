@@ -9,8 +9,10 @@ import { PlaylistController } from './playlist.controller';
 import { PlaylistService } from './playlist.service';
 import { InvitationsController } from './invitations.controller';
 import { QueueProgressionService } from './queue-progression.service';
+import { SubscriptionModule } from '../subscription/subscription.module';
 
 @Module({
+  imports: [SubscriptionModule],
   controllers: [
     RoomsController,
     RoomMembershipController,
