@@ -1,6 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_room_app/config/api_client.dart';
+import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/core/repositories/mock_api_repository.dart';
+import 'package:music_room_app/core/repositories/rest_api_repository.dart';
+import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/navigation_provider.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
@@ -8,6 +12,7 @@ import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/rooms_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
+import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/features/home/presentation/pages/home_page.dart';
 import 'package:music_room_app/features/main/presentation/pages/main_screen.dart';
 import 'package:music_room_app/features/playlists/presentation/pages/playlists_page.dart';
@@ -25,7 +30,8 @@ import 'package:music_room_app/features/not_found/presentation/pages/not_found_p
 import 'package:music_room_app/core/routing/route_names.dart';
 
 //* Native lazy singletons
-MockApiRepository? _mockApiRepository;
+RoomRepository? _roomRepository;
+ApiClient? _apiClient;
 NavigationProvider? _navigationProvider;
 AuthProvider? _authProvider;
 ThemeProvider? _themeProvider;
@@ -33,28 +39,44 @@ EventsProvider? _eventsProvider;
 PlaylistsProvider? _playlistsProvider;
 RoomsProvider? _roomsProvider;
 PlayerProvider? _playerProvider;
+SocketProvider? _socketProvider;
 
 //* Initialize singletons. safe to call multiple times.
 void setupLocator() {
-  // ! Temporal only for now
-  _mockApiRepository ??= MockApiRepository();
-
   // * Providers
   _navigationProvider ??= NavigationProvider();
   _authProvider ??= AuthProvider();
   _themeProvider ??= ThemeProvider();
-  _eventsProvider ??= EventsProvider(repository: mockApiRepository);
-  _playlistsProvider ??= PlaylistsProvider(repository: mockApiRepository);
-  _roomsProvider ??= RoomsProvider(repository: mockApiRepository);
+  _eventsProvider ??= EventsProvider(repository: roomRepository);
+  _playlistsProvider ??= PlaylistsProvider(repository: roomRepository);
+  _roomsProvider ??= RoomsProvider(repository: roomRepository);
   _playerProvider ??= PlayerProvider(
     authProvider: authProvider,
     roomsProvider: roomsProvider,
   );
+  _socketProvider ??= SocketProvider(
+    authProvider: authProvider,
+    eventsProvider: eventsProvider,
+    playlistsProvider: playlistsProvider,
+    roomsProvider: roomsProvider,
+    playerProvider: playerProvider,
+  );
 }
 
 //* Accessors to retrieve the registered singletons.
-MockApiRepository get mockApiRepository =>
-    _mockApiRepository ??= MockApiRepository();
+
+// * Resolves the correct repository based on the feature flag
+ApiClient get apiClient => _apiClient ??= ApiClient();
+
+RoomRepository get roomRepository {
+  if (_roomRepository != null) return _roomRepository!;
+  if (ApiConfig.useMockData) {
+    _roomRepository = MockApiRepository();
+  } else {
+    _roomRepository = RestApiRepository(client: apiClient);
+  }
+  return _roomRepository!;
+}
 
 ThemeProvider get themeProvider => _themeProvider ??= ThemeProvider();
 
@@ -64,14 +86,22 @@ NavigationProvider get navigationProvider =>
 AuthProvider get authProvider => _authProvider ??= AuthProvider();
 
 EventsProvider get eventsProvider =>
-    _eventsProvider ??= EventsProvider(repository: mockApiRepository);
+    _eventsProvider ??= EventsProvider(repository: roomRepository);
 PlaylistsProvider get playlistsProvider =>
-    _playlistsProvider ??= PlaylistsProvider(repository: mockApiRepository);
+    _playlistsProvider ??= PlaylistsProvider(repository: roomRepository);
 RoomsProvider get roomsProvider =>
-    _roomsProvider ??= RoomsProvider(repository: mockApiRepository);
+    _roomsProvider ??= RoomsProvider(repository: roomRepository);
 PlayerProvider get playerProvider => _playerProvider ??= PlayerProvider(
   authProvider: authProvider,
   roomsProvider: roomsProvider,
+);
+
+SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
+  authProvider: authProvider,
+  eventsProvider: eventsProvider,
+  playlistsProvider: playlistsProvider,
+  roomsProvider: roomsProvider,
+  playerProvider: playerProvider,
 );
 
 //* Helper for Apple-style transitions

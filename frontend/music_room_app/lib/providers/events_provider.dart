@@ -1,53 +1,95 @@
 import 'package:flutter/material.dart';
-import 'package:music_room_app/core/repositories/mock_api_repository.dart';
-import 'package:music_room_app/models/event.dart';
+import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 
+// * Manages VOTE-kind rooms — for live track voting sessions
 class EventsProvider extends ChangeNotifier {
-	final MockApiRepository _repository;
-	List<Event> _events = [];
-	bool _isLoading = false;
-	String? _error;
+  final RoomRepository _repository;
+  List<Room> _events = [];
+  bool _isLoading = false;
+  String? _error;
 
-	EventsProvider({required MockApiRepository repository}) : _repository = repository;
+  EventsProvider({required RoomRepository repository})
+    : _repository = repository;
 
-	List<Event> get events => _events;
-	bool get isLoading => _isLoading;
-	String? get error => _error;
+  List<Room> get events => _events;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
 
-	Future<void> fetchEvents() async {
-		_isLoading = true;
-		_error = null;
-		notifyListeners();
-		try {
-			_events = await _repository.getEvents();
-		} catch (e) {
-			_error = e.toString();
-		} finally {
-			_isLoading = false;
-			notifyListeners();
-		}
-	}
+  Future<void> fetchEvents() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _events = await _repository.getRooms(kind: RoomKind.vote);
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
-	Future<void> voteForTrack(String eventId, String trackId, bool hasVoted) async {
-		try {
-			await _repository.voteForTrack(eventId, trackId, hasVoted);
-			_events = await _repository.getEvents();
-			notifyListeners();
-		} catch (e) {
-			_error = e.toString();
-			notifyListeners();
-		}
-	}
+  // * value 1 = upvote, 0 = remove vote
+  Future<void> voteForTrack(String roomId, String trackId, int value) async {
+    try {
+      await _repository.voteForTrack(roomId, trackId, value);
+      _events = await _repository.getRooms(kind: RoomKind.vote);
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
 
-	Future<void> suggestTrack(String eventId, Track track) async {
-		try {
-			await _repository.suggestTrack(eventId, track);
-			_events = await _repository.getEvents();
-			notifyListeners();
-		} catch (e) {
-			_error = e.toString();
-			notifyListeners();
-		}
-	}
+  Future<void> suggestTrack(String roomId, Track track) async {
+    try {
+      await _repository.addVoteTrack(roomId, track);
+      _events = await _repository.getRooms(kind: RoomKind.vote);
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
+
+  // * Handler methods for socket events
+  void handleTrackAdded(Track track) {
+    for (var i = 0; i < _events.length; i++) {
+      final room = _events[i];
+      if (room.tracks.any((t) => t.id == track.id)) continue;
+      final updatedTracks = List<Track>.from(room.tracks)..add(track);
+      _events[i] = room.copyWith(tracks: updatedTracks);
+    }
+    notifyListeners();
+  }
+
+  void handleTrackVoted(String trackId, int score, int votesCount) {
+    for (var i = 0; i < _events.length; i++) {
+      final room = _events[i];
+      final idx = room.tracks.indexWhere((t) => t.id == trackId);
+      if (idx != -1) {
+        final updatedTrack = room.tracks[idx].copyWith(score: score);
+        final updatedTracks = List<Track>.from(room.tracks)
+          ..[idx] = updatedTrack;
+        updatedTracks.sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+        _events[i] = room.copyWith(tracks: updatedTracks);
+      }
+    }
+    notifyListeners();
+  }
+
+  void handleTrackRemoved(String trackId) {
+    for (var i = 0; i < _events.length; i++) {
+      final room = _events[i];
+      if (room.tracks.any((t) => t.id == trackId)) {
+        final updatedTracks = room.tracks
+            .where((t) => t.id != trackId)
+            .toList();
+        _events[i] = room.copyWith(tracks: updatedTracks);
+      }
+    }
+    notifyListeners();
+  }
 }

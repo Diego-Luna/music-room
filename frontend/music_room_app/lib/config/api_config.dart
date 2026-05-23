@@ -1,7 +1,13 @@
 class ApiConfig {
   // * Base URL for the NestJS API
-  // Todo: change to env var for production and development
-  static const String baseUrl = 'http://localhost:3000';
+  // * Defaults to localhost for local development
+  static const String baseUrl = String.fromEnvironment(
+    'BACKEND_API_URL',
+    defaultValue: 'http://localhost:3000',
+  );
+
+  // * WebSocket base URL
+  static String get wsUrl => baseUrl;
 
   // * Auth endpoints
   static const String register = '/auth/register';
@@ -9,12 +15,12 @@ class ApiConfig {
   static const String refresh = '/auth/refresh';
   static const String logout = '/auth/logout';
 
-  // * Feature endpoints
-  static const String events = '/events';
-  static const String playlists = '/playlists';
+  // * all rooms share the /rooms base
+  static const String rooms = '/rooms';
   static const String profile = '/users/me';
-  static const String search = '/music/search';
+  static const String search = '/spotify/search';
 
-  // * Feature flags
-  static bool useMockData = true; // Use mock data while backend is auth-only
+  // * Feature flag — toggle between mock and live API
+  // Use mock data while backend is auth-only
+  static bool useMockData = false;
 }

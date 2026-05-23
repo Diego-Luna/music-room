@@ -1,163 +1,167 @@
 import 'package:music_room_app/config/mock/mock_data.dart';
-import 'package:music_room_app/models/event.dart';
-import 'package:music_room_app/models/event_track.dart';
-import 'package:music_room_app/models/playlist.dart';
-import 'package:music_room_app/models/playlist_track.dart';
+import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 
-class MockApiRepository {
-  final List<Event> _events = List.from(MockData.events);
-  final List<Playlist> _playlists = List.from(MockData.playlists);
+class MockApiRepository implements RoomRepository {
   final List<Room> _rooms = List.from(MockData.rooms);
 
-  Future<List<Event>> getEvents() async {
+  // Rooms
+  @override
+  Future<List<Room>> getRooms({RoomKind? kind}) async {
     await Future.delayed(const Duration(milliseconds: 50));
-    return List.unmodifiable(_events);
+    if (kind == null) return List.unmodifiable(_rooms);
+    return _rooms.where((r) => r.kind == kind).toList();
   }
 
-  Future<Event> getEventById(String id) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    return _events.firstWhere((e) => e.id == id);
-  }
-
-  Future<Event> createEvent(Event event) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    _events.add(event);
-    return event;
-  }
-
-  Future<void> voteForTrack(
-    String eventId,
-    String trackId,
-    bool hasVoted,
-  ) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    final eventIndex = _events.indexWhere((e) => e.id == eventId);
-    if (eventIndex != -1) {
-      final event = _events[eventIndex];
-      final trackIndex = event.tracks.indexWhere((t) => t.trackId == trackId);
-      if (trackIndex != -1) {
-        final eventTrack = event.tracks[trackIndex];
-        final diff = hasVoted ? 1 : -1;
-        final updatedTrack = eventTrack.copyWith(
-          voteCount: eventTrack.voteCount + diff,
-          hasVoted: hasVoted,
-        );
-        final updatedTracks = List<EventTrack>.from(event.tracks);
-        updatedTracks[trackIndex] = updatedTrack;
-        updatedTracks.sort((a, b) => b.voteCount.compareTo(a.voteCount));
-        _events[eventIndex] = event.copyWith(tracks: updatedTracks);
-      }
-    }
-  }
-
-  Future<void> suggestTrack(String eventId, Track track) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    final eventIndex = _events.indexWhere((e) => e.id == eventId);
-    if (eventIndex != -1) {
-      final event = _events[eventIndex];
-      final trackExists = event.tracks.any((t) => t.trackId == track.id);
-      if (!trackExists) {
-        final newEventTrack = EventTrack(
-          id: 'et-${DateTime.now().millisecondsSinceEpoch}',
-          eventId: eventId,
-          trackId: track.id,
-          voteCount: 1,
-          hasVoted: true,
-          track: track,
-        );
-        final updatedTracks = List<EventTrack>.from(event.tracks)
-          ..add(newEventTrack);
-        updatedTracks.sort((a, b) => b.voteCount.compareTo(a.voteCount));
-        _events[eventIndex] = event.copyWith(tracks: updatedTracks);
-      }
-    }
-  }
-
-  Future<List<Playlist>> getPlaylists() async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    return List.unmodifiable(_playlists);
-  }
-
-  Future<Playlist> getPlaylistById(String id) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    return _playlists.firstWhere((p) => p.id == id);
-  }
-
-  Future<Playlist> createPlaylist(Playlist playlist) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    _playlists.add(playlist);
-    return playlist;
-  }
-
-  Future<void> addTrackToPlaylist(String playlistId, Track track) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    final playlistIndex = _playlists.indexWhere((p) => p.id == playlistId);
-    if (playlistIndex != -1) {
-      final playlist = _playlists[playlistIndex];
-      final trackExists = playlist.tracks.any((t) => t.trackId == track.id);
-      if (!trackExists) {
-        final newPlaylistTrack = PlaylistTrack(
-          id: 'pt-${DateTime.now().millisecondsSinceEpoch}',
-          playlistId: playlistId,
-          trackId: track.id,
-          position: playlist.tracks.length,
-          track: track,
-        );
-        final updatedTracks = List<PlaylistTrack>.from(playlist.tracks)
-          ..add(newPlaylistTrack);
-        _playlists[playlistIndex] = playlist.copyWith(tracks: updatedTracks);
-      }
-    }
-  }
-
-  Future<void> removeTrackFromPlaylist(
-    String playlistId,
-    String trackId,
-  ) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    final playlistIndex = _playlists.indexWhere((p) => p.id == playlistId);
-    if (playlistIndex != -1) {
-      final playlist = _playlists[playlistIndex];
-      final updatedTracks = playlist.tracks
-          .where((t) => t.trackId != trackId)
-          .toList();
-      _playlists[playlistIndex] = playlist.copyWith(tracks: updatedTracks);
-    }
-  }
-
-  Future<List<Room>> getRooms() async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    return List.unmodifiable(_rooms);
-  }
-
+  @override
   Future<Room> getRoomById(String id) async {
     await Future.delayed(const Duration(milliseconds: 50));
     return _rooms.firstWhere((r) => r.id == id);
   }
 
-  Future<Room> createRoom(Room room) async {
+  @override
+  Future<Room> createRoom({
+    required String name,
+    required RoomKind kind,
+    required bool isPublic,
+  }) async {
     await Future.delayed(const Duration(milliseconds: 50));
+    final room = Room(
+      id: 'room-${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      ownerId: 'user-1',
+      kind: kind,
+      isPublic: isPublic,
+    );
     _rooms.add(room);
     return room;
   }
 
-  Future<void> delegateRoomControl(String roomId, String userId) async {
+  @override
+  Future<void> deleteRoom(String id) async {
     await Future.delayed(const Duration(milliseconds: 50));
-    final roomIndex = _rooms.indexWhere((r) => r.id == roomId);
-    if (roomIndex != -1) {
-      final room = _rooms[roomIndex];
-      _rooms[roomIndex] = room.copyWith(currentControllerId: userId);
-    }
+    _rooms.removeWhere((r) => r.id == id);
   }
 
+  @override
+  Future<void> joinRoom(String id) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+  }
+
+  @override
+  Future<void> leaveRoom(String id) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+  }
+
+  // VOTE room
+  @override
+  Future<List<Track>> getVoteTracks(String roomId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final room = await getRoomById(roomId);
+    final sorted = List<Track>.from(room.tracks);
+    sorted.sort((a, b) => b.score.compareTo(a.score));
+    return sorted;
+  }
+
+  @override
+  Future<Track> addVoteTrack(String roomId, Track track) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final idx = _rooms.indexWhere((r) => r.id == roomId);
+    if (idx == -1) throw Exception('Room not found');
+    final updated = List<Track>.from(_rooms[idx].tracks)..add(track);
+    _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
+    return track;
+  }
+
+  @override
+  Future<void> voteForTrack(
+    String roomId,
+    String trackId,
+    int value, {
+    double? lat,
+    double? lng,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final idx = _rooms.indexWhere((r) => r.id == roomId);
+    if (idx == -1) return;
+    final updated = _rooms[idx].tracks.map((t) {
+      if (t.id != trackId) return t;
+      return t.copyWith(score: t.score + value);
+    }).toList();
+    _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
+  }
+
+  @override
+  Future<void> removeVoteTrack(String roomId, String trackId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final idx = _rooms.indexWhere((r) => r.id == roomId);
+    if (idx == -1) return;
+    final updated = _rooms[idx].tracks.where((t) => t.id != trackId).toList();
+    _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
+  }
+
+  // PLAYLIST room
+  @override
+  Future<List<Track>> getPlaylistTracks(String roomId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final room = await getRoomById(roomId);
+    final sorted = List<Track>.from(room.tracks);
+    sorted.sort((a, b) => (a.position ?? '').compareTo(b.position ?? ''));
+    return sorted;
+  }
+
+  @override
+  Future<Track> addPlaylistTrack(String roomId, Track track) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final idx = _rooms.indexWhere((r) => r.id == roomId);
+    if (idx == -1) throw Exception('Room not found');
+    final updated = List<Track>.from(_rooms[idx].tracks)..add(track);
+    _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
+    return track;
+  }
+
+  @override
+  Future<void> movePlaylistTrack(
+    String roomId,
+    String trackId,
+    String newPosition,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final idx = _rooms.indexWhere((r) => r.id == roomId);
+    if (idx == -1) return;
+    final updated = _rooms[idx].tracks.map((t) {
+      if (t.id != trackId) return t;
+      return t.copyWith(position: newPosition);
+    }).toList();
+    _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
+  }
+
+  @override
+  Future<void> removePlaylistTrack(String roomId, String trackId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final idx = _rooms.indexWhere((r) => r.id == roomId);
+    if (idx == -1) return;
+    final updated = _rooms[idx].tracks.where((t) => t.id != trackId).toList();
+    _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
+  }
+
+  // DELEGATE room
+  @override
+  Future<void> delegateRoomControl(String roomId, String userId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final idx = _rooms.indexWhere((r) => r.id == roomId);
+    if (idx == -1) return;
+    _rooms[idx] = _rooms[idx].copyWith(currentControllerId: userId);
+  }
+
+  @override
   Future<void> revokeRoomControl(String roomId) async {
     await Future.delayed(const Duration(milliseconds: 50));
-    final roomIndex = _rooms.indexWhere((r) => r.id == roomId);
-    if (roomIndex != -1) {
-      final room = _rooms[roomIndex];
-      _rooms[roomIndex] = room.copyWith(currentControllerId: room.ownerId);
-    }
+    final idx = _rooms.indexWhere((r) => r.id == roomId);
+    if (idx == -1) return;
+    _rooms[idx] = _rooms[idx].copyWith(
+      currentControllerId: _rooms[idx].ownerId,
+    );
   }
 }

@@ -1,17 +1,17 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:music_room_app/core/repositories/mock_api_repository.dart';
+import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/providers/rooms_provider.dart';
 
-class MockMockApiRepository extends Mock implements MockApiRepository {}
+class MockRoomRepository extends Mock implements RoomRepository {}
 
 void main() {
   late RoomsProvider roomsProvider;
-  late MockMockApiRepository mockRepository;
+  late MockRoomRepository mockRepository;
 
   setUp(() {
-    mockRepository = MockMockApiRepository();
+    mockRepository = MockRoomRepository();
     roomsProvider = RoomsProvider(repository: mockRepository);
   });
 
@@ -27,7 +27,6 @@ void main() {
       final mockRooms = [
         Room(id: 'room-1', name: 'Chill Room', ownerId: 'user-1'),
       ];
-
       when(() => mockRepository.getRooms()).thenAnswer((_) async => mockRooms);
 
       await roomsProvider.fetchRooms();
@@ -57,7 +56,7 @@ void main() {
 
       when(
         () => mockRepository.delegateRoomControl(any(), any()),
-      ).thenAnswer((_) async => {});
+      ).thenAnswer((_) async {});
       when(() => mockRepository.getRooms()).thenAnswer((_) async => [mockRoom]);
 
       roomsProvider.selectRoom(mockRoom);
@@ -66,14 +65,11 @@ void main() {
       verify(
         () => mockRepository.delegateRoomControl('room-1', 'user-2'),
       ).called(1);
-      expect(
-        roomsProvider.currentActiveRoom?.currentControllerId,
-        equals('user-2'),
-      );
+      expect(roomsProvider.currentActiveRoom?.currentControllerId, 'user-2');
     });
 
     test(
-      'revokeControl calls repository and updates active room controller to owner',
+      'revokeControl calls repository and resets controller to owner',
       () async {
         final mockRoom = Room(
           id: 'room-1',
@@ -84,7 +80,7 @@ void main() {
 
         when(
           () => mockRepository.revokeRoomControl(any()),
-        ).thenAnswer((_) async => {});
+        ).thenAnswer((_) async {});
         when(
           () => mockRepository.getRooms(),
         ).thenAnswer((_) async => [mockRoom]);
@@ -93,11 +89,63 @@ void main() {
         await roomsProvider.revokeControl('room-1');
 
         verify(() => mockRepository.revokeRoomControl('room-1')).called(1);
+        expect(roomsProvider.currentActiveRoom?.currentControllerId, 'user-1');
+      },
+    );
+
+    test(
+      'handleDelegateUpdated updates current active room controller',
+      () async {
+        final mockRoom = Room(
+          id: 'room-1',
+          name: 'Rock Room',
+          ownerId: 'user-1',
+          currentControllerId: null,
+        );
+        roomsProvider.selectRoom(mockRoom);
+        expect(roomsProvider.currentActiveRoom?.currentControllerId, isNull);
+
+        roomsProvider.handleDelegateUpdated('room-1', 'delegate-123');
         expect(
           roomsProvider.currentActiveRoom?.currentControllerId,
-          equals('user-1'),
+          equals('delegate-123'),
         );
       },
     );
+
+    test('handleDJRoleGranted updates delegate controller', () async {
+      final mockRoom = Room(
+        id: 'room-1',
+        name: 'Rock Room',
+        ownerId: 'user-1',
+        currentControllerId: null,
+      );
+      roomsProvider.selectRoom(mockRoom);
+      expect(roomsProvider.currentActiveRoom?.currentControllerId, isNull);
+
+      roomsProvider.handleDJRoleGranted('room-1', 'dj-456');
+      expect(
+        roomsProvider.currentActiveRoom?.currentControllerId,
+        equals('dj-456'),
+      );
+    });
+
+    test('handleMemberJoined triggers notifications/listeners', () async {
+      var notified = false;
+      roomsProvider.addListener(() {
+        notified = true;
+      });
+      roomsProvider.handleMemberJoined('room-1', 'user-2');
+      expect(notified, isTrue);
+    });
+
+    test('handleMemberLeft triggers notifications/listeners', () async {
+      var notified = false;
+      roomsProvider.addListener(() {
+        notified = true;
+      });
+      roomsProvider.handleMemberLeft('room-1', 'user-2');
+      expect(notified, isTrue);
+    });
   });
 }
