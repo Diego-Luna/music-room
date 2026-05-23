@@ -12,6 +12,7 @@ import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/rooms_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
+import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/features/home/presentation/pages/home_page.dart';
 import 'package:music_room_app/features/main/presentation/pages/main_screen.dart';
 import 'package:music_room_app/features/playlists/presentation/pages/playlists_page.dart';
@@ -38,6 +39,7 @@ EventsProvider? _eventsProvider;
 PlaylistsProvider? _playlistsProvider;
 RoomsProvider? _roomsProvider;
 PlayerProvider? _playerProvider;
+SocketProvider? _socketProvider;
 
 //* Initialize singletons. safe to call multiple times.
 void setupLocator() {
@@ -51,6 +53,13 @@ void setupLocator() {
   _playerProvider ??= PlayerProvider(
     authProvider: authProvider,
     roomsProvider: roomsProvider,
+  );
+  _socketProvider ??= SocketProvider(
+    authProvider: authProvider,
+    eventsProvider: eventsProvider,
+    playlistsProvider: playlistsProvider,
+    roomsProvider: roomsProvider,
+    playerProvider: playerProvider,
   );
 }
 
@@ -85,6 +94,14 @@ RoomsProvider get roomsProvider =>
 PlayerProvider get playerProvider => _playerProvider ??= PlayerProvider(
   authProvider: authProvider,
   roomsProvider: roomsProvider,
+);
+
+SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
+  authProvider: authProvider,
+  eventsProvider: eventsProvider,
+  playlistsProvider: playlistsProvider,
+  roomsProvider: roomsProvider,
+  playerProvider: playerProvider,
 );
 
 //* Helper for Apple-style transitions

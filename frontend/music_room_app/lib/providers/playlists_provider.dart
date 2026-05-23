@@ -68,4 +68,43 @@ class PlaylistsProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // * Handler methods for socket events
+  void handleTrackAdded(Track track) {
+    for (var i = 0; i < _playlists.length; i++) {
+      final room = _playlists[i];
+      if (room.tracks.any((t) => t.id == track.id)) continue;
+      final updatedTracks = List<Track>.from(room.tracks)..add(track);
+      _playlists[i] = room.copyWith(tracks: updatedTracks);
+    }
+    notifyListeners();
+  }
+
+  void handleTrackMoved(String roomId, String trackId, String newPosition) {
+    for (var i = 0; i < _playlists.length; i++) {
+      final room = _playlists[i];
+      if (room.id != roomId) continue;
+      final idx = room.tracks.indexWhere((t) => t.id == trackId);
+      if (idx != -1) {
+        final updatedTrack = room.tracks[idx].copyWith(position: newPosition);
+        final updatedTracks = List<Track>.from(room.tracks)
+          ..[idx] = updatedTrack;
+        _playlists[i] = room.copyWith(tracks: updatedTracks);
+      }
+    }
+    notifyListeners();
+  }
+
+  void handleTrackRemoved(String trackId) {
+    for (var i = 0; i < _playlists.length; i++) {
+      final room = _playlists[i];
+      if (room.tracks.any((t) => t.id == trackId)) {
+        final updatedTracks = room.tracks
+            .where((t) => t.id != trackId)
+            .toList();
+        _playlists[i] = room.copyWith(tracks: updatedTracks);
+      }
+    }
+    notifyListeners();
+  }
 }

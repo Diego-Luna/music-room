@@ -118,5 +118,63 @@ void main() {
 
       expect(playerProvider.isPlaying, false);
     });
+
+    test(
+      'handlePlaybackPlayed updates current track and sets playing to true',
+      () {
+        final track = Track(
+          id: 'track-1',
+          providerId: 'p-1',
+          provider: 'spotify',
+          title: 'Song',
+          artist: 'Artist',
+          durationMs: 180000,
+        );
+        playerProvider.handlePlaybackPlayed(track);
+        expect(playerProvider.currentTrack?.id, equals('track-1'));
+        expect(playerProvider.isPlaying, isTrue);
+        expect(playerProvider.error, isNull);
+      },
+    );
+
+    test('handlePlaybackPaused sets playing to false', () {
+      final track = Track(
+        id: 'track-1',
+        providerId: 'p-1',
+        provider: 'spotify',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 180000,
+      );
+      playerProvider.handlePlaybackPlayed(track);
+      expect(playerProvider.isPlaying, isTrue);
+
+      playerProvider.handlePlaybackPaused();
+      expect(playerProvider.isPlaying, isFalse);
+      expect(playerProvider.error, isNull);
+    });
+
+    test(
+      'handlePlaybackSkipped updates current track and sets playing to true',
+      () {
+        final track = Track(
+          id: 'track-1',
+          providerId: 'p-1',
+          provider: 'spotify',
+          title: 'Song',
+          artist: 'Artist',
+          durationMs: 180000,
+        );
+        playerProvider.handlePlaybackSkipped(track);
+        expect(playerProvider.currentTrack?.id, equals('track-1'));
+        expect(playerProvider.isPlaying, isTrue);
+        expect(playerProvider.error, isNull);
+      },
+    );
+
+    test('handlePlaybackVolumeChanged executes without errors', () {
+      // Just verify call completes successfully
+      playerProvider.handlePlaybackVolumeChanged(0.5);
+    });
   });
 }

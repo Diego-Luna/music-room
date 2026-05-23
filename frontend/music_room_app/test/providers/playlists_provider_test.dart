@@ -113,5 +113,99 @@ void main() {
       ).called(1);
       verify(() => mockRepository.getRooms(kind: RoomKind.playlist)).called(1);
     });
+
+    test('handleTrackAdded adds track to playlists in state', () async {
+      final room = Room(
+        id: 'room-1',
+        name: 'Playlist Room',
+        ownerId: 'owner-1',
+        kind: RoomKind.playlist,
+        tracks: [],
+      );
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.playlist),
+      ).thenAnswer((_) async => [room]);
+
+      await playlistsProvider.fetchPlaylists();
+      expect(playlistsProvider.playlists.first.tracks, isEmpty);
+
+      final track = Track(
+        id: 'track-1',
+        providerId: 'p-1',
+        provider: 'spotify',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 180000,
+      );
+      playlistsProvider.handleTrackAdded(track);
+      expect(
+        playlistsProvider.playlists.first.tracks.first.id,
+        equals('track-1'),
+      );
+    });
+
+    test(
+      'handleTrackMoved updates track position and sorts/reorders',
+      () async {
+        final track = Track(
+          id: 'track-1',
+          providerId: 'p-1',
+          provider: 'spotify',
+          title: 'Song',
+          artist: 'Artist',
+          durationMs: 180000,
+          position: 'a',
+        );
+        final room = Room(
+          id: 'room-1',
+          name: 'Playlist Room',
+          ownerId: 'owner-1',
+          kind: RoomKind.playlist,
+          tracks: [track],
+        );
+        when(
+          () => mockRepository.getRooms(kind: RoomKind.playlist),
+        ).thenAnswer((_) async => [room]);
+
+        await playlistsProvider.fetchPlaylists();
+        expect(
+          playlistsProvider.playlists.first.tracks.first.position,
+          equals('a'),
+        );
+
+        playlistsProvider.handleTrackMoved('room-1', 'track-1', 'b');
+        expect(
+          playlistsProvider.playlists.first.tracks.first.position,
+          equals('b'),
+        );
+      },
+    );
+
+    test('handleTrackRemoved removes track from playlists in state', () async {
+      final track = Track(
+        id: 'track-1',
+        providerId: 'p-1',
+        provider: 'spotify',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 180000,
+      );
+      final room = Room(
+        id: 'room-1',
+        name: 'Playlist Room',
+        ownerId: 'owner-1',
+        kind: RoomKind.playlist,
+        tracks: [track],
+      );
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.playlist),
+      ).thenAnswer((_) async => [room]);
+
+      await playlistsProvider.fetchPlaylists();
+      expect(playlistsProvider.playlists.first.tracks, isNotEmpty);
+
+      playlistsProvider.handleTrackRemoved('track-1');
+      expect(playlistsProvider.playlists.first.tracks, isEmpty);
+    });
   });
 }

@@ -1,7 +1,13 @@
 class ApiConfig {
   // * Base URL for the NestJS API
-  // Todo: change to env var for production and development
-  static const String baseUrl = 'http://localhost:3000';
+  // * Defaults to localhost for local development
+  static const String baseUrl = String.fromEnvironment(
+    'BACKEND_API_URL',
+    defaultValue: 'http://localhost:3000',
+  );
+
+  // * WebSocket base URL
+  static String get wsUrl => baseUrl;
 
   // * Auth endpoints
   static const String register = '/auth/register';

@@ -95,5 +95,85 @@ void main() {
       verify(() => mockRepository.addVoteTrack('room-1', any())).called(1);
       verify(() => mockRepository.getRooms(kind: RoomKind.vote)).called(1);
     });
+
+    test('handleTrackAdded adds track to matching rooms in state', () async {
+      final room = Room(
+        id: 'room-1',
+        name: 'Event Room',
+        ownerId: 'owner-1',
+        kind: RoomKind.vote,
+        tracks: [],
+      );
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.vote),
+      ).thenAnswer((_) async => [room]);
+
+      await eventsProvider.fetchEvents();
+      expect(eventsProvider.events.first.tracks, isEmpty);
+
+      final track = Track(
+        id: 'track-1',
+        providerId: 'p-1',
+        provider: 'spotify',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 180000,
+      );
+      eventsProvider.handleTrackAdded(track);
+      expect(eventsProvider.events.first.tracks.first.id, equals('track-1'));
+    });
+
+    test('handleTrackVoted updates score and sorts tracks', () async {
+      final track = Track(
+        id: 'track-1',
+        providerId: 'p-1',
+        provider: 'spotify',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 180000,
+        score: 1,
+      );
+      final room = Room(
+        id: 'room-1',
+        name: 'Event Room',
+        ownerId: 'owner-1',
+        kind: RoomKind.vote,
+        tracks: [track],
+      );
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.vote),
+      ).thenAnswer((_) async => [room]);
+      await eventsProvider.fetchEvents();
+      expect(eventsProvider.events.first.tracks.first.score, equals(1));
+
+      eventsProvider.handleTrackVoted('track-1', 5, 10);
+      expect(eventsProvider.events.first.tracks.first.score, equals(5));
+    });
+
+    test('handleTrackRemoved removes track from rooms', () async {
+      final track = Track(
+        id: 'track-1',
+        providerId: 'p-1',
+        provider: 'spotify',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 180000,
+      );
+      final room = Room(
+        id: 'room-1',
+        name: 'Event Room',
+        ownerId: 'owner-1',
+        kind: RoomKind.vote,
+        tracks: [track],
+      );
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.vote),
+      ).thenAnswer((_) async => [room]);
+      await eventsProvider.fetchEvents();
+      expect(eventsProvider.events.first.tracks, isNotEmpty);
+
+      eventsProvider.handleTrackRemoved('track-1');
+      expect(eventsProvider.events.first.tracks, isEmpty);
+    });
   });
 }

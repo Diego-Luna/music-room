@@ -56,7 +56,8 @@ class Room {
       tracks: (json['tracks'] as List? ?? [])
           .map((t) => Track.fromJson(t))
           .toList(),
-      currentControllerId: json['currentControllerId'] as String?,
+      currentControllerId:
+          (json['currentControllerId'] ?? json['delegateUserId']) as String?,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,

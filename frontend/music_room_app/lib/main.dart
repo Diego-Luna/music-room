@@ -43,6 +43,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: playlistsProvider),
         ChangeNotifierProvider.value(value: roomsProvider),
         ChangeNotifierProvider.value(value: playerProvider),
+        ChangeNotifierProvider.value(value: socketProvider),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProv, _) {
