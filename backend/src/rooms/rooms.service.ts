@@ -12,6 +12,9 @@ import { CreateRoomDto, RoomKind, VoteWindow } from './dto/create-room.dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 
 const EDIT_ROLES = new Set(['OWNER', 'ADMIN']);
+// VI.3 — "free limited subscription / unlimited paid": FREE accounts are
+// capped at N owned rooms; PREMIUM is unlimited.
+const FREE_ROOM_LIMIT = 3;
 
 @Injectable()
 export class RoomsService {
@@ -25,6 +28,7 @@ export class RoomsService {
     this.validateVoteSettings(dto);
     this.validateLocationSettings(dto);
     await this.requirePlaylistEntitlement(userId, dto.kind);
+    await this.requireRoomQuota(userId);
 
     return this.prisma.$transaction(async (tx) => {
       const room = await tx.room.create({
@@ -186,6 +190,23 @@ export class RoomsService {
       throw new ForbiddenException('Insufficient role for this action');
     }
     return room;
+  }
+
+  // VI.3 — caps the FREE tier at FREE_ROOM_LIMIT owned rooms, PREMIUM is
+  // unlimited. Caps ownership only — a FREE user can still JOIN any
+  // number of rooms as a member, vote, participate. The mandatory
+  // services remain fully accessible at any tier.
+  private async requireRoomQuota(userId: string): Promise<void> {
+    const { tier } = await this.subscription.getMine(userId);
+    if (tier === 'PREMIUM') return;
+    const owned = await this.prisma.room.count({
+      where: { ownerId: userId },
+    });
+    if (owned >= FREE_ROOM_LIMIT) {
+      throw new ForbiddenException(
+        `Free accounts are limited to ${FREE_ROOM_LIMIT} owned rooms — upgrade to PREMIUM for unlimited`,
+      );
+    }
   }
 
   // VI.3 — the Music Playlist Editor is a premium feature: only PREMIUM
