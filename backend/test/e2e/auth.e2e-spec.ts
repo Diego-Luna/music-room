@@ -11,6 +11,7 @@ import { AuthModule } from '@/auth/auth.module';
 import { UsersModule } from '@/users/users.module';
 import { RoomsModule } from '@/rooms/rooms.module';
 import { SubscriptionModule } from '@/subscription/subscription.module';
+import { SyncModule } from '@/sync/sync.module';
 import { PrismaModule } from '@/prisma/prisma.module';
 import { PrismaService } from '@/prisma/prisma.service';
 import { RedisModule } from '@/redis/redis.module';
@@ -395,6 +396,14 @@ describe('Auth (e2e)', () => {
           }
           return Promise.resolve(room ?? null);
         }),
+        count: vi.fn(({ where }: { where?: Record<string, unknown> } = {}) => {
+          const ownerId = where?.ownerId as string | undefined;
+          return Promise.resolve(
+            Object.values(rooms).filter((r) =>
+              ownerId ? r.ownerId === ownerId : true,
+            ).length,
+          );
+        }),
       },
       roomMember: {
         create: vi.fn(({ data }: { data: Record<string, unknown> }) => {
@@ -535,6 +544,12 @@ describe('Auth (e2e)', () => {
             return Promise.resolve(inv);
           },
         ),
+        findMany: vi.fn(() =>
+          Promise.resolve(Object.values(roomInvitations)),
+        ),
+      },
+      friendship: {
+        findMany: vi.fn(() => Promise.resolve([])),
       },
       $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
         // mocks share the same prisma object → just pass it through
@@ -573,6 +588,7 @@ describe('Auth (e2e)', () => {
         UsersModule,
         RoomsModule,
         SubscriptionModule,
+        SyncModule,
       ],
       providers: [
         {
@@ -1247,6 +1263,25 @@ describe('Auth (e2e)', () => {
         payload: { name: 'PL', kind: 'PLAYLIST' },
       });
       expect(allowed.statusCode).toBe(201);
+    });
+
+    it('GET /sync returns a snapshot for the user (VI.4 offline)', async () => {
+      const { accessToken } = await registerVerifyLogin(
+        'sync-vi4@example.com',
+      );
+      const res = await app.inject({
+        method: 'GET',
+        url: '/sync',
+        headers: { authorization: `Bearer ${accessToken}` },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.payload);
+      expect(body).toHaveProperty('serverTime');
+      expect(body).toHaveProperty('me');
+      expect(body).toHaveProperty('rooms');
+      expect(body).toHaveProperty('invitations');
+      expect(body).toHaveProperty('friendships');
+      expect(Array.isArray(body.rooms)).toBe(true);
     });
 
     it('GET /subscription/plans lists the two offers', async () => {

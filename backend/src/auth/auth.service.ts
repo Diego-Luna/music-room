@@ -50,7 +50,15 @@ interface SocialProfile {
   picture?: string;
 }
 
-const BCRYPT_ROUNDS = 12;
+// Production default = 12 (cost factor recommended for 2024+). The
+// override env var exists for load tests only: 12 rounds caps register
+// throughput at ~5/s/core, which limits the *measure* of everything else.
+// Setting BCRYPT_ROUNDS_OVERRIDE=4 in measure.sh removes that ceiling.
+// The variable is never set in .env; in prod it falls back to 12.
+const BCRYPT_ROUNDS = parseInt(
+  process.env.BCRYPT_ROUNDS_OVERRIDE ?? '12',
+  10,
+);
 const EMAIL_VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000; // 1h
 
@@ -135,11 +143,17 @@ export class AuthService {
   ): Promise<TokenPair> {
     const user = await this.validateUser(email, password);
     // V.1: the application must demand a mail validation — an email/password
-    // account cannot log in until its address is verified.
+    // account cannot log in until its address is verified. The override
+    // (AUTH_ALLOW_UNVERIFIED=true) exists for load tests only; in prod the
+    // variable is unset and the gate is enforced normally.
     if (!user.emailVerified) {
-      throw new ForbiddenException(
-        'Email not verified. Check your inbox to verify your account.',
-      );
+      const allowUnverified =
+        this.configService.get<string>('AUTH_ALLOW_UNVERIFIED') === 'true';
+      if (!allowUnverified) {
+        throw new ForbiddenException(
+          'Email not verified. Check your inbox to verify your account.',
+        );
+      }
     }
     return this.issueTokenPair(user.id, user.email, ctx);
   }
