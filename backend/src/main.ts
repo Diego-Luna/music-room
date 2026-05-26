@@ -34,6 +34,8 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'https://diego-luna.github.io',
+      'https://musicroom.me',
+      'https://www.musicroom.me',
       'http://localhost:3000',
       'http://localhost:5173',
     ],
