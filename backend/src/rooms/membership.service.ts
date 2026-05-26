@@ -85,7 +85,7 @@ export class RoomMembershipService {
     const room = await this.requireRoom(roomId);
     if (room.ownerId === userId) {
       throw new BadRequestException(
-        'Owner cannot leave; transfer ownership or delete the room',
+        'Owner cannot leave their own room; delete it instead',
       );
     }
     const member = await this.prisma.roomMember.findUnique({

@@ -1,6 +1,7 @@
 .PHONY: install dev build test test-e2e test-cov \
 	db-migrate db-generate db-seed \
 	docker-up docker-down docker-build docker-rebuild docker-logs docker-sh up down logs \
+	loadtest measure \
 	clean
 
 # docker-compose.yml lives at the repo root (one level up)
@@ -63,6 +64,19 @@ docker-logs:
 
 docker-sh:
 	$(COMPOSE) exec backend sh
+
+# ─── Load tests (V.7) ─────────────────────────────────────────────────────────
+# Run all k6 scripts against a backend that's ALREADY running.
+loadtest:
+	bash loadtest/run.sh
+
+# Full V.7 measurement ceremony: stops any backend, boots one with the
+# throttler relaxed (load-test only — no edit to .env), runs the 5 k6
+# scripts, then kills the relaxed backend (trap on exit). After this,
+# restart the backend normally (`make dev` / `node dist/main.js`) and
+# throttler comes back to production limits.
+measure:
+	bash loadtest/measure.sh
 
 # ─── Cleanup ──────────────────────────────────────────────────────────────────
 clean:

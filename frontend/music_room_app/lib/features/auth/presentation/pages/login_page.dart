@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_room_app/widgets/text_button_simple.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
@@ -99,14 +100,12 @@ class _LoginPageState extends State<LoginPage> {
                           ),
 
                           const SizedBox(height: AppDimens.lg),
+                          // Todo: change the text to button
                           Align(
                             alignment: Alignment.centerRight,
-                            child: Text(
-                              'Forgot Password?',
-                              style: theme.textTheme.bodyMedium?.copyWith(
-                                color: theme.colorScheme.secondary,
-                                fontWeight: AppTypography.bold,
-                              ),
+                            child: TextButtonSimple(
+                              onPressed: () => context.go(routeForgotPassword),
+                              text: 'Forgot Password?',
                             ),
                           ),
 
@@ -199,15 +198,11 @@ class _LoginPageState extends State<LoginPage> {
                         "Don't have an account? ",
                         style: theme.textTheme.bodyMedium,
                       ),
-                      GestureDetector(
-                        onTap: () => context.go(routeSignup),
-                        child: Text(
-                          "Sign Up",
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: AppTypography.bold,
-                          ),
-                        ),
+                      TextButtonSimple(
+                        text: 'Sign Up',
+                        onPressed: () => context.go(routeSignup),
+                        color: theme.colorScheme.primary,
+                        fontWeight: AppTypography.bold,
                       ),
                     ],
                   ),

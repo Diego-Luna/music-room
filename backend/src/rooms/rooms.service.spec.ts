@@ -21,7 +21,10 @@ describe('RoomsService', () => {
     emitToUser: ReturnType<typeof vi.fn>;
     emitToRoom: ReturnType<typeof vi.fn>;
   };
-  let subscription: { assertPremium: ReturnType<typeof vi.fn> };
+  let subscription: {
+    assertPremium: ReturnType<typeof vi.fn>;
+    getMine: ReturnType<typeof vi.fn>;
+  };
 
   const roomRow = {
     id: 'room-1',
@@ -50,6 +53,7 @@ describe('RoomsService', () => {
         findMany: vi.fn(),
         update: vi.fn().mockResolvedValue(roomRow),
         delete: vi.fn(),
+        count: vi.fn().mockResolvedValue(0),
       },
       roomMember: {
         create: vi.fn(),
@@ -65,7 +69,10 @@ describe('RoomsService', () => {
       $transaction: vi.fn((fn: (tx: unknown) => unknown) => fn(prisma)),
     };
     realtime = { emitToUser: vi.fn(), emitToRoom: vi.fn() };
-    subscription = { assertPremium: vi.fn() };
+    subscription = {
+      assertPremium: vi.fn(),
+      getMine: vi.fn().mockResolvedValue({ tier: 'PREMIUM' }),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -147,12 +154,37 @@ describe('RoomsService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('does not gate VOTE room creation by subscription tier', async () => {
+    it('does not gate VOTE room creation by the playlist-only premium check', async () => {
       subscription.assertPremium.mockRejectedValue(new ForbiddenException());
       await expect(
         service.create('user-1', { name: 'V', kind: RoomKind.VOTE }),
       ).resolves.toBeDefined();
       expect(subscription.assertPremium).not.toHaveBeenCalled();
+    });
+
+    it('rejects a FREE user creating beyond the room quota (VI.3)', async () => {
+      subscription.getMine.mockResolvedValue({ tier: 'FREE' });
+      prisma.room.count.mockResolvedValue(3); // at the cap
+      await expect(
+        service.create('user-1', { name: 'X', kind: RoomKind.VOTE }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('lets a FREE user create when below the room quota', async () => {
+      subscription.getMine.mockResolvedValue({ tier: 'FREE' });
+      prisma.room.count.mockResolvedValue(2); // under the cap
+      await expect(
+        service.create('user-1', { name: 'X', kind: RoomKind.VOTE }),
+      ).resolves.toBeDefined();
+    });
+
+    it('does not apply the room quota to PREMIUM users', async () => {
+      subscription.getMine.mockResolvedValue({ tier: 'PREMIUM' });
+      prisma.room.count.mockResolvedValue(100); // way over the FREE cap
+      await expect(
+        service.create('user-1', { name: 'X', kind: RoomKind.VOTE }),
+      ).resolves.toBeDefined();
+      expect(prisma.room.count).not.toHaveBeenCalled();
     });
   });
 

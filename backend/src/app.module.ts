@@ -15,6 +15,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { SpotifyModule } from './spotify/spotify.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SubscriptionModule } from './subscription/subscription.module';
+import { SyncModule } from './sync/sync.module';
 import { MailModule } from './mail/mail.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -90,6 +91,7 @@ import { AppController } from './app.controller';
     RealtimeModule,
     SpotifyModule,
     SubscriptionModule,
+    SyncModule,
     HealthModule,
   ],
   controllers: [AppController],

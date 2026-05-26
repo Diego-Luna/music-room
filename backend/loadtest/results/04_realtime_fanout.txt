@@ -1,0 +1,164 @@
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: /Users/jeremycointre/music-room/backend/loadtest/04_realtime_fanout.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 100 max VUs, 2m0s max duration (incl. graceful stop):
+              * fanout: 1 iterations for each of 100 VUs (maxDuration: 1m30s, gracefulStop: 30s)
+
+
+running (0m01.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m00.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m02.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m01.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m03.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m02.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m04.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m03.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m05.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m04.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m06.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m05.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m07.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m06.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m08.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m07.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m09.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m08.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m10.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m09.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m11.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m10.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m12.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m11.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m13.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m12.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m14.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m13.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m15.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m14.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m16.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m15.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m17.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m16.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m18.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m17.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m19.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m18.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m20.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m19.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m21.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m20.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m22.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m21.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m23.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m22.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m24.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m23.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m25.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m24.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m26.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m25.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m27.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m26.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m28.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m27.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m29.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m28.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m30.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m29.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m31.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m30.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m32.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m31.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m33.0s), 100/100 VUs, 0 complete and 0 interrupted iterations
+fanout   [   0% ] 100 VUs  0m32.9s/1m30s  000/100 iters, 1 per VU
+
+running (0m34.0s), 099/100 VUs, 1 complete and 0 interrupted iterations
+fanout   [   1% ] 100 VUs  0m33.9s/1m30s  001/100 iters, 1 per VU
+
+running (0m35.0s), 099/100 VUs, 1 complete and 0 interrupted iterations
+fanout   [   1% ] 100 VUs  0m34.9s/1m30s  001/100 iters, 1 per VU
+
+running (0m36.0s), 099/100 VUs, 1 complete and 0 interrupted iterations
+fanout   [   1% ] 100 VUs  0m35.9s/1m30s  001/100 iters, 1 per VU
+
+
+  █ THRESHOLDS 
+
+    rt_delivered_events
+    ✓ 'count>2000' count=2020
+
+
+  █ TOTAL RESULTS 
+
+    CUSTOM
+    rt_delivered_events............: 2020   55.380621/s
+
+    HTTP
+    http_req_duration..............: avg=80.06ms min=4.39ms med=28.45ms max=343.26ms p(90)=248.07ms p(95)=262.61ms
+      { expected_response:true }...: avg=80.06ms min=4.39ms med=28.45ms max=343.26ms p(90)=248.07ms p(95)=262.61ms
+    http_req_failed................: 0.00%  0 out of 450
+    http_reqs......................: 450    12.337267/s
+
+    EXECUTION
+    iteration_duration.............: avg=36.32s  min=33.05s med=36.36s  max=36.38s   p(90)=36.38s   p(95)=36.38s  
+    iterations.....................: 100    2.741615/s
+    vus............................: 99     min=99       max=100
+    vus_max........................: 100    min=100      max=100
+
+    NETWORK
+    data_received..................: 871 kB 24 kB/s
+    data_sent......................: 225 kB 6.2 kB/s
+
+    WEBSOCKET
+    ws_connecting..................: avg=41.6ms  min=4.28ms med=34.47ms max=82.75ms  p(90)=75.97ms  p(95)=78.26ms 
+    ws_msgs_received...............: 2317   63.523217/s
+    ws_msgs_sent...................: 297    8.142596/s
+    ws_session_duration............: avg=35.04s  min=35s    med=35.03s  max=35.08s   p(90)=35.07s   p(95)=35.07s  
+    ws_sessions....................: 99     2.714199/s
+
+
+
+
+running (0m36.5s), 000/100 VUs, 100 complete and 0 interrupted iterations
+fanout ✓ [ 100% ] 100 VUs  0m36.4s/1m30s  100/100 iters, 1 per VU
