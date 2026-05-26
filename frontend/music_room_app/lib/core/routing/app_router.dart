@@ -5,6 +5,7 @@ import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/core/repositories/mock_api_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_repository.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/features/auth/presentation/pages/forgot_page.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/navigation_provider.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
@@ -136,6 +137,7 @@ class AppRouter {
       final isAuthRoute =
           state.matchedLocation == routeLogin ||
           state.matchedLocation == routeSignup ||
+          state.matchedLocation == routeForgotPassword ||
           state.matchedLocation == routeStart;
 
       if (!isLoggedIn && !isAuthRoute) return routeLogin;
@@ -150,6 +152,14 @@ class AppRouter {
           context: context,
           state: state,
           child: const LoginPage(),
+        ),
+      ),
+      GoRoute(
+        path: routeForgotPassword,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context: context,
+          state: state,
+          child: const ForgotPasswordPage(),
         ),
       ),
       GoRoute(
