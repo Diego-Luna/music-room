@@ -1,3 +1,4 @@
+// ! triger the buils with the domain, v2
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -17,6 +18,7 @@ void main() async {
   setupLocator();
   // await HiveConfig.init();
   await authProvider.tryAutoLogin();
+  
   runApp(const AppState());
 }
 
@@ -31,6 +33,7 @@ class AppState extends StatelessWidget {
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
+  print('helo');
 
   @override
   Widget build(BuildContext context) {
