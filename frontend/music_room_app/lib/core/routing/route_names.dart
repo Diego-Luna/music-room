@@ -10,6 +10,7 @@ const String routeSettings = '/settings';
 const String routeProfile = '/profile';
 const String routeLogin = '/login';
 const String routeSignup = '/signup';
+const String routeForgotPassword = '/forgot-password';
 const String routeRoomsList = '/rooms';
 const String routeRoomDetail = 'detail'; //* Nested under /rooms/detail
 const String routePlaylistDetail = 'detail'; //* Nested under /playlists/detail

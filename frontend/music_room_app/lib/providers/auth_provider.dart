@@ -35,6 +35,26 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<void> forgotPassword(String email) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      final response = await _apiClient.post(
+        ApiConfig.forgotPassword,
+        data: {'email': email},
+      );
+      notifyListeners();
+    } on DioException catch (e) {
+      _error =
+          e.response?.data['message']?.toString() ?? 'Forgot password failed';
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> login(String email, String password) async {
     _setLoading(true);
     _error = null;
@@ -70,9 +90,6 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       print('Registering user...');
-      print('Email: $email');
-      print('Password: $password');
-      print('Display Name: $displayName');
       print('wsUrl: ${ApiConfig.wsUrl}');
 
       final response = await _apiClient.post(
