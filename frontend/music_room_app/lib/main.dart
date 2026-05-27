@@ -4,9 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
+import 'package:music_room_app/core/utils/url_strategy.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+	configureUrlStrategy();
+	WidgetsFlutterBinding.ensureInitialized();
 
   try {} catch (e) {
     if (kDebugMode) {

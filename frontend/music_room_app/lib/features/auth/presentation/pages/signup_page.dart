@@ -30,27 +30,33 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
-  void _handleSignup() async {
-    final auth = context.read<AuthProvider>();
-    await auth.register(
-      _emailController.text.trim(),
-      _passwordController.text,
-      _nameController.text.trim(),
-    );
+	void _handleSignup() async {
+		final auth = context.read<AuthProvider>();
+		await auth.register(
+			_emailController.text.trim(),
+			_passwordController.text,
+			_nameController.text.trim(),
+		);
 
-    if (mounted) {
-      if (auth.signedIn) {
-        context.go(routeHome);
-      } else if (auth.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(auth.error!),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
-    }
-  }
+		if (mounted) {
+			if (auth.error != null) {
+				ScaffoldMessenger.of(context).showSnackBar(
+					SnackBar(
+						content: Text(auth.error!),
+						backgroundColor: Colors.redAccent,
+					),
+				);
+			} else {
+				ScaffoldMessenger.of(context).showSnackBar(
+					const SnackBar(
+						content: Text('Account created. Check your email to verify it before logging in.'),
+						backgroundColor: Colors.green,
+					),
+				);
+				context.go(routeLogin);
+			}
+		}
+	}
 
   @override
   Widget build(BuildContext context) {
