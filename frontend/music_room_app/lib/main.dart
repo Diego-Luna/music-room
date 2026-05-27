@@ -1,15 +1,12 @@
-// ! triger the buils with the domain, v2
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
-import 'package:music_room_app/core/utils/url_strategy.dart';
 
 void main() async {
-	configureUrlStrategy();
-	WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized();
 
   try {} catch (e) {
     if (kDebugMode) {
