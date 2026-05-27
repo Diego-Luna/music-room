@@ -1,3 +1,4 @@
+// ! triger the buils with the domain, v2
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -19,6 +20,7 @@ void main() async {
   setupLocator();
   // await HiveConfig.init();
   await authProvider.tryAutoLogin();
+
   runApp(const AppState());
 }
 

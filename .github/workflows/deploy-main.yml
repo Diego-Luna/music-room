@@ -38,7 +38,7 @@ jobs:
 
       - name: Build web
         working-directory: frontend/music_room_app
-        run: flutter build web --release --base-href=/music-room/ --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }}
+        run: flutter build web --release --base-href=/ --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
