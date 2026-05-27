@@ -40,6 +40,9 @@ jobs:
         working-directory: frontend/music_room_app
         run: flutter build web --release --base-href=/ --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }}
 
+      - name: SPA fallback for GitHub Pages
+        run: cp frontend/music_room_app/build/web/index.html frontend/music_room_app/build/web/404.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:
