@@ -15,4 +15,5 @@ const String routeRoomsList = '/rooms';
 const String routeRoomDetail = 'detail'; //* Nested under /rooms/detail
 const String routePlaylistDetail = 'detail'; //* Nested under /playlists/detail
 const String routePlayer = '/player';
+const String routeVerifyEmail = '/auth/verify-email';
 const String routeNotFound = '/not-found';
