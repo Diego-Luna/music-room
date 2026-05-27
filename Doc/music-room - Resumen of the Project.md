@@ -66,11 +66,11 @@ Para resolver este proyecto en **maximo 2 meses** y cubrir los bonus multiplataf
       - [x] Music Track Vote
       - [x] Music Control Delegation
   - [/]  **(1 - 2 semanas)** Segunda seccion
-    - [/] CD / CI (para el proyecto configuracion WEB/ APP)
+    - [x] CD / CI (para el proyecto configuracion WEB/ APP)
     - [x] Idratacion de la API
     - [/] Music Playlist Editor (WebSockets)
 - [/] Bonus  **(1 - 2 semanas)**
-  - [/] **poca configuraicon** Multi-platform support
+  - [x] **poca configuraicon** Multi-platform support
   - [?] **IoT Reflection**
   - [?] **Subscriptions** con stripe
   - [/] **Offline Mode**

@@ -57,107 +57,71 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  build-android:
-    name: Build Android APK
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+  # build-android:
+  #   name: Build Android APK
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v6
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: "zulu"
-          java-version: "17"
+  #     - name: Setup Java
+  #       uses: actions/setup-java@v4
+  #       with:
+  #         distribution: "zulu"
+  #         java-version: "17"
 
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+  #     - name: Install Flutter
+  #       uses: subosito/flutter-action@v2
+  #       with:
+  #         channel: stable
+  #         cache: true
 
-      - name: Get dependencies
-        working-directory: frontend/music_room_app
-        run: flutter pub get
+  #     - name: Get dependencies
+  #       working-directory: frontend/music_room_app
+  #       run: flutter pub get
 
-      - name: Build APK
-        working-directory: frontend/music_room_app
-        run: flutter build apk --release --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }}
+  #     - name: Build APK
+  #       working-directory: frontend/music_room_app
+  #       run: flutter build apk --release --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }}
 
-      - name: Upload Android APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-apk
-          path: frontend/music_room_app/build/app/outputs/flutter-apk/app-release.apk
+  #     - name: Upload Android APK
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: app-release-apk
+  #         path: frontend/music_room_app/build/app/outputs/flutter-apk/app-release.apk
 
-  build-ios:
-    name: Build iOS IPA (Unsigned)
-    runs-on: macos-15
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+  # build-ios:
+  #   name: Build iOS IPA (Unsigned)
+  #   runs-on: macos-15
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v6
 
-      - name: Set Xcode Version
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: "latest-stable"
+  #     - name: Set Xcode Version
+  #       uses: maxim-lobanov/setup-xcode@v1
+  #       with:
+  #         xcode-version: "latest-stable"
 
-      - name: Install Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
+  #     - name: Install Flutter
+  #       uses: subosito/flutter-action@v2
+  #       with:
+  #         channel: stable
+  #         cache: true
 
-      - name: Get dependencies
-        working-directory: frontend/music_room_app
-        run: flutter pub get
+  #     - name: Get dependencies
+  #       working-directory: frontend/music_room_app
+  #       run: flutter pub get
 
-      - name: Build iOS (No Codesign)
-        working-directory: frontend/music_room_app
-        run: flutter build ios --release --no-codesign --dart-define=BACKEND_API_URL=${{env.BACKEND_API_URL}}
+  #     - name: Build iOS (No Codesign)
+  #       working-directory: frontend/music_room_app
+  #       run: flutter build ios --release --no-codesign --dart-define=BACKEND_API_URL=${{env.BACKEND_API_URL}}
 
-      - name: Compress iOS build
-        working-directory: frontend/music_room_app/build/ios
-        run: zip -r iphoneos.zip iphoneos
+  #     - name: Compress iOS build
+  #       working-directory: frontend/music_room_app/build/ios
+  #       run: zip -r iphoneos.zip iphoneos
 
-      - name: Upload iOS Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-release-ios
-          path: frontend/music_room_app/build/ios/iphoneos.zip
-
-  release:
-    name: Create GitHub Release
-    needs: [build-android, build-ios]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download Android APK
-        uses: actions/download-artifact@v8
-        with:
-          name: app-release-apk
-          path: build/android
-
-      - name: Download iOS Artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: app-release-ios
-          path: build/ios
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: v1.0.0-build-${{ github.run_number }}
-          name: "Music Room Mobile Build v1.0.0-build-${{ github.run_number }}"
-          body: |
-            Automated production build from commit: ${{ github.sha }}
-            
-            Downloads:
-            - **Android APK**: Download `app-release.apk` below.
-            - **iOS Package (Unsigned)**: Download `iphoneos.zip` below.
-          draft: false
-          prerelease: true
-          files: |
-            build/android/app-release.apk
-            build/ios/iphoneos.zip
+  #     - name: Upload iOS Artifact
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: app-release-ios
+  #         path: frontend/music_room_app/build/ios/iphoneos.zip
