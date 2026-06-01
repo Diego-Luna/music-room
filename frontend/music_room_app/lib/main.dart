@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
+import 'package:music_room_app/config/hive_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,7 +16,8 @@ void main() async {
   }
 
   setupLocator();
-  // await HiveConfig.init();
+  await HiveConfig.initialize();
+  syncManager.startMonitoring();
   await authProvider.tryAutoLogin();
 
   runApp(const AppState());
