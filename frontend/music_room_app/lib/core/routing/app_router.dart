@@ -6,7 +6,6 @@ import 'package:music_room_app/core/repositories/mock_api_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_repository.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/config/offline_cache.dart';
-import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/pages/auth/pages/forgot_page.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
@@ -92,10 +91,13 @@ RoomRepository get roomRepository {
   if (ApiConfig.useMockData) {
     _roomRepository = MockApiRepository();
   } else {
-    _roomRepository = OfflineRoomRepository(
-      remoteRepository: remoteRepository,
-      cache: offlineCache,
-    );
+    // ! TEMPORARILY DEACTIVATED — offline cache bypassed for endpoint debugging.
+    // ! To restore offline mode, uncomment the block below and remove the line after it.
+    // _roomRepository = OfflineRoomRepository(
+    //   remoteRepository: remoteRepository,
+    //   cache: offlineCache,
+    // );
+    _roomRepository = remoteRepository;
   }
   return _roomRepository!;
 }

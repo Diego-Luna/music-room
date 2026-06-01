@@ -17,45 +17,50 @@ class EventsProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-	Future<void> fetchEvents() async {
-		_isLoading = true;
-		_error = null;
-		notifyListeners();
-		try {
-			final rooms = await _repository.getRooms(kind: RoomKind.vote);
-			final populatedRooms = await Future.wait(rooms.map((room) async {
-				final tracks = await _repository.getVoteTracks(room.id);
-				return room.copyWith(tracks: tracks);
-			}));
-			_events = populatedRooms;
-		} catch (e) {
-			_error = e.toString();
-		} finally {
-			_isLoading = false;
-			notifyListeners();
-		}
-	}
+  Future<void> fetchEvents() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final rooms = await _repository.getRooms(kind: RoomKind.vote);
+      final voteRooms = rooms
+          .where((room) => room.kind == RoomKind.vote)
+          .toList();
+      final populatedRooms = await Future.wait(
+        voteRooms.map((room) async {
+          final tracks = await _repository.getVoteTracks(room.id);
+          return room.copyWith(tracks: tracks);
+        }),
+      );
+      _events = populatedRooms;
+    } catch (e) {
+      _error = e.toString();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
-	// * value 1 = upvote, 0 = remove vote
-	Future<void> voteForTrack(String roomId, String trackId, int value) async {
-		try {
-			await _repository.voteForTrack(roomId, trackId, value);
-			await fetchEvents();
-		} catch (e) {
-			_error = e.toString();
-			notifyListeners();
-		}
-	}
+  // * value 1 = upvote, 0 = remove vote
+  Future<void> voteForTrack(String roomId, String trackId, int value) async {
+    try {
+      await _repository.voteForTrack(roomId, trackId, value);
+      await fetchEvents();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
 
-	Future<void> suggestTrack(String roomId, Track track) async {
-		try {
-			await _repository.addVoteTrack(roomId, track);
-			await fetchEvents();
-		} catch (e) {
-			_error = e.toString();
-			notifyListeners();
-		}
-	}
+  Future<void> suggestTrack(String roomId, Track track) async {
+    try {
+      await _repository.addVoteTrack(roomId, track);
+      await fetchEvents();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    }
+  }
 
   // * Handler methods for socket events
   void handleTrackAdded(Track track) {
@@ -76,7 +81,7 @@ class EventsProvider extends ChangeNotifier {
         final updatedTrack = room.tracks[idx].copyWith(score: score);
         final updatedTracks = List<Track>.from(room.tracks)
           ..[idx] = updatedTrack;
-        updatedTracks.sort((a, b) => (b.score ?? 0).compareTo(a.score ?? 0));
+        updatedTracks.sort((a, b) => b.score.compareTo(a.score));
         _events[i] = room.copyWith(tracks: updatedTracks);
       }
     }

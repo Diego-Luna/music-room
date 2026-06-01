@@ -22,6 +22,9 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  // * Allows SocketProvider to obtain the current access token for WS auth.
+  Future<String?> get accessToken => _tokenStorage.accessToken;
+
   Future<void> tryAutoLogin() async {
     final token = await _tokenStorage.accessToken;
     if (token != null) {
@@ -40,10 +43,7 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
 
     try {
-      final response = await _apiClient.post(
-        ApiConfig.forgotPassword,
-        data: {'email': email},
-      );
+      await _apiClient.post(ApiConfig.forgotPassword, data: {'email': email});
       notifyListeners();
     } on DioException catch (e) {
       _error =
@@ -80,39 +80,39 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-	Future<void> register(
-		String email,
-		String password,
-		String displayName,
-	) async {
-		_setLoading(true);
-		_error = null;
+  Future<void> register(
+    String email,
+    String password,
+    String displayName,
+  ) async {
+    _setLoading(true);
+    _error = null;
 
-		try {
-			print('Registering user...');
-			print('wsUrl: ${ApiConfig.wsUrl}');
+    try {
+      print('Registering user...');
+      print('wsUrl: ${ApiConfig.wsUrl}');
 
-			await _apiClient.post(
-				ApiConfig.register,
-				data: {
-					'email': email,
-					'password': password,
-					'displayName': displayName,
-				},
-			);
+      await _apiClient.post(
+        ApiConfig.register,
+        data: {
+          'email': email,
+          'password': password,
+          'displayName': displayName,
+        },
+      );
 
-			// * Verification is required; no session tokens are returned
-			notifyListeners();
-		} on DioException catch (e) {
-			print('Error in registration:');
-			print(e.response?.data.toString());
-			_error = e.response?.data['message']?.toString() ?? 'Registration failed';
-		} catch (e) {
-			_error = 'An unexpected error occurred';
-		} finally {
-			_setLoading(false);
-		}
-	}
+      // * Verification is required; no session tokens are returned
+      notifyListeners();
+    } on DioException catch (e) {
+      print('Error in registration:');
+      print(e.response?.data.toString());
+      _error = e.response?.data['message']?.toString() ?? 'Registration failed';
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+    } finally {
+      _setLoading(false);
+    }
+  }
 
   Future<void> logout() async {
     try {
@@ -130,52 +130,53 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-	Future<bool> verifyEmail(String token) async {
-		_setLoading(true);
-		_error = null;
+  Future<bool> verifyEmail(String token) async {
+    _setLoading(true);
+    _error = null;
 
-		try {
-			await _apiClient.post(
-				ApiConfig.verifyEmail,
-				data: {'token': token},
-			);
-			notifyListeners();
-			return true;
-		} on DioException catch (e) {
-			_error = e.response?.data['message']?.toString() ?? 'Email verification failed';
-			return false;
-		} catch (e) {
-			_error = 'An unexpected error occurred';
-			return false;
-		} finally {
-			_setLoading(false);
-		}
-	}
+    try {
+      await _apiClient.post(ApiConfig.verifyEmail, data: {'token': token});
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      _error =
+          e.response?.data['message']?.toString() ??
+          'Email verification failed';
+      return false;
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
 
-	Future<bool> resendVerification(String email) async {
-		_setLoading(true);
-		_error = null;
+  Future<bool> resendVerification(String email) async {
+    _setLoading(true);
+    _error = null;
 
-		try {
-			await _apiClient.post(
-				ApiConfig.resendVerification,
-				data: {'email': email},
-			);
-			notifyListeners();
-			return true;
-		} on DioException catch (e) {
-			_error = e.response?.data['message']?.toString() ?? 'Resending verification failed';
-			return false;
-		} catch (e) {
-			_error = 'An unexpected error occurred';
-			return false;
-		} finally {
-			_setLoading(false);
-		}
-	}
+    try {
+      await _apiClient.post(
+        ApiConfig.resendVerification,
+        data: {'email': email},
+      );
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      _error =
+          e.response?.data['message']?.toString() ??
+          'Resending verification failed';
+      return false;
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
 
-	void _setLoading(bool value) {
-		_isLoading = value;
-		notifyListeners();
-	}
+  void _setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
 }

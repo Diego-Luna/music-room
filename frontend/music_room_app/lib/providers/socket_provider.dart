@@ -31,9 +31,19 @@ class SocketProvider extends ChangeNotifier {
     );
   }
 
+  // * Retrieve token and inject it into Socket.IO handshake before connecting.
+  Future<void> _connectSocket() async {
+    final token = await _authProvider.accessToken;
+    if (token != null) {
+      // * auth handshake map — preferred over header / query string.
+      _socket.io.options?['auth'] = {'token': token};
+    }
+    _socket.connect();
+  }
+
   void _onAuthChanged() {
     if (_authProvider.signedIn) {
-      _socket.connect();
+      _connectSocket();
     } else {
       _socket.disconnect();
     }
@@ -129,7 +139,7 @@ class SocketProvider extends ChangeNotifier {
 
     // * Finally, connect if signed in
     if (_authProvider.signedIn) {
-      _socket.connect();
+      _connectSocket();
     }
   }
 

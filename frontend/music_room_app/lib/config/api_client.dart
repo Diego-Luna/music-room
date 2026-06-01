@@ -10,9 +10,24 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await _tokenStorage.accessToken;
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+          // * Only attach the Bearer token to protected endpoints.
+          // ! Public auth routes must NOT receive the header — an expired token
+          // ! on /auth/refresh triggers the global guard, causing a logout loop.
+          final path = options.path;
+          final isPublic =
+              path == ApiConfig.register ||
+              path == ApiConfig.login ||
+              path == ApiConfig.refresh ||
+              path == ApiConfig.forgotPassword ||
+              path == ApiConfig.resetPassword ||
+              path == ApiConfig.verifyEmail ||
+              path == ApiConfig.resendVerification ||
+              path == '/health';
+          if (!isPublic) {
+            final token = await _tokenStorage.accessToken;
+            if (token != null) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
           }
           return handler.next(options);
         },
@@ -61,7 +76,10 @@ class ApiClient {
     return _dio.post(path, data: data);
   }
 
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<Response> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     return _dio.get(path, queryParameters: queryParameters);
   }
 

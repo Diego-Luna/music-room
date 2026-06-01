@@ -52,8 +52,9 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                 ),
                 SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
-                    if (index >= playlistsProvider.playlists.length)
+                    if (index >= playlistsProvider.playlists.length) {
                       return null;
+                    }
                     final playlist = playlistsProvider.playlists[index];
 
                     return Padding(
