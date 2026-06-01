@@ -40,7 +40,7 @@ class ResponsiveNavbar extends StatelessWidget {
       ),
       clipBehavior: Clip.none,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment:  MainAxisAlignment.spaceEvenly,
         children: List.generate(nav.destinations.length, (index) {
           final item = nav.destinations[index];
           final isActive = index == nav.currentIndex;

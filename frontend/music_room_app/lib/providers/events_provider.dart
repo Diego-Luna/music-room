@@ -17,42 +17,45 @@ class EventsProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> fetchEvents() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
-      _events = await _repository.getRooms(kind: RoomKind.vote);
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
+	Future<void> fetchEvents() async {
+		_isLoading = true;
+		_error = null;
+		notifyListeners();
+		try {
+			final rooms = await _repository.getRooms(kind: RoomKind.vote);
+			final populatedRooms = await Future.wait(rooms.map((room) async {
+				final tracks = await _repository.getVoteTracks(room.id);
+				return room.copyWith(tracks: tracks);
+			}));
+			_events = populatedRooms;
+		} catch (e) {
+			_error = e.toString();
+		} finally {
+			_isLoading = false;
+			notifyListeners();
+		}
+	}
 
-  // * value 1 = upvote, 0 = remove vote
-  Future<void> voteForTrack(String roomId, String trackId, int value) async {
-    try {
-      await _repository.voteForTrack(roomId, trackId, value);
-      _events = await _repository.getRooms(kind: RoomKind.vote);
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
+	// * value 1 = upvote, 0 = remove vote
+	Future<void> voteForTrack(String roomId, String trackId, int value) async {
+		try {
+			await _repository.voteForTrack(roomId, trackId, value);
+			await fetchEvents();
+		} catch (e) {
+			_error = e.toString();
+			notifyListeners();
+		}
+	}
 
-  Future<void> suggestTrack(String roomId, Track track) async {
-    try {
-      await _repository.addVoteTrack(roomId, track);
-      _events = await _repository.getRooms(kind: RoomKind.vote);
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
+	Future<void> suggestTrack(String roomId, Track track) async {
+		try {
+			await _repository.addVoteTrack(roomId, track);
+			await fetchEvents();
+		} catch (e) {
+			_error = e.toString();
+			notifyListeners();
+		}
+	}
 
   // * Handler methods for socket events
   void handleTrackAdded(Track track) {

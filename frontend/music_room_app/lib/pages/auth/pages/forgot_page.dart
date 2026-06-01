@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/slide_animation.dart';
-import 'package:music_room_app/features/auth/presentation/widgets/auth_text_field.dart';
+import 'package:music_room_app/pages/auth/widgets/auth_text_field.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/providers/auth_provider.dart';

@@ -18,56 +18,58 @@ class PlaylistsProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> fetchPlaylists() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-    try {
-      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
+	Future<void> fetchPlaylists() async {
+		_isLoading = true;
+		_error = null;
+		notifyListeners();
+		try {
+			final rooms = await _repository.getRooms(kind: RoomKind.playlist);
+			final populatedRooms = await Future.wait(rooms.map((room) async {
+				final tracks = await _repository.getPlaylistTracks(room.id);
+				return room.copyWith(tracks: tracks);
+			}));
+			_playlists = populatedRooms;
+		} catch (e) {
+			_error = e.toString();
+		} finally {
+			_isLoading = false;
+			notifyListeners();
+		}
+	}
 
-  Future<void> addTrack(String roomId, Track track) async {
-    try {
-      await _repository.addPlaylistTrack(roomId, track);
-      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
+	Future<void> addTrack(String roomId, Track track) async {
+		try {
+			await _repository.addPlaylistTrack(roomId, track);
+			await fetchPlaylists();
+		} catch (e) {
+			_error = e.toString();
+			notifyListeners();
+		}
+	}
 
-  Future<void> removeTrack(String roomId, String trackId) async {
-    try {
-      await _repository.removePlaylistTrack(roomId, trackId);
-      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
+	Future<void> removeTrack(String roomId, String trackId) async {
+		try {
+			await _repository.removePlaylistTrack(roomId, trackId);
+			await fetchPlaylists();
+		} catch (e) {
+			_error = e.toString();
+			notifyListeners();
+		}
+	}
 
-  Future<void> moveTrack(
-    String roomId,
-    String trackId,
-    String newPosition,
-  ) async {
-    try {
-      await _repository.movePlaylistTrack(roomId, trackId, newPosition);
-      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
-      notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
+	Future<void> moveTrack(
+		String roomId,
+		String trackId,
+		String newPosition,
+	) async {
+		try {
+			await _repository.movePlaylistTrack(roomId, trackId, newPosition);
+			await fetchPlaylists();
+		} catch (e) {
+			_error = e.toString();
+			notifyListeners();
+		}
+	}
 
   // * Handler methods for socket events
   void handleTrackAdded(Track track) {

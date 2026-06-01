@@ -6,7 +6,7 @@ import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
-import 'package:music_room_app/features/events/presentation/widgets/swipeable_track_card.dart';
+import 'package:music_room_app/pages/events/widgets/swipeable_track_card.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 

@@ -20,6 +20,7 @@ void main() {
   setUp(() {
     mockRepository = MockRoomRepository();
     eventsProvider = EventsProvider(repository: mockRepository);
+    when(() => mockRepository.getVoteTracks(any())).thenAnswer((_) async => []);
   });
 
   group('EventsProvider Tests', () {
@@ -42,7 +43,8 @@ void main() {
 
       await eventsProvider.fetchEvents();
 
-      expect(eventsProvider.events, equals([voteRoom]));
+      expect(eventsProvider.events.first.id, equals(voteRoom.id));
+      expect(eventsProvider.events.first.name, equals(voteRoom.name));
       expect(eventsProvider.isLoading, false);
       expect(eventsProvider.error, isNull);
     });
@@ -143,6 +145,9 @@ void main() {
       when(
         () => mockRepository.getRooms(kind: RoomKind.vote),
       ).thenAnswer((_) async => [room]);
+      when(
+        () => mockRepository.getVoteTracks('room-1'),
+      ).thenAnswer((_) async => [track]);
       await eventsProvider.fetchEvents();
       expect(eventsProvider.events.first.tracks.first.score, equals(1));
 
@@ -169,6 +174,9 @@ void main() {
       when(
         () => mockRepository.getRooms(kind: RoomKind.vote),
       ).thenAnswer((_) async => [room]);
+      when(
+        () => mockRepository.getVoteTracks('room-1'),
+      ).thenAnswer((_) async => [track]);
       await eventsProvider.fetchEvents();
       expect(eventsProvider.events.first.tracks, isNotEmpty);
 

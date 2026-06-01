@@ -4,29 +4,52 @@ import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/slide_animation.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
-import 'package:music_room_app/features/home/presentation/widgets/quick_picks_carousel.dart';
-import 'package:music_room_app/features/home/presentation/widgets/recent_events_list.dart';
+import 'package:music_room_app/pages/home/widgets/quick_picks_carousel.dart';
+import 'package:music_room_app/pages/home/widgets/recent_events_list.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
+import 'package:music_room_app/providers/playlists_provider.dart';
+import 'package:music_room_app/providers/events_provider.dart';
 
 /// Apple Music / Youtube Music style home page
-class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+class HomePage extends StatefulWidget {
+	const HomePage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    // Simulated data
-    final mixes = [
-      'Chill Mix',
-      'Discover Mix',
-      'New Releases',
-      'Your Top Songs',
-    ];
-    final recentEvents = [
-      'Friday Night Party',
-      'Office Vibes',
-      'Study Session',
-    ];
+	@override
+	State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+	@override
+	void initState() {
+		super.initState();
+		WidgetsBinding.instance.addPostFrameCallback((_) {
+			context.read<PlaylistsProvider>().fetchPlaylists();
+			context.read<EventsProvider>().fetchEvents();
+		});
+	}
+
+	@override
+	Widget build(BuildContext context) {
+		final playlistsProvider = context.watch<PlaylistsProvider>();
+		final eventsProvider = context.watch<EventsProvider>();
+
+		final mixes = playlistsProvider.playlists.isNotEmpty
+				? playlistsProvider.playlists.map((p) => p.name).toList()
+				: [
+						'Chill Mix',
+						'Discover Mix',
+						'New Releases',
+						'Your Top Songs',
+					];
+
+		final recentEvents = eventsProvider.events.isNotEmpty
+				? eventsProvider.events.map((e) => e.name).toList()
+				: [
+						'Friday Night Party',
+						'Office Vibes',
+						'Study Session',
+					];
 
     return Scaffold(
       body: Stack(
