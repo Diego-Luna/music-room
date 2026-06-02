@@ -130,6 +130,12 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  void forceLogout() async {
+    await _tokenStorage.clear();
+    _user = null;
+    notifyListeners();
+  }
+
   Future<bool> verifyEmail(String token) async {
     _setLoading(true);
     _error = null;

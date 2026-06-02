@@ -6,6 +6,7 @@ import 'package:music_room_app/core/repositories/mock_api_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_repository.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/config/offline_cache.dart';
+import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/pages/auth/pages/forgot_page.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
@@ -73,7 +74,11 @@ void setupLocator() {
 //* Accessors to retrieve the registered singletons.
 
 // * Resolves the correct repository based on the feature flag
-ApiClient get apiClient => _apiClient ??= ApiClient();
+ApiClient get apiClient => _apiClient ??= ApiClient(
+  onUnauthorized: () {
+    authProvider.forceLogout();
+  },
+);
 
 RoomRepository get remoteRepository =>
     _remoteRepository ??= RestApiRepository(client: apiClient);
@@ -91,13 +96,12 @@ RoomRepository get roomRepository {
   if (ApiConfig.useMockData) {
     _roomRepository = MockApiRepository();
   } else {
-    // ! TEMPORARILY DEACTIVATED — offline cache bypassed for endpoint debugging.
-    // ! To restore offline mode, uncomment the block below and remove the line after it.
-    // _roomRepository = OfflineRoomRepository(
-    //   remoteRepository: remoteRepository,
-    //   cache: offlineCache,
-    // );
-    _roomRepository = remoteRepository;
+    // * Offline decorator wraps remote — reads from cache on failure,
+    // * writes optimistically and queues mutations for sync on reconnect.
+    _roomRepository = OfflineRoomRepository(
+      remoteRepository: remoteRepository,
+      cache: offlineCache,
+    );
   }
   return _roomRepository!;
 }

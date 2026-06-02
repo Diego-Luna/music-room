@@ -5,8 +5,10 @@ import 'package:music_room_app/config/token_storage.dart';
 class ApiClient {
   final Dio _dio;
   final TokenStorage _tokenStorage = TokenStorage();
+  final void Function()? onUnauthorized;
 
-  ApiClient() : _dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl)) {
+  ApiClient({this.onUnauthorized})
+    : _dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl)) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -42,6 +44,9 @@ class ApiClient {
               options.headers['Authorization'] = 'Bearer $token';
               final response = await _dio.fetch(options);
               return handler.resolve(response);
+            } else {
+              // Refresh failed, notify unauthorized
+              onUnauthorized?.call();
             }
           }
           return handler.next(e);
@@ -68,6 +73,7 @@ class ApiClient {
       }
     } catch (e) {
       await _tokenStorage.clear();
+      onUnauthorized?.call();
     }
     return false;
   }
