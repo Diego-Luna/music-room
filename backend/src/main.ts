@@ -58,7 +58,7 @@ async function bootstrap() {
         'Music Room — collaborative music platform (42 school subject).',
         '',
         'Endpoints are grouped by tag: Auth, Users, Rooms (members, tracks,',
-        'playlist), Delegation, Spotify, Notifications, Health.',
+        'playlist), Delegation, Search, Notifications, Health.',
         '',
         'All routes outside `Auth` and `Health` require a Bearer JWT.',
       ].join('\n'),
@@ -68,7 +68,7 @@ async function bootstrap() {
     .addTag('Auth')
     .addTag('Users')
     .addTag('Rooms')
-    .addTag('Spotify')
+    .addTag('Search')
     .addTag('Notifications')
     .addTag('Health')
     .build();

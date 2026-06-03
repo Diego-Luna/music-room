@@ -2,59 +2,80 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SpotifyService } from '../spotify/spotify.service';
+import { RealtimeService } from '../realtime/realtime.service';
 import { PlayPlaybackDto } from './dto/delegation.dto';
 
+export type PlaybackAction =
+  | 'play'
+  | 'pause'
+  | 'next'
+  | 'previous'
+  | 'volume';
+
 /**
- * V.2.2 playback control. The caller drives playback on a delegated device;
- * commands always execute against the device **owner's** Spotify token — the
- * delegate is a remote control, not the audio source. Both the owner and the
- * current delegate of a delegation may issue commands.
+ * V.2.2 playback control. The caller drives playback on a delegated device.
+ * There is no provider playback API to call (Deezer = 30s preview MP3 played
+ * in-app), so the command is **relayed over Socket.io to the device owner**:
+ * the owner's app plays/pauses/skips its own player. The delegate is a pure
+ * remote control. Both the owner and the current delegate may issue commands.
  */
 @Injectable()
 export class DelegationPlaybackService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly spotify: SpotifyService,
+    @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
   async play(delegationId: string, callerId: string, dto: PlayPlaybackDto) {
-    const ownerId = await this.requireControl(delegationId, callerId);
-    await this.spotify.play(ownerId, dto.uris, dto.contextUri);
-    return { ok: true };
+    return this.command(delegationId, callerId, 'play', {
+      trackId: dto.trackId ?? null,
+    });
   }
 
   async pause(delegationId: string, callerId: string) {
-    const ownerId = await this.requireControl(delegationId, callerId);
-    await this.spotify.pause(ownerId);
-    return { ok: true };
+    return this.command(delegationId, callerId, 'pause');
   }
 
   async next(delegationId: string, callerId: string) {
-    const ownerId = await this.requireControl(delegationId, callerId);
-    await this.spotify.next(ownerId);
-    return { ok: true };
+    return this.command(delegationId, callerId, 'next');
   }
 
   async previous(delegationId: string, callerId: string) {
-    const ownerId = await this.requireControl(delegationId, callerId);
-    await this.spotify.previous(ownerId);
-    return { ok: true };
+    return this.command(delegationId, callerId, 'previous');
   }
 
   async setVolume(delegationId: string, callerId: string, percent: number) {
-    const ownerId = await this.requireControl(delegationId, callerId);
-    await this.spotify.setVolume(ownerId, percent);
+    return this.command(delegationId, callerId, 'volume', { percent });
+  }
+
+  private async command(
+    delegationId: string,
+    callerId: string,
+    action: PlaybackAction,
+    extra: Record<string, unknown> = {},
+  ) {
+    const { ownerId, deviceId } = await this.requireControl(
+      delegationId,
+      callerId,
+    );
+    this.realtime?.emitToUser(ownerId, 'playback:command', {
+      delegationId,
+      deviceId,
+      action,
+      by: callerId,
+      ...extra,
+    });
     return { ok: true };
   }
 
-  /** Resolves the device owner id, or throws if the caller may not control it. */
+  /** Resolves the controlled device, or throws if the caller may not control it. */
   private async requireControl(
     delegationId: string,
     callerId: string,
-  ): Promise<string> {
+  ): Promise<{ ownerId: string; deviceId: string }> {
     const delegation = await this.prisma.musicControlDelegation.findUnique({
       where: { id: delegationId },
     });
@@ -65,6 +86,6 @@ export class DelegationPlaybackService {
     ) {
       throw new ForbiddenException('You do not control this device');
     }
-    return delegation.ownerId;
+    return { ownerId: delegation.ownerId, deviceId: delegation.deviceId };
   }
 }

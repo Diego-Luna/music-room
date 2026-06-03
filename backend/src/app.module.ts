@@ -12,7 +12,7 @@ import { RoomsModule } from './rooms/rooms.module';
 import { DelegationModule } from './delegation/delegation.module';
 import { RealtimeCoreModule } from './realtime/realtime-core.module';
 import { RealtimeModule } from './realtime/realtime.module';
-import { SpotifyModule } from './spotify/spotify.module';
+import { DeezerModule } from './deezer/deezer.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { SubscriptionModule } from './subscription/subscription.module';
 import { SyncModule } from './sync/sync.module';
@@ -89,7 +89,7 @@ import { AppController } from './app.controller';
     RoomsModule,
     DelegationModule,
     RealtimeModule,
-    SpotifyModule,
+    DeezerModule,
     SubscriptionModule,
     SyncModule,
     HealthModule,
