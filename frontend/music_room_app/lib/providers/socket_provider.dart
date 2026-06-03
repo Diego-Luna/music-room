@@ -74,8 +74,8 @@ class SocketProvider extends ChangeNotifier {
     _socket.on('playlist:item-moved', (data) {
       final roomId = data['roomId'] as String? ?? '';
       final trackId = data['trackId'] as String? ?? '';
-      final newPos = data['newPosition'] as String? ?? '';
-      playlistsProvider.handleTrackMoved(roomId, trackId, newPos);
+      final position = data['position'] as String? ?? '';
+      playlistsProvider.handleTrackMoved(roomId, trackId, position);
     });
     _socket.on('playlist:item-removed', (data) {
       final trackId = data['trackId'] as String? ?? '';
