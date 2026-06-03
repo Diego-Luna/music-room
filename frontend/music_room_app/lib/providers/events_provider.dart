@@ -7,15 +7,24 @@ import 'package:music_room_app/models/track.dart';
 class EventsProvider extends ChangeNotifier {
   final RoomRepository _repository;
   List<Room> _events = [];
+  Room? _selectedEvent;
   bool _isLoading = false;
   String? _error;
+  final Set<String> _votedTrackIds = {};
 
   EventsProvider({required RoomRepository repository})
     : _repository = repository;
 
   List<Room> get events => _events;
+  Room? get selectedEvent => _selectedEvent;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  Set<String> get votedTrackIds => _votedTrackIds;
+
+  void selectEvent(Room event) {
+    _selectedEvent = event;
+    notifyListeners();
+  }
 
   Future<void> fetchEvents() async {
     _isLoading = true;
@@ -33,6 +42,16 @@ class EventsProvider extends ChangeNotifier {
         }),
       );
       _events = populatedRooms;
+      if (_selectedEvent == null && _events.isNotEmpty) {
+        _selectedEvent = _events.first;
+      } else if (_selectedEvent != null) {
+        final idx = _events.indexWhere((e) => e.id == _selectedEvent!.id);
+        if (idx != -1) {
+          _selectedEvent = _events[idx];
+        } else {
+          _selectedEvent = _events.isNotEmpty ? _events.first : null;
+        }
+      }
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -43,6 +62,8 @@ class EventsProvider extends ChangeNotifier {
 
   // * value 1 = upvote, 0 = remove vote
   Future<void> voteForTrack(String roomId, String trackId, int value) async {
+    _votedTrackIds.add(trackId);
+    notifyListeners();
     try {
       await _repository.voteForTrack(roomId, trackId, value);
       await fetchEvents();
@@ -62,6 +83,50 @@ class EventsProvider extends ChangeNotifier {
     }
   }
 
+  Future<Room> createEvent({
+    required String name,
+    required String description,
+    required bool isPublic,
+    required String voteAccess,
+    required String voteWindow,
+    DateTime? voteStartsAt,
+    DateTime? voteEndsAt,
+    double? voteLocationLat,
+    double? voteLocationLng,
+    double? voteLocationRadiusM,
+  }) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final room = await _repository.createRoom(
+        name: name,
+        kind: RoomKind.vote,
+        isPublic: isPublic,
+        description: description,
+        voteAccess: voteAccess,
+        voteWindow: voteWindow,
+        voteStartsAt: voteStartsAt,
+        voteEndsAt: voteEndsAt,
+        voteLocationLat: voteLocationLat,
+        voteLocationLng: voteLocationLng,
+        voteLocationRadiusM: voteLocationRadiusM,
+      );
+      await fetchEvents();
+      final idx = _events.indexWhere((e) => e.id == room.id);
+      if (idx != -1) {
+        _selectedEvent = _events[idx];
+      }
+      return room;
+    } catch (e) {
+      _error = e.toString();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   // * Handler methods for socket events
   void handleTrackAdded(Track track) {
     for (var i = 0; i < _events.length; i++) {
@@ -69,6 +134,9 @@ class EventsProvider extends ChangeNotifier {
       if (room.tracks.any((t) => t.id == track.id)) continue;
       final updatedTracks = List<Track>.from(room.tracks)..add(track);
       _events[i] = room.copyWith(tracks: updatedTracks);
+      if (_selectedEvent?.id == room.id) {
+        _selectedEvent = _events[i];
+      }
     }
     notifyListeners();
   }
@@ -83,6 +151,9 @@ class EventsProvider extends ChangeNotifier {
           ..[idx] = updatedTrack;
         updatedTracks.sort((a, b) => b.score.compareTo(a.score));
         _events[i] = room.copyWith(tracks: updatedTracks);
+        if (_selectedEvent?.id == room.id) {
+          _selectedEvent = _events[i];
+        }
       }
     }
     notifyListeners();
@@ -96,6 +167,9 @@ class EventsProvider extends ChangeNotifier {
             .where((t) => t.id != trackId)
             .toList();
         _events[i] = room.copyWith(tracks: updatedTracks);
+        if (_selectedEvent?.id == room.id) {
+          _selectedEvent = _events[i];
+        }
       }
     }
     notifyListeners();

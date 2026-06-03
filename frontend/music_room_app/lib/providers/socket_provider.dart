@@ -67,62 +67,52 @@ class SocketProvider extends ChangeNotifier {
     });
 
     // * Playlist events
-    _socket.on('trackAdded', (data) {
+    _socket.on('playlist:item-added', (data) {
       final track = _trackFromJson(data);
       playlistsProvider.handleTrackAdded(track);
     });
-    _socket.on('trackMoved', (data) {
+    _socket.on('playlist:item-moved', (data) {
       final roomId = data['roomId'] as String? ?? '';
       final trackId = data['trackId'] as String? ?? '';
       final newPos = data['newPosition'] as String? ?? '';
       playlistsProvider.handleTrackMoved(roomId, trackId, newPos);
     });
-    _socket.on('trackRemoved', (data) {
+    _socket.on('playlist:item-removed', (data) {
       final trackId = data['trackId'] as String? ?? '';
       playlistsProvider.handleTrackRemoved(trackId);
     });
 
     // * Vote room events (forward to EventsProvider)
-    _socket.on('eventTrackAdded', (data) {
+    _socket.on('track:added', (data) {
       final track = _trackFromJson(data);
       eventsProvider.handleTrackAdded(track);
     });
-    _socket.on('eventTrackVoted', (data) {
+    _socket.on('track:voted', (data) {
       final trackId = data['trackId'] as String? ?? '';
       final score = data['score'] as int? ?? 0;
       final votes = data['votesCount'] as int? ?? 0; // currently unused
       eventsProvider.handleTrackVoted(trackId, score, votes);
     });
-    _socket.on('eventTrackRemoved', (data) {
+    _socket.on('track:removed', (data) {
       final trackId = data['trackId'] as String? ?? '';
       eventsProvider.handleTrackRemoved(trackId);
     });
 
-    // * Delegate / room control events
-    _socket.on('delegateUpdated', (data) {
-      final roomId = data['roomId'] as String? ?? '';
-      final controllerId = data['controllerId'] as String?; // may be null
-      roomsProvider.handleDelegateUpdated(roomId, controllerId);
-    });
-    _socket.on('djRoleGranted', (data) {
-      final roomId = data['roomId'] as String? ?? '';
-      final userId = data['userId'] as String? ?? '';
-      roomsProvider.handleDJRoleGranted(roomId, userId);
-    });
-    _socket.on('memberJoined', (data) {
+    // * Room membership events
+    _socket.on('member:joined', (data) {
       final roomId = data['roomId'] as String? ?? '';
       final userId = data['userId'] as String? ?? '';
       roomsProvider.handleMemberJoined(roomId, userId);
     });
-    _socket.on('memberLeft', (data) {
+    _socket.on('member:left', (data) {
       final roomId = data['roomId'] as String? ?? '';
       final userId = data['userId'] as String? ?? '';
       roomsProvider.handleMemberLeft(roomId, userId);
     });
 
     // * Playback events
-    _socket.on('playbackPlayed', (data) {
-      final track = _trackFromJson(data);
+    _socket.on('track:nowPlaying', (data) {
+      final track = _trackFromJson(data['track']);
       playerProvider.handlePlaybackPlayed(track);
     });
     _socket.on('playbackPaused', (_) {

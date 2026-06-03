@@ -7,8 +7,12 @@ import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/pages/events/widgets/swipeable_track_card.dart';
+import 'package:music_room_app/pages/events/widgets/suggest_track_dialog.dart';
+import 'package:music_room_app/pages/events/widgets/create_event_dialog.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
+import 'package:music_room_app/models/room.dart';
+import 'package:music_room_app/models/track.dart';
 
 //* Events page skeleton with Staggered Animations and Dual Voting Interface.
 class EventsPage extends StatefulWidget {
@@ -30,9 +34,7 @@ class _EventsPageState extends State<EventsPage> {
   @override
   Widget build(BuildContext context) {
     final eventsProvider = context.watch<EventsProvider>();
-    final activeEvent = eventsProvider.events.isNotEmpty
-        ? eventsProvider.events.first
-        : null;
+    final activeEvent = eventsProvider.selectedEvent;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -44,18 +46,51 @@ class _EventsPageState extends State<EventsPage> {
           if (eventsProvider.isLoading)
             const Center(child: CircularProgressIndicator())
           else if (activeEvent == null)
-            const Center(child: Text('No active events available'))
+            Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text(
+                    'No active events available',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  const SizedBox(height: AppDimens.md),
+                  ElevatedButton.icon(
+                    onPressed: () => _showCreateEventDialog(context),
+                    icon: const Icon(Icons.add),
+                    label: const Text('Create Event'),
+                  ),
+                ],
+              ),
+            )
           else
             CustomScrollView(
               slivers: [
                 SliverAppBar(
-                  title: Text(activeEvent.name),
+                  title: _buildEventSelector(
+                    context,
+                    eventsProvider,
+                    activeEvent,
+                  ),
                   centerTitle: true,
                   floating: true,
                   pinned: false,
                   backgroundColor: Theme.of(
                     context,
                   ).scaffoldBackgroundColor.withValues(alpha: 0.8),
+                  actions: [
+                    IconButton(
+                      icon: const Icon(Icons.add_box_outlined),
+                      tooltip: 'Create Event',
+                      onPressed: () => _showCreateEventDialog(context),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.add),
+                      tooltip: 'Suggest Song',
+                      onPressed: () =>
+                          _showSuggestTrackDialog(context, activeEvent),
+                    ),
+                  ],
                 ),
 
                 // Contains the Voting Area and Headers
@@ -103,8 +138,15 @@ class _EventsPageState extends State<EventsPage> {
                 SliverList(
                   delegate: SliverChildBuilderDelegate(
                     (context, index) {
-                      // Exclude the first track which is currently active in voting interface
-                      final queueTracks = activeEvent.tracks.skip(1).toList();
+                      // * Exclude the tracks that have already been voted on in this session
+                      final unvotedTracks = activeEvent.tracks
+                          .where(
+                            (t) => !eventsProvider.votedTrackIds.contains(t.id),
+                          )
+                          .toList();
+
+                      // * Exclude the first track which is currently active in voting interface
+                      final queueTracks = unvotedTracks.skip(1).toList();
                       if (index >= queueTracks.length) return null;
 
                       final track = queueTracks[index];
@@ -142,11 +184,122 @@ class _EventsPageState extends State<EventsPage> {
                         ),
                       );
                     },
-                    childCount: activeEvent.tracks.length > 1
-                        ? activeEvent.tracks.length - 1
+                    childCount:
+                        activeEvent.tracks
+                                .where(
+                                  (t) => !eventsProvider.votedTrackIds.contains(
+                                    t.id,
+                                  ),
+                                )
+                                .length >
+                            1
+                        ? activeEvent.tracks
+                                  .where(
+                                    (t) => !eventsProvider.votedTrackIds
+                                        .contains(t.id),
+                                  )
+                                  .length -
+                              1
                         : 0,
                   ),
                 ),
+
+                // 4. Voted Tracks section header
+                SliverToBoxAdapter(
+                  child: Builder(
+                    builder: (context) {
+                      final votedTracks = activeEvent.tracks
+                          .where(
+                            (t) => eventsProvider.votedTrackIds.contains(t.id),
+                          )
+                          .toList();
+                      if (eventsProvider.votedTrackIds.isEmpty) {
+                        return const SizedBox.shrink();
+                      }
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppDimens.lg,
+                              vertical: AppDimens.sm,
+                            ),
+                            child: Divider(
+                              color: Theme.of(
+                                context,
+                              ).disabledColor.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppDimens.xl,
+                            ),
+                            child: Text(
+                              'Voted Tracks',
+                              style: Theme.of(context).textTheme.titleLarge,
+                            ),
+                          ),
+                          const SizedBox(height: AppDimens.md),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+
+                // 5. Staggered list of voted tracks as slivers
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final votedTracks = activeEvent.tracks
+                          .where(
+                            (t) => eventsProvider.votedTrackIds.contains(t.id),
+                          )
+                          .toList();
+                      if (index >= votedTracks.length) return null;
+
+                      final track = votedTracks[index];
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppDimens.lg,
+                          vertical: AppDimens.sm / 2,
+                        ),
+                        child: StaggeredList(
+                          index: index,
+                          child: PlaceholderCard(
+                            title: track.title,
+                            subtitle: '${track.artist} • ${track.score} votes',
+                            leading: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surface,
+                                borderRadius: BorderRadius.circular(
+                                  AppDimens.radiusMedium,
+                                ),
+                                boxShadow: Theme.of(context)
+                                    .extension<AppDesignTokens>()
+                                    ?.neumorphicPressedShadow,
+                              ),
+                              child: Icon(
+                                Icons.music_note,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                            ),
+                            onTap: () {
+                              context.read<PlayerProvider>().playTrack(track);
+                              context.push(routePlayer);
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    childCount: activeEvent.tracks
+                        .where(
+                          (t) => eventsProvider.votedTrackIds.contains(t.id),
+                        )
+                        .length,
+                  ),
+                ),
+
                 const SliverToBoxAdapter(
                   child: SizedBox(height: AppDimens.xxl * 3),
                 ),
@@ -154,6 +307,65 @@ class _EventsPageState extends State<EventsPage> {
             ),
         ],
       ),
+    );
+  }
+
+  void _showSuggestTrackDialog(BuildContext context, Room room) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SuggestTrackDialog(room: room),
+    );
+  }
+
+  Widget _buildEventSelector(
+    BuildContext context,
+    EventsProvider eventsProvider,
+    Room? activeEvent,
+  ) {
+    if (activeEvent == null) {
+      return const Text('Events');
+    }
+
+    final otherEvents = eventsProvider.events
+        .where((e) => e.id != activeEvent.id)
+        .toList();
+    if (otherEvents.isEmpty) {
+      return Text(activeEvent.name);
+    }
+
+    return Theme(
+      data: Theme.of(
+        context,
+      ).copyWith(canvasColor: Theme.of(context).colorScheme.surface),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<Room>(
+          value: activeEvent,
+          icon: Icon(
+            Icons.arrow_drop_down,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+          onChanged: (Room? newValue) {
+            if (newValue != null) {
+              eventsProvider.selectEvent(newValue);
+            }
+          },
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+          items: eventsProvider.events.map<DropdownMenuItem<Room>>((Room room) {
+            return DropdownMenuItem<Room>(value: room, child: Text(room.name));
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showCreateEventDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const CreateEventDialog(),
     );
   }
 }

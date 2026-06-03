@@ -3,13 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
-import 'package:music_room_app/models/room.dart';
+import 'package:music_room_app/models/track.dart';
 
-// ! Widget for rendering a horizontal list of personalized mixes (Apple/Youtube Music style)
-class QuickPicksCarousel extends StatelessWidget {
-  final List<Room> mixes;
+// ! Widget for rendering a horizontal list of personalized songs
+class SongsCarousel extends StatelessWidget {
+  final List<Track> songs;
 
-  const QuickPicksCarousel({super.key, required this.mixes});
+  const SongsCarousel({super.key, required this.songs});
 
   @override
   Widget build(BuildContext context) {
@@ -19,9 +19,10 @@ class QuickPicksCarousel extends StatelessWidget {
         clipBehavior: Clip.none,
         padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg),
         scrollDirection: Axis.horizontal,
-        itemCount: mixes.length,
+        itemCount: songs.length,
         separatorBuilder: (context, _) => const SizedBox(width: AppDimens.md),
         itemBuilder: (context, index) {
+          final track = songs[index];
           return SizedBox(
             width: 156,
             child: Column(
@@ -30,7 +31,7 @@ class QuickPicksCarousel extends StatelessWidget {
                 Expanded(
                   child: NeumorphicInteractiveContainer(
                     onTap: () {
-                      context.go(routePlaylists);
+                      context.push(routePlayer);
                     },
                     margin: const EdgeInsets.all(AppDimens.sm),
                     decoration: BoxDecoration(
@@ -40,7 +41,7 @@ class QuickPicksCarousel extends StatelessWidget {
                     ),
                     child: Center(
                       child: Icon(
-                        Icons.queue_music,
+                        Icons.music_note,
                         size: 40,
                         color: Theme.of(context).colorScheme.primary,
                       ),
@@ -49,7 +50,7 @@ class QuickPicksCarousel extends StatelessWidget {
                 ),
                 const SizedBox(height: AppDimens.sm),
                 Text(
-                  mixes[index].name,
+                  track.title,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontWeight: AppTypography.semibold,
                   ),
@@ -57,7 +58,7 @@ class QuickPicksCarousel extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  'Collaborative Playlist',
+                  track.artist,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: Theme.of(context).disabledColor,
                   ),

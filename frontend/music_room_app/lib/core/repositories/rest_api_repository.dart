@@ -27,22 +27,38 @@ class RestApiRepository implements RoomRepository {
     return Room.fromJson(response.data);
   }
 
-  @override
-  Future<Room> createRoom({
-    required String name,
-    required RoomKind kind,
-    required bool isPublic,
-  }) async {
-    final response = await _client.post(
-      ApiConfig.rooms,
-      data: {
-        'name': name,
-        'kind': kind.toJson(),
-        'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
-      },
-    );
-    return Room.fromJson(response.data);
-  }
+	@override
+	Future<Room> createRoom({
+		required String name,
+		required RoomKind kind,
+		required bool isPublic,
+		String? description,
+		String? voteAccess,
+		String? voteWindow,
+		DateTime? voteStartsAt,
+		DateTime? voteEndsAt,
+		double? voteLocationLat,
+		double? voteLocationLng,
+		double? voteLocationRadiusM,
+	}) async {
+		final response = await _client.post(
+			ApiConfig.rooms,
+			data: {
+				'name': name,
+				'kind': kind.toJson(),
+				'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
+				if (description != null) 'description': description,
+				if (voteAccess != null) 'voteAccess': voteAccess,
+				if (voteWindow != null) 'voteWindow': voteWindow,
+				if (voteStartsAt != null) 'voteStartsAt': voteStartsAt.toIso8601String(),
+				if (voteEndsAt != null) 'voteEndsAt': voteEndsAt.toIso8601String(),
+				if (voteLocationLat != null) 'voteLocationLat': voteLocationLat,
+				if (voteLocationLng != null) 'voteLocationLng': voteLocationLng,
+				if (voteLocationRadiusM != null) 'voteLocationRadiusM': voteLocationRadiusM,
+			},
+		);
+		return Room.fromJson(response.data);
+	}
 
   @override
   Future<void> deleteRoom(String id) async {
@@ -143,17 +159,38 @@ class RestApiRepository implements RoomRepository {
     await _client.delete('${ApiConfig.rooms}/$roomId/playlist/$trackId');
   }
 
-  // DELEGATE room
-  @override
-  Future<void> delegateRoomControl(String roomId, String userId) async {
-    await _client.post(
-      '${ApiConfig.rooms}/$roomId/delegate',
-      data: {'userId': userId},
-    );
-  }
+	// DELEGATE room
+	@override
+	Future<void> delegateRoomControl(String roomId, String userId) async {
+		await _client.post(
+			'${ApiConfig.rooms}/$roomId/delegate',
+			data: {'userId': userId},
+		);
+	}
 
-  @override
-  Future<void> revokeRoomControl(String roomId) async {
-    await _client.delete('${ApiConfig.rooms}/$roomId/delegate');
-  }
+	@override
+	Future<void> revokeRoomControl(String roomId) async {
+		await _client.delete('${ApiConfig.rooms}/$roomId/delegate');
+	}
+
+	@override
+	Future<List<Track>> searchSpotifyTracks(String query) async {
+		final response = await _client.get(
+			ApiConfig.search,
+			queryParameters: {'q': query},
+		);
+		final data = response.data as List;
+		return data.map((json) {
+			final artistsList = json['artists'] as List;
+			return Track(
+				id: json['id'] as String,
+				providerId: json['id'] as String,
+				provider: 'spotify',
+				title: json['name'] as String,
+				artist: artistsList.join(', '),
+				durationMs: json['durationMs'] as int,
+				artworkUrl: json['artworkUrl'] as String?,
+			);
+		}).toList();
+	}
 }

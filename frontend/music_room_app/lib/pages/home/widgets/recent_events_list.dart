@@ -3,10 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
+import 'package:music_room_app/models/room.dart';
+import 'package:provider/provider.dart';
+import 'package:music_room_app/providers/events_provider.dart';
 
 // ! Widget for rendering a list of recent live events (Apple Music style)
 class RecentEventsList extends StatelessWidget {
-  final List<String> events;
+  final List<Room> events;
 
   const RecentEventsList({super.key, required this.events});
 
@@ -18,7 +21,10 @@ class RecentEventsList extends StatelessWidget {
     return Column(
       children: events.map((event) {
         return NeumorphicInteractiveContainer(
-          onTap: () => context.push(routePlayer),
+          onTap: () {
+            context.read<EventsProvider>().selectEvent(event);
+            context.go(routeEvents);
+          },
           margin: const EdgeInsets.symmetric(
             horizontal: AppDimens.sm,
             vertical: AppDimens.sm,
@@ -46,7 +52,7 @@ class RecentEventsList extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      event,
+                      event.name,
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: AppTypography.bold,
                       ),

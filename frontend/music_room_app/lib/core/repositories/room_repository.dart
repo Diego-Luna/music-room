@@ -6,11 +6,19 @@ abstract class RoomRepository {
   // * Rooms
   Future<List<Room>> getRooms({RoomKind? kind});
   Future<Room> getRoomById(String id);
-  Future<Room> createRoom({
-    required String name,
-    required RoomKind kind,
-    required bool isPublic,
-  });
+	Future<Room> createRoom({
+		required String name,
+		required RoomKind kind,
+		required bool isPublic,
+		String? description,
+		String? voteAccess,
+		String? voteWindow,
+		DateTime? voteStartsAt,
+		DateTime? voteEndsAt,
+		double? voteLocationLat,
+		double? voteLocationLng,
+		double? voteLocationRadiusM,
+	});
   Future<void> deleteRoom(String id);
   Future<void> joinRoom(String id);
   Future<void> leaveRoom(String id);
@@ -40,6 +48,9 @@ abstract class RoomRepository {
   Future<void> removePlaylistTrack(String roomId, String trackId);
 
   // *DELEGATE room
-  Future<void> delegateRoomControl(String roomId, String userId);
-  Future<void> revokeRoomControl(String roomId);
+	Future<void> delegateRoomControl(String roomId, String userId);
+	Future<void> revokeRoomControl(String roomId);
+
+	// * Search Spotify tracks
+	Future<List<Track>> searchSpotifyTracks(String query);
 }

@@ -156,6 +156,7 @@ class _PlayerPageState extends State<PlayerPage> {
                       key: ValueKey(track.id),
                       trackTitle: track.title,
                       artistName: track.artist,
+                      score: track.score,
                       imageUrl: track.artworkUrl ?? "placeholder",
                       onSwiped: (action) {
                         if (action == SwipeAction.like) {

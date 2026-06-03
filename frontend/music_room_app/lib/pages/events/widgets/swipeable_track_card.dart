@@ -12,6 +12,7 @@ enum SwipeAction { like, dislike, none }
 class SwipeableTrackCard extends StatefulWidget {
   final String trackTitle;
   final String artistName;
+  final int score;
   final String imageUrl;
   final Function(SwipeAction) onSwiped;
 
@@ -19,6 +20,7 @@ class SwipeableTrackCard extends StatefulWidget {
     super.key,
     required this.trackTitle,
     required this.artistName,
+    required this.score,
     required this.imageUrl,
     required this.onSwiped,
   });
@@ -201,20 +203,52 @@ class SwipeableTrackCardState extends State<SwipeableTrackCard>
                         padding: const EdgeInsets.all(AppDimens.lg),
                         width: double.infinity,
                         color: theme.colorScheme.surface,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              widget.trackTitle,
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.trackTitle,
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: AppDimens.xs),
+                                  Text(
+                                    widget.artistName,
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      color: Colors.grey,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: AppDimens.xs),
-                            Text(
-                              widget.artistName,
-                              style: theme.textTheme.bodyLarge?.copyWith(
-                                color: Colors.grey,
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppDimens.md,
+                                vertical: AppDimens.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.primary.withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(
+                                  AppDimens.radiusSmall,
+                                ),
+                              ),
+                              child: Text(
+                                '${widget.score} votes',
+                                style: theme.textTheme.labelLarge?.copyWith(
+                                  color: theme.colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -297,9 +331,7 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
   @override
   Widget build(BuildContext context) {
     final eventsProvider = context.watch<EventsProvider>();
-    final activeEvent = eventsProvider.events.isNotEmpty
-        ? eventsProvider.events.first
-        : null;
+    final activeEvent = eventsProvider.selectedEvent;
 
     if (activeEvent == null || activeEvent.tracks.isEmpty) {
       return const SizedBox(
@@ -308,8 +340,20 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
       );
     }
 
-    // Show the first track in the voting interface
-    final track = activeEvent.tracks.first;
+    // * Filter out tracks we have already voted on in this session
+    final unvotedTracks = activeEvent.tracks
+        .where((t) => !eventsProvider.votedTrackIds.contains(t.id))
+        .toList();
+
+    if (unvotedTracks.isEmpty) {
+      return const SizedBox(
+        height: 200,
+        child: Center(child: Text('No tracks available for voting')),
+      );
+    }
+
+    // * Show the first unvoted track in the voting interface
+    final track = unvotedTracks.first;
 
     void handleVote(SwipeAction action) {
       final value = action == SwipeAction.like ? 1 : -1;
@@ -335,6 +379,7 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
           key: _cardKey,
           trackTitle: track.title,
           artistName: track.artist,
+          score: track.score,
           imageUrl: track.artworkUrl ?? "placeholder",
           onSwiped: handleVote,
         ),
