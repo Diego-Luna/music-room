@@ -21,6 +21,7 @@ class SocketProvider extends ChangeNotifier {
     required PlaylistsProvider playlistsProvider,
     required RoomsProvider roomsProvider,
     required PlayerProvider playerProvider,
+    IO.Socket? socket,
   }) : _authProvider = authProvider {
     _authProvider.addListener(_onAuthChanged);
     _initializeSocket(
@@ -28,6 +29,7 @@ class SocketProvider extends ChangeNotifier {
       playlistsProvider,
       roomsProvider,
       playerProvider,
+      socket,
     );
   }
 
@@ -54,12 +56,15 @@ class SocketProvider extends ChangeNotifier {
     PlaylistsProvider playlistsProvider,
     RoomsProvider roomsProvider,
     PlayerProvider playerProvider,
+    IO.Socket? injectedSocket,
   ) {
     // ! Connect to backend WebSocket endpoint defined in ApiConfig
-    _socket = IO.io(ApiConfig.wsUrl, <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-    });
+    _socket =
+        injectedSocket ??
+        IO.io(ApiConfig.wsUrl, <String, dynamic>{
+          'transports': ['websocket'],
+          'autoConnect': false,
+        });
 
     _socket.on('connect', (_) {
       // * Connected – notify listeners for UI if needed
@@ -139,6 +144,19 @@ class SocketProvider extends ChangeNotifier {
       artist: json['artist'] ?? '',
       durationMs: json['durationMs'] ?? 0,
     );
+  }
+
+  // * Room Presence Controls
+  void joinRoom(String roomId) {
+    if (isConnected) {
+      _socket.emit('room:join', {'roomId': roomId});
+    }
+  }
+
+  void leaveRoom(String roomId) {
+    if (isConnected) {
+      _socket.emit('room:leave', {'roomId': roomId});
+    }
   }
 
   void disposeSocket() {
