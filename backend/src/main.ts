@@ -38,6 +38,7 @@ async function bootstrap() {
       'https://www.musicroom.me',
       'http://localhost:3000',
       'http://localhost:5173',
+      'http://localhost:8080',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
