@@ -7,7 +7,7 @@ import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
 
 void main() async {
-  usePathUrlStrategy();
+  setUrlStrategy(HashUrlStrategy());
   WidgetsFlutterBinding.ensureInitialized();
 
   try {} catch (e) {
