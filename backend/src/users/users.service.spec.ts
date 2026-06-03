@@ -23,6 +23,9 @@ describe('UsersService', () => {
     emailVerified: true,
     visibility: 'PUBLIC',
     musicPreferences: ['rock', 'jazz'],
+    publicInfo: 'pub',
+    friendsInfo: 'fr',
+    privateInfo: 'priv',
     createdAt: new Date('2026-01-01'),
     updatedAt: new Date('2026-01-02'),
     passwordHash: 'secret-hash',
@@ -62,6 +65,9 @@ describe('UsersService', () => {
         emailVerified: true,
         visibility: 'PUBLIC',
         musicPreferences: ['rock', 'jazz'],
+        publicInfo: 'pub',
+        friendsInfo: 'fr',
+        privateInfo: 'priv',
         createdAt: existingUser.createdAt,
         updatedAt: existingUser.updatedAt,
       });
@@ -153,6 +159,9 @@ describe('UsersService', () => {
         avatarUrl: null,
         visibility: 'PUBLIC',
         musicPreferences: ['rock', 'jazz'],
+        publicInfo: 'pub',
+        friendsInfo: 'fr',
+        privateInfo: 'priv',
       });
     });
 
@@ -162,6 +171,10 @@ describe('UsersService', () => {
       expect(profile.id).toBe('user-1');
       expect(profile).not.toHaveProperty('email');
       expect(profile).not.toHaveProperty('emailVerified');
+      // V.1 tiers: a non-friend sees publicInfo, but NOT friends/private info.
+      expect(profile.publicInfo).toBe('pub');
+      expect(profile.friendsInfo).toBeUndefined();
+      expect(profile.privateInfo).toBeUndefined();
     });
 
     it('throws NotFoundException when target is PRIVATE and caller is not self', async () => {
@@ -194,6 +207,10 @@ describe('UsersService', () => {
       const profile = await service.findOnePublic('user-2', 'user-1');
       expect(profile.id).toBe('user-1');
       expect(profile.visibility).toBe('FRIENDS_ONLY');
+      // V.1 tiers: a friend additionally sees friendsInfo, but never privateInfo.
+      expect(profile.publicInfo).toBe('pub');
+      expect(profile.friendsInfo).toBe('fr');
+      expect(profile.privateInfo).toBeUndefined();
     });
 
     it('throws NotFoundException when the target user does not exist', async () => {

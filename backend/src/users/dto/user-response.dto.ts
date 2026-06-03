@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class UserProfileDto {
   @ApiProperty() id!: string;
@@ -11,6 +11,9 @@ export class UserProfileDto {
   @ApiProperty({ example: 'FREE', description: 'FREE | PREMIUM' })
   subscriptionTier!: string;
   @ApiProperty({ type: [String] }) musicPreferences!: string[];
+  @ApiProperty({ nullable: true }) publicInfo!: string | null;
+  @ApiProperty({ nullable: true }) friendsInfo!: string | null;
+  @ApiProperty({ nullable: true }) privateInfo!: string | null;
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;
 }
@@ -22,4 +25,15 @@ export class PublicUserProfileDto {
   @ApiProperty({ example: 'PUBLIC', description: 'PUBLIC | FRIENDS_ONLY | PRIVATE' })
   visibility!: string;
   @ApiProperty({ type: [String] }) musicPreferences!: string[];
+  @ApiProperty({ nullable: true }) publicInfo!: string | null;
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Present only when the caller is a friend (or self)',
+  })
+  friendsInfo?: string | null;
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Present only when the caller is the profile owner',
+  })
+  privateInfo?: string | null;
 }

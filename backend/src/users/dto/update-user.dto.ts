@@ -40,4 +40,25 @@ export class UpdateUserDto {
   @ArrayMaxSize(50)
   @IsString({ each: true })
   musicPreferences?: string[];
+
+  // V.1 — the three audience-scoped profile texts required by the subject:
+  // "public informations", "informations only available to their friends",
+  // "their private informations".
+  @ApiPropertyOptional({ example: 'Hi, I love live concerts!' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  publicInfo?: string;
+
+  @ApiPropertyOptional({ example: 'My phone: 06...' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  friendsInfo?: string;
+
+  @ApiPropertyOptional({ example: 'Private notes only I can see' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  privateInfo?: string;
 }
