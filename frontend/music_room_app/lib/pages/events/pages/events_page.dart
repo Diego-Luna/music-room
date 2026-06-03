@@ -11,8 +11,9 @@ import 'package:music_room_app/pages/events/widgets/suggest_track_dialog.dart';
 import 'package:music_room_app/pages/events/widgets/create_event_dialog.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
+import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/models/room.dart';
-import 'package:music_room_app/models/track.dart';
+// import 'package:music_room_app/models/track.dart';
 
 //* Events page skeleton with Staggered Animations and Dual Voting Interface.
 class EventsPage extends StatefulWidget {
@@ -23,12 +24,42 @@ class EventsPage extends StatefulWidget {
 }
 
 class _EventsPageState extends State<EventsPage> {
+  String? _currentRoomId;
+  late SocketProvider _socketProvider;
+  late EventsProvider _eventsProvider;
+
   @override
   void initState() {
     super.initState();
+    _socketProvider = context.read<SocketProvider>();
+    _eventsProvider = context.read<EventsProvider>();
+    _eventsProvider.addListener(_onEventChanged);
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<EventsProvider>().fetchEvents();
+      _eventsProvider.fetchEvents();
     });
+  }
+
+  void _onEventChanged() {
+    final activeEvent = _eventsProvider.selectedEvent;
+    if (activeEvent?.id != _currentRoomId) {
+      if (_currentRoomId != null) {
+        _socketProvider.leaveRoom(_currentRoomId!);
+      }
+      if (activeEvent != null) {
+        _socketProvider.joinRoom(activeEvent.id);
+      }
+      _currentRoomId = activeEvent?.id;
+    }
+  }
+
+  @override
+  void dispose() {
+    _eventsProvider.removeListener(_onEventChanged);
+    if (_currentRoomId != null) {
+      _socketProvider.leaveRoom(_currentRoomId!);
+    }
+    super.dispose();
   }
 
   @override

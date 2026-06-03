@@ -8,10 +8,98 @@ import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
+import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/models/room.dart';
 
-class PlaylistDetailPage extends StatelessWidget {
+class PlaylistDetailPage extends StatefulWidget {
   const PlaylistDetailPage({super.key});
+
+  @override
+  State<PlaylistDetailPage> createState() => _PlaylistDetailPageState();
+}
+
+class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
+  String? _roomId;
+  late SocketProvider _socketProvider;
+
+  @override
+  void initState() {
+    super.initState();
+    _socketProvider = context.read<SocketProvider>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
+      final Room? initialPlaylist = extra?['playlist'] as Room?;
+      if (initialPlaylist != null) {
+        _roomId = initialPlaylist.id;
+        _socketProvider.joinRoom(_roomId!);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    if (_roomId != null) {
+      _socketProvider.leaveRoom(_roomId!);
+    }
+    super.dispose();
+  }
+
+  void _showAddTrackDialog(
+    BuildContext context,
+    Room playlist,
+    ThemeData theme,
+    PlaylistsProvider playlistsProvider,
+  ) {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(AppDimens.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Add Song to Playlist', style: theme.textTheme.titleLarge),
+              const SizedBox(height: AppDimens.md),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: playlist.tracks.length,
+                  itemBuilder: (context, index) {
+                    final track = playlist.tracks[index];
+                    return ListTile(
+                      leading: const Icon(Icons.music_note),
+                      title: Text(track.title),
+                      subtitle: Text(track.artist),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.add_circle, color: Colors.green),
+                        onPressed: () {
+                          playlistsProvider.addTrack(playlist.id, track).then((
+                            _,
+                          ) {
+                            navigator.pop();
+                            scaffoldMessenger.showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '${track.title} added to playlist!',
+                                ),
+                                duration: const Duration(seconds: 1),
+                              ),
+                            );
+                          });
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,61 +119,6 @@ class PlaylistDetailPage extends StatelessWidget {
 
     final tag = 'playlist_cover_${playlist.id}';
 
-    void showAddTrackDialog() {
-      final scaffoldMessenger = ScaffoldMessenger.of(context);
-      final navigator = Navigator.of(context);
-      showModalBottomSheet(
-        context: context,
-        builder: (context) {
-          return Container(
-            padding: const EdgeInsets.all(AppDimens.lg),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Add Song to Playlist', style: theme.textTheme.titleLarge),
-                const SizedBox(height: AppDimens.md),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: playlist.tracks.length,
-                    itemBuilder: (context, index) {
-                      final track = playlist.tracks[index];
-                      return ListTile(
-                        leading: const Icon(Icons.music_note),
-                        title: Text(track.title),
-                        subtitle: Text(track.artist),
-                        trailing: IconButton(
-                          icon: const Icon(
-                            Icons.add_circle,
-                            color: Colors.green,
-                          ),
-                          onPressed: () {
-                            playlistsProvider.addTrack(playlist.id, track).then(
-                              (_) {
-                                navigator.pop();
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${track.title} added to playlist!',
-                                    ),
-                                    duration: const Duration(seconds: 1),
-                                  ),
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    }
-
     return Scaffold(
       body: CustomScrollView(
         slivers: [
@@ -99,7 +132,12 @@ class PlaylistDetailPage extends StatelessWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.add, color: Colors.white),
-                onPressed: showAddTrackDialog,
+                onPressed: () => _showAddTrackDialog(
+                  context,
+                  playlist,
+                  theme,
+                  playlistsProvider,
+                ),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -167,7 +205,12 @@ class PlaylistDetailPage extends StatelessWidget {
                         Icons.add_circle_outline,
                         color: theme.colorScheme.primary,
                       ),
-                      onPressed: showAddTrackDialog,
+                      onPressed: () => _showAddTrackDialog(
+                        context,
+                        playlist,
+                        theme,
+                        playlistsProvider,
+                      ),
                     ),
                   ],
                 ),
