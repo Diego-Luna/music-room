@@ -20,6 +20,9 @@ void main() {
   setUp(() {
     mockRepository = MockRoomRepository();
     playlistsProvider = PlaylistsProvider(repository: mockRepository);
+    when(
+      () => mockRepository.getPlaylistTracks(any()),
+    ).thenAnswer((_) async => []);
   });
 
   group('PlaylistsProvider Tests', () {
@@ -42,7 +45,8 @@ void main() {
 
       await playlistsProvider.fetchPlaylists();
 
-      expect(playlistsProvider.playlists, equals([playlistRoom]));
+      expect(playlistsProvider.playlists.first.id, equals(playlistRoom.id));
+      expect(playlistsProvider.playlists.first.name, equals(playlistRoom.name));
       expect(playlistsProvider.isLoading, false);
       expect(playlistsProvider.error, isNull);
     });
@@ -166,6 +170,9 @@ void main() {
         when(
           () => mockRepository.getRooms(kind: RoomKind.playlist),
         ).thenAnswer((_) async => [room]);
+        when(
+          () => mockRepository.getPlaylistTracks('room-1'),
+        ).thenAnswer((_) async => [track]);
 
         await playlistsProvider.fetchPlaylists();
         expect(
@@ -200,6 +207,9 @@ void main() {
       when(
         () => mockRepository.getRooms(kind: RoomKind.playlist),
       ).thenAnswer((_) async => [room]);
+      when(
+        () => mockRepository.getPlaylistTracks('room-1'),
+      ).thenAnswer((_) async => [track]);
 
       await playlistsProvider.fetchPlaylists();
       expect(playlistsProvider.playlists.first.tracks, isNotEmpty);

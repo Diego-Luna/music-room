@@ -31,6 +31,14 @@ void main() {
       expect(authProvider.isLoading, false);
     });
 
+    test('accessToken getter returns stored token', () async {
+      when(
+        () => mockTokenStorage.accessToken,
+      ).thenAnswer((_) async => 'stored_token');
+      final token = await authProvider.accessToken;
+      expect(token, 'stored_token');
+    });
+
     test('login sets user on success', () async {
       // Mock token response
       final response = Response(

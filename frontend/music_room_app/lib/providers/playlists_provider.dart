@@ -23,7 +23,17 @@ class PlaylistsProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
+      final rooms = await _repository.getRooms(kind: RoomKind.playlist);
+      final playlistRooms = rooms
+          .where((room) => room.kind == RoomKind.playlist)
+          .toList();
+      final populatedRooms = await Future.wait(
+        playlistRooms.map((playlistRoom) async {
+          final tracks = await _repository.getPlaylistTracks(playlistRoom.id);
+          return playlistRoom.copyWith(tracks: tracks);
+        }),
+      );
+      _playlists = populatedRooms;
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -35,8 +45,7 @@ class PlaylistsProvider extends ChangeNotifier {
   Future<void> addTrack(String roomId, Track track) async {
     try {
       await _repository.addPlaylistTrack(roomId, track);
-      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
-      notifyListeners();
+      await fetchPlaylists();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -46,8 +55,7 @@ class PlaylistsProvider extends ChangeNotifier {
   Future<void> removeTrack(String roomId, String trackId) async {
     try {
       await _repository.removePlaylistTrack(roomId, trackId);
-      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
-      notifyListeners();
+      await fetchPlaylists();
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -61,8 +69,7 @@ class PlaylistsProvider extends ChangeNotifier {
   ) async {
     try {
       await _repository.movePlaylistTrack(roomId, trackId, newPosition);
-      _playlists = await _repository.getRooms(kind: RoomKind.playlist);
-      notifyListeners();
+      await fetchPlaylists();
     } catch (e) {
       _error = e.toString();
       notifyListeners();

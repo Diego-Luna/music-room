@@ -8,7 +8,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:music_room_app/features/start/presentation/pages/start_page.dart';
+import 'package:music_room_app/pages/start/pages/start_page.dart';
 
 void main() {
   testWidgets('StartPage smoke test', (WidgetTester tester) async {

@@ -22,7 +22,7 @@ class ApiConfig {
   // * all rooms share the /rooms base
   static const String rooms = '/rooms';
   static const String profile = '/users/me';
-  static const String search = '/spotify/search';
+  static const String search = '/auth/spotify/search';
 
   // * Feature flag — toggle between mock and live API
   // Use mock data while backend is auth-only
