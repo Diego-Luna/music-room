@@ -166,12 +166,13 @@ model Track {
   id             String   @id @default(uuid())
   roomId         String
   room           Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  provider       String   @default("spotify")
+  provider       String   @default("deezer")
   providerId     String
   title          String
   artist         String
   durationMs     Int
   artworkUrl     String?
+  previewUrl     String?
   addedById      String
   addedAt        DateTime @default(now())
   playedAt       DateTime?
@@ -221,7 +222,8 @@ model RoomInvitation {
 
 // V.2.2 Music Control Delegation — account+device scoped, NOT room scoped.
 // A user delegates remote control of one of their devices to a friend.
-// Playback commands run against the device owner's Spotify token.
+// Playback commands are relayed over Socket.io to the device owner's in-app
+// player (Deezer 30s preview) — there is no provider playback API.
 model MusicControlDelegation {
   id             String   @id @default(uuid())
   ownerId        String

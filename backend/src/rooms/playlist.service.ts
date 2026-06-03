@@ -46,7 +46,7 @@ export class PlaylistService {
       );
     }
 
-    const provider = dto.provider ?? 'spotify';
+    const provider = dto.provider ?? 'deezer';
     const dup = await this.prisma.track.findUnique({
       where: {
         roomId_provider_providerId: {
@@ -73,6 +73,7 @@ export class PlaylistService {
         artist: dto.artist,
         durationMs: dto.durationMs,
         artworkUrl: dto.artworkUrl ?? null,
+        previewUrl: dto.previewUrl ?? null,
         addedById: userId,
         position,
       },

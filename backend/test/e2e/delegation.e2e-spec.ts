@@ -14,7 +14,8 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { RedisModule } from '@/redis/redis.module';
 import { RedisService } from '@/redis/redis.service';
 import { MailService } from '@/mail/mail.service';
-import { SpotifyService } from '@/spotify/spotify.service';
+import { RealtimeCoreModule } from '@/realtime/realtime-core.module';
+import { RealtimeService } from '@/realtime/realtime.service';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
 import { createMockRedisService } from '@test/helpers/redis-test.helper';
 import {
@@ -25,12 +26,12 @@ import {
 
 /**
  * E2E for V.2.2 Music Control Delegation — full grant → playback → revoke
- * flow. Prisma is an in-memory mock; Spotify is mocked so playback commands
- * are observed, not sent to the real API.
+ * flow. Prisma is an in-memory mock; RealtimeService is mocked so the relayed
+ * playback commands are observed instead of hitting a socket.
  */
 describe('Delegation (e2e)', () => {
   let app: NestFastifyApplication;
-  let spotify: Record<string, ReturnType<typeof vi.fn>>;
+  let realtime: { emitToUser: ReturnType<typeof vi.fn> };
 
   const ownerId = randomUUID();
   const friendId = randomUUID();
@@ -167,16 +168,11 @@ describe('Delegation (e2e)', () => {
   };
 
   beforeAll(async () => {
-    spotify = {
-      play: vi.fn().mockResolvedValue(undefined),
-      pause: vi.fn().mockResolvedValue(undefined),
-      next: vi.fn().mockResolvedValue(undefined),
-      previous: vi.fn().mockResolvedValue(undefined),
-      setVolume: vi.fn().mockResolvedValue(undefined),
-    };
+    realtime = { emitToUser: vi.fn() };
 
     const module: TestingModule = await Test.createTestingModule({
       imports: [
+        RealtimeCoreModule,
         ConfigModule.forRoot({
           isGlobal: true,
           ignoreEnvFile: true,
@@ -205,8 +201,8 @@ describe('Delegation (e2e)', () => {
         sendVerificationEmail: vi.fn(),
         sendPasswordResetEmail: vi.fn(),
       })
-      .overrideProvider(SpotifyService)
-      .useValue(spotify)
+      .overrideProvider(RealtimeService)
+      .useValue(realtime)
       .compile();
 
     app = module.createNestApplication<NestFastifyApplication>(
@@ -267,18 +263,23 @@ describe('Delegation (e2e)', () => {
     expect(controlled.statusCode).toBe(200);
     expect(JSON.parse(controlled.payload)).toHaveLength(1);
 
-    // the friend drives playback — Spotify is called with the OWNER's id
+    // the friend drives playback — the command is relayed to the OWNER
     const play = await app.inject({
       method: 'POST',
       url: `/delegations/${delegationId}/playback/play`,
       headers: { authorization: `Bearer ${friendToken}` },
-      payload: { uris: ['spotify:track:abc'] },
+      payload: { trackId: 'track-abc' },
     });
     expect(play.statusCode).toBe(200);
-    expect(spotify.play).toHaveBeenCalledWith(
+    expect(realtime.emitToUser).toHaveBeenCalledWith(
       ownerId,
-      ['spotify:track:abc'],
-      undefined,
+      'playback:command',
+      expect.objectContaining({
+        action: 'play',
+        by: friendId,
+        deviceId: 'device-A',
+        trackId: 'track-abc',
+      }),
     );
 
     // a stranger cannot drive playback on that device
