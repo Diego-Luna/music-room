@@ -22,7 +22,7 @@ import { JwtPayload } from '../auth/auth.service';
 const OK_RESPONSE = {
   status: 200,
   type: PlaybackOkDto,
-  description: '`{ ok: true }` once the command is sent to Spotify.',
+  description: "`{ ok: true }` once the command is relayed to the owner's player.",
 };
 const FORBIDDEN_RESPONSE = {
   status: 403,

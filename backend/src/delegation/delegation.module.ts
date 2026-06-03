@@ -4,10 +4,9 @@ import { DelegationService } from './delegation.service';
 import { DelegationPlaybackController } from './delegation-playback.controller';
 import { DelegationPlaybackService } from './delegation-playback.service';
 import { UsersModule } from '../users/users.module';
-import { SpotifyModule } from '../spotify/spotify.module';
 
 @Module({
-  imports: [UsersModule, SpotifyModule],
+  imports: [UsersModule],
   controllers: [DelegationController, DelegationPlaybackController],
   providers: [DelegationService, DelegationPlaybackService],
   exports: [DelegationService],

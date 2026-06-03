@@ -9,6 +9,7 @@ import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/pages/auth/pages/forgot_page.dart';
+import 'package:music_room_app/pages/auth/pages/reset_password_page.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/navigation_provider.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
@@ -165,6 +166,7 @@ class AppRouter {
           state.matchedLocation == routeLogin ||
           state.matchedLocation == routeSignup ||
           state.matchedLocation == routeForgotPassword ||
+          state.matchedLocation == routeResetPassword ||
           state.matchedLocation == routeStart ||
           state.matchedLocation == routeVerifyEmail;
 
@@ -200,6 +202,17 @@ class AppRouter {
           state: state,
           child: const ForgotPasswordPage(),
         ),
+      ),
+      GoRoute(
+        path: routeResetPassword,
+        pageBuilder: (context, state) {
+          final token = state.uri.queryParameters['token'];
+          return _buildPageWithTransition(
+            context: context,
+            state: state,
+            child: ResetPasswordPage(token: token),
+          );
+        },
       ),
       GoRoute(
         path: routeSignup,

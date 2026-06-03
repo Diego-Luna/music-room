@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
@@ -7,6 +8,7 @@ import 'package:music_room_app/providers/theme_provider.dart';
 import 'package:music_room_app/config/hive_config.dart';
 
 void main() async {
+  setUrlStrategy(HashUrlStrategy());
   WidgetsFlutterBinding.ensureInitialized();
 
   try {} catch (e) {

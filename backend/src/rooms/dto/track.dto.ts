@@ -12,7 +12,7 @@ import {
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class AddTrackDto {
-  @ApiPropertyOptional({ default: 'spotify' })
+  @ApiPropertyOptional({ default: 'deezer' })
   @IsOptional()
   @IsString()
   @Length(1, 32)
@@ -43,6 +43,11 @@ export class AddTrackDto {
   @IsOptional()
   @IsUrl()
   artworkUrl?: string;
+
+  @ApiPropertyOptional({ description: '30s preview MP3 URL (Deezer)' })
+  @IsOptional()
+  @IsUrl()
+  previewUrl?: string;
 }
 
 export class VoteTrackDto {

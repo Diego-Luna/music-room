@@ -29,7 +29,7 @@ describe('DelegationPlaybackController', () => {
   });
 
   it('POST /delegations/:id/playback/play forwards to the service', async () => {
-    const dto = { uris: ['spotify:track:x'] };
+    const dto = { trackId: 'track-9' };
     const res = await controller.play(user, delegationId, dto);
     expect(res).toEqual({ ok: true });
     expect(playback.play).toHaveBeenCalledWith(delegationId, 'friend-1', dto);

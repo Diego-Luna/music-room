@@ -55,6 +55,29 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> resetPassword(String token, String newPassword) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      await _apiClient.post(
+        ApiConfig.resetPassword,
+        data: {'token': token, 'newPassword': newPassword},
+      );
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      _error =
+          e.response?.data['message']?.toString() ?? 'Password reset failed';
+      return false;
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   Future<void> login(String email, String password) async {
     _setLoading(true);
     _error = null;

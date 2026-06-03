@@ -34,8 +34,11 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'https://diego-luna.github.io',
+      'https://musicroom.me',
+      'https://www.musicroom.me',
       'http://localhost:3000',
       'http://localhost:5173',
+      'http://localhost:8080',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
@@ -56,7 +59,7 @@ async function bootstrap() {
         'Music Room — collaborative music platform (42 school subject).',
         '',
         'Endpoints are grouped by tag: Auth, Users, Rooms (members, tracks,',
-        'playlist), Delegation, Spotify, Notifications, Health.',
+        'playlist), Delegation, Search, Notifications, Health.',
         '',
         'All routes outside `Auth` and `Health` require a Bearer JWT.',
       ].join('\n'),
@@ -66,7 +69,7 @@ async function bootstrap() {
     .addTag('Auth')
     .addTag('Users')
     .addTag('Rooms')
-    .addTag('Spotify')
+    .addTag('Search')
     .addTag('Notifications')
     .addTag('Health')
     .build();

@@ -1,13 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsArray,
-  IsInt,
-  IsOptional,
-  IsString,
-  IsUUID,
-  Max,
-  Min,
-} from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class GrantDelegationDto {
   @ApiProperty({
@@ -19,16 +11,12 @@ export class GrantDelegationDto {
 }
 
 export class PlayPlaybackDto {
-  @ApiPropertyOptional({ type: [String], description: 'Spotify track URIs' })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  uris?: string[];
-
-  @ApiPropertyOptional({ description: 'Spotify context URI (album, playlist)' })
+  @ApiPropertyOptional({
+    description: 'Track id to start playing (optional: omit to resume)',
+  })
   @IsOptional()
   @IsString()
-  contextUri?: string;
+  trackId?: string;
 }
 
 export class VolumeDto {
