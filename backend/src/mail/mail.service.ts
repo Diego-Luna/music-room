@@ -29,7 +29,7 @@ export class MailService {
       host,
       port,
       secure,
-      auth: user || pass ? { user, pass } : undefined,
+      auth: user && pass ? { user, pass } : undefined,
     });
   }
 
