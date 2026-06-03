@@ -115,21 +115,10 @@ class MockData {
     ],
   );
 
-  // * DELEGATE room
-  static final Room delegateRoom = Room(
-    id: 'room-delegate-1',
-    name: 'Electronic Beats Room',
-    ownerId: 'user-2',
-    kind: RoomKind.delegate,
-    isPublic: false,
-    currentControllerId: 'user-2',
-  );
-
   static List<Room> get rooms => [
     voteRoom1,
     voteRoom2,
     voteRoom3,
     playlistRoom,
-    delegateRoom,
   ];
 }

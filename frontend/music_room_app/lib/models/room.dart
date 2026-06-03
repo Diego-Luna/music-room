@@ -3,15 +3,12 @@ import 'package:music_room_app/models/track.dart';
 // * The same like the backend `Room.kind`
 enum RoomKind {
   vote,
-  playlist,
-  delegate;
+  playlist;
 
   static RoomKind fromString(String? value) {
     switch (value?.toUpperCase()) {
       case 'PLAYLIST':
         return RoomKind.playlist;
-      case 'DELEGATE':
-        return RoomKind.delegate;
       default:
         return RoomKind.vote;
     }
