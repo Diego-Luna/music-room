@@ -110,21 +110,14 @@ class SocketProvider extends ChangeNotifier {
       roomsProvider.handleMemberLeft(roomId, userId);
     });
 
-    // * Playback events
+    // * Playback (vote queue progression). The back drives "now playing" via
+    // * track:nowPlaying; delegated play/pause/next/volume arrive via
+    // * playback:command (handled by the delegation feature, T9).
+    // * The old playbackPaused/Skipped/VolumeChanged events are gone — the
+    // * Deezer/relay back never emits them.
     _socket.on('track:nowPlaying', (data) {
       final track = _trackFromJson(data['track']);
       playerProvider.handlePlaybackPlayed(track);
-    });
-    _socket.on('playbackPaused', (_) {
-      playerProvider.handlePlaybackPaused();
-    });
-    _socket.on('playbackSkipped', (data) {
-      final track = _trackFromJson(data);
-      playerProvider.handlePlaybackSkipped(track);
-    });
-    _socket.on('playbackVolumeChanged', (data) {
-      final vol = (data['volume'] as num?)?.toDouble() ?? 1.0;
-      playerProvider.handlePlaybackVolumeChanged(vol);
     });
 
     // * Finally, connect if signed in
