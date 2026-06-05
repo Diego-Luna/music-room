@@ -47,6 +47,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: eventsProvider),
         ChangeNotifierProvider.value(value: playlistsProvider),
         ChangeNotifierProvider.value(value: roomsProvider),
+        ChangeNotifierProvider.value(value: friendsProvider),
         ChangeNotifierProvider.value(value: playerProvider),
         ChangeNotifierProvider.value(value: socketProvider),
       ],

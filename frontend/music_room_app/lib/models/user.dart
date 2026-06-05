@@ -60,13 +60,15 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: json['id'] as String,
-      email: json['email'] as String,
+      email: json['email'] as String? ?? '',
       displayName: json['displayName'] as String,
       avatarUrl: json['avatarUrl'] as String?,
       emailVerified: json['emailVerified'] as bool? ?? false,
       visibility: UserVisibility.fromString(json['visibility'] as String?),
       musicPreferences: List<String>.from(json['musicPreferences'] ?? []),
-      createdAt: DateTime.parse(json['createdAt'] as String),
+      createdAt: json['createdAt'] != null
+          ? DateTime.parse(json['createdAt'] as String)
+          : DateTime.now(),
     );
   }
 

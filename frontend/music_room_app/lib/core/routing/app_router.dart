@@ -5,6 +5,10 @@ import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/core/repositories/mock_api_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_repository.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/core/repositories/friends_repository.dart';
+import 'package:music_room_app/core/repositories/rest_api_friends_repository.dart';
+import 'package:music_room_app/core/repositories/mock_friends_repository.dart';
+import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
@@ -28,8 +32,7 @@ import 'package:music_room_app/pages/profile/pages/profile_page.dart';
 import 'package:music_room_app/pages/auth/pages/login_page.dart';
 import 'package:music_room_app/pages/auth/pages/signup_page.dart';
 import 'package:music_room_app/pages/auth/pages/verify_email_page.dart';
-import 'package:music_room_app/pages/rooms/pages/rooms_list_page.dart';
-import 'package:music_room_app/pages/rooms/pages/room_detail_page.dart';
+import 'package:music_room_app/pages/friends/pages/friends_page.dart';
 import 'package:music_room_app/pages/player/pages/player_page.dart';
 import 'package:music_room_app/pages/start/pages/start_page.dart';
 import 'package:music_room_app/pages/not_found/pages/not_found_page.dart';
@@ -38,6 +41,7 @@ import 'package:music_room_app/core/routing/route_names.dart';
 //* Native lazy singletons
 RoomRepository? _roomRepository;
 RoomRepository? _remoteRepository;
+FriendsRepository? _friendsRepository;
 ApiClient? _apiClient;
 OfflineCache? _offlineCache;
 ConnectivitySyncManager? _syncManager;
@@ -47,6 +51,7 @@ ThemeProvider? _themeProvider;
 EventsProvider? _eventsProvider;
 PlaylistsProvider? _playlistsProvider;
 RoomsProvider? _roomsProvider;
+FriendsProvider? _friendsProvider;
 PlayerProvider? _playerProvider;
 SocketProvider? _socketProvider;
 
@@ -59,6 +64,7 @@ void setupLocator() {
   _eventsProvider ??= EventsProvider(repository: roomRepository);
   _playlistsProvider ??= PlaylistsProvider(repository: roomRepository);
   _roomsProvider ??= RoomsProvider(repository: roomRepository);
+  _friendsProvider ??= FriendsProvider(repository: friendsRepository);
   _playerProvider ??= PlayerProvider(
     authProvider: authProvider,
     roomsProvider: roomsProvider,
@@ -83,6 +89,16 @@ ApiClient get apiClient => _apiClient ??= ApiClient(
 
 RoomRepository get remoteRepository =>
     _remoteRepository ??= RestApiRepository(client: apiClient);
+
+FriendsRepository get friendsRepository {
+  if (_friendsRepository != null) return _friendsRepository!;
+  if (ApiConfig.useMockData) {
+    _friendsRepository = MockFriendsRepository();
+  } else {
+    _friendsRepository = RestApiFriendsRepository(client: apiClient);
+  }
+  return _friendsRepository!;
+}
 
 OfflineCache get offlineCache => _offlineCache ??= OfflineCache();
 
@@ -120,6 +136,8 @@ PlaylistsProvider get playlistsProvider =>
     _playlistsProvider ??= PlaylistsProvider(repository: roomRepository);
 RoomsProvider get roomsProvider =>
     _roomsProvider ??= RoomsProvider(repository: roomRepository);
+FriendsProvider get friendsProvider =>
+    _friendsProvider ??= FriendsProvider(repository: friendsRepository);
 PlayerProvider get playerProvider => _playerProvider ??= PlayerProvider(
   authProvider: authProvider,
   roomsProvider: roomsProvider,
@@ -313,22 +331,12 @@ class AppRouter {
             ),
           ),
           GoRoute(
-            path: routeRoomsList,
+            path: routeFriends,
             pageBuilder: (context, state) => _buildPageWithTransition(
               context: context,
               state: state,
-              child: const RoomsListPage(),
+              child: const FriendsPage(),
             ),
-            routes: [
-              GoRoute(
-                path: routeRoomDetail,
-                pageBuilder: (context, state) => _buildPageWithTransition(
-                  context: context,
-                  state: state,
-                  child: const RoomDetailPage(),
-                ),
-              ),
-            ],
           ),
           GoRoute(
             path: routeProfile,

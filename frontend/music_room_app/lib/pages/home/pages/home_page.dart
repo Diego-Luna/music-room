@@ -58,6 +58,7 @@ class _HomePageState extends State<HomePage> {
             slivers: [
               SliverAppBar(
                 expandedHeight: 120.0,
+                toolbarHeight: 76.0,
                 floating: true,
                 pinned:
                     false, // I set pinned to false so the title doesn't stay on top when scrolling down
@@ -82,7 +83,7 @@ class _HomePageState extends State<HomePage> {
                     onTap: () {
                       context.read<ThemeProvider>().toggleTheme();
                     },
-                    margin: const EdgeInsets.all(AppDimens.md),
+                    margin: const EdgeInsets.all(AppDimens.sm),
                     padding: const EdgeInsets.all(AppDimens.sm),
                     decoration: const BoxDecoration(shape: BoxShape.circle),
                     child: Icon(
@@ -95,7 +96,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   NeumorphicInteractiveContainer(
                     onTap: () {},
-                    margin: const EdgeInsets.all(AppDimens.md),
+                    margin: const EdgeInsets.all(AppDimens.sm),
                     padding: const EdgeInsets.all(AppDimens.sm),
                     decoration: const BoxDecoration(shape: BoxShape.circle),
                     child: Icon(
@@ -106,6 +107,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
+
               SliverToBoxAdapter(
                 child: FadeIn(
                   duration: const Duration(milliseconds: 600),

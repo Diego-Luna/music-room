@@ -27,11 +27,7 @@ class NavigationProvider extends ChangeNotifier {
       route: routePlaylists,
     ),
     NavDestination(label: 'Events', icon: Icons.event, route: routeEvents),
-    NavDestination(
-      label: 'Rooms',
-      icon: Icons.meeting_room,
-      route: routeRoomsList,
-    ),
+    NavDestination(label: 'Friends', icon: Icons.people, route: routeFriends),
     NavDestination(label: 'Profile', icon: Icons.person, route: routeProfile),
   ];
 
