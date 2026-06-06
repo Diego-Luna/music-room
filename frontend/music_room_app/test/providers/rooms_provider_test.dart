@@ -46,53 +46,6 @@ void main() {
       expect(roomsProvider.error, contains('API Error'));
     });
 
-    test('delegateControl calls repository and updates active room', () async {
-      final mockRoom = Room(
-        id: 'room-1',
-        name: 'Rock Room',
-        ownerId: 'user-1',
-        currentControllerId: 'user-2',
-      );
-
-      when(
-        () => mockRepository.delegateRoomControl(any(), any()),
-      ).thenAnswer((_) async {});
-      when(() => mockRepository.getRooms()).thenAnswer((_) async => [mockRoom]);
-
-      roomsProvider.selectRoom(mockRoom);
-      await roomsProvider.delegateControl('room-1', 'user-2');
-
-      verify(
-        () => mockRepository.delegateRoomControl('room-1', 'user-2'),
-      ).called(1);
-      expect(roomsProvider.currentActiveRoom?.currentControllerId, 'user-2');
-    });
-
-    test(
-      'revokeControl calls repository and resets controller to owner',
-      () async {
-        final mockRoom = Room(
-          id: 'room-1',
-          name: 'Rock Room',
-          ownerId: 'user-1',
-          currentControllerId: 'user-1',
-        );
-
-        when(
-          () => mockRepository.revokeRoomControl(any()),
-        ).thenAnswer((_) async {});
-        when(
-          () => mockRepository.getRooms(),
-        ).thenAnswer((_) async => [mockRoom]);
-
-        roomsProvider.selectRoom(mockRoom);
-        await roomsProvider.revokeControl('room-1');
-
-        verify(() => mockRepository.revokeRoomControl('room-1')).called(1);
-        expect(roomsProvider.currentActiveRoom?.currentControllerId, 'user-1');
-      },
-    );
-
     test(
       'handleDelegateUpdated updates current active room controller',
       () async {

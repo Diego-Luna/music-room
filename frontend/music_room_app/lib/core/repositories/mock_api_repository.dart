@@ -20,31 +20,31 @@ class MockApiRepository implements RoomRepository {
     return _rooms.firstWhere((r) => r.id == id);
   }
 
-	@override
-	Future<Room> createRoom({
-		required String name,
-		required RoomKind kind,
-		required bool isPublic,
-		String? description,
-		String? voteAccess,
-		String? voteWindow,
-		DateTime? voteStartsAt,
-		DateTime? voteEndsAt,
-		double? voteLocationLat,
-		double? voteLocationLng,
-		double? voteLocationRadiusM,
-	}) async {
-		await Future.delayed(const Duration(milliseconds: 50));
-		final room = Room(
-			id: 'room-${DateTime.now().millisecondsSinceEpoch}',
-			name: name,
-			ownerId: 'user-1',
-			kind: kind,
-			isPublic: isPublic,
-		);
-		_rooms.add(room);
-		return room;
-	}
+  @override
+  Future<Room> createRoom({
+    required String name,
+    required RoomKind kind,
+    required bool isPublic,
+    String? description,
+    String? voteAccess,
+    String? voteWindow,
+    DateTime? voteStartsAt,
+    DateTime? voteEndsAt,
+    double? voteLocationLat,
+    double? voteLocationLng,
+    double? voteLocationRadiusM,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final room = Room(
+      id: 'room-${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      ownerId: 'user-1',
+      kind: kind,
+      isPublic: isPublic,
+    );
+    _rooms.add(room);
+    return room;
+  }
 
   @override
   Future<void> deleteRoom(String id) async {
@@ -154,34 +154,17 @@ class MockApiRepository implements RoomRepository {
     _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
   }
 
-	// DELEGATE room
-	@override
-	Future<void> delegateRoomControl(String roomId, String userId) async {
-		await Future.delayed(const Duration(milliseconds: 50));
-		final idx = _rooms.indexWhere((r) => r.id == roomId);
-		if (idx == -1) return;
-		_rooms[idx] = _rooms[idx].copyWith(currentControllerId: userId);
-	}
-
-	@override
-	Future<void> revokeRoomControl(String roomId) async {
-		await Future.delayed(const Duration(milliseconds: 50));
-		final idx = _rooms.indexWhere((r) => r.id == roomId);
-		if (idx == -1) return;
-		_rooms[idx] = _rooms[idx].copyWith(
-			currentControllerId: _rooms[idx].ownerId,
-		);
-	}
-
-	@override
-	Future<List<Track>> searchSpotifyTracks(String query) async {
-		await Future.delayed(const Duration(milliseconds: 50));
-		final allTracks = _rooms.expand((r) => r.tracks).toList();
-		final cleaned = query.toLowerCase();
-		return allTracks
-				.where((t) =>
-						t.title.toLowerCase().contains(cleaned) ||
-						t.artist.toLowerCase().contains(cleaned))
-				.toList();
-	}
+  @override
+  Future<List<Track>> searchSpotifyTracks(String query) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final allTracks = _rooms.expand((r) => r.tracks).toList();
+    final cleaned = query.toLowerCase();
+    return allTracks
+        .where(
+          (t) =>
+              t.title.toLowerCase().contains(cleaned) ||
+              t.artist.toLowerCase().contains(cleaned),
+        )
+        .toList();
+  }
 }

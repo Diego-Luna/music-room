@@ -12,6 +12,9 @@ import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
+import 'package:music_room_app/core/repositories/device_repository.dart';
+import 'package:music_room_app/core/repositories/rest_device_repository.dart';
+import 'package:music_room_app/core/repositories/mock_device_repository.dart';
 import 'package:music_room_app/pages/auth/pages/forgot_page.dart';
 import 'package:music_room_app/pages/auth/pages/reset_password_page.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
@@ -54,6 +57,7 @@ RoomsProvider? _roomsProvider;
 FriendsProvider? _friendsProvider;
 PlayerProvider? _playerProvider;
 SocketProvider? _socketProvider;
+DeviceRepository? _deviceRepository;
 
 //* Initialize singletons. safe to call multiple times.
 void setupLocator() {
@@ -68,6 +72,7 @@ void setupLocator() {
   _playerProvider ??= PlayerProvider(
     authProvider: authProvider,
     roomsProvider: roomsProvider,
+    deviceRepository: deviceRepository,
   );
   _socketProvider ??= SocketProvider(
     authProvider: authProvider,
@@ -138,9 +143,21 @@ RoomsProvider get roomsProvider =>
     _roomsProvider ??= RoomsProvider(repository: roomRepository);
 FriendsProvider get friendsProvider =>
     _friendsProvider ??= FriendsProvider(repository: friendsRepository);
+
+DeviceRepository get deviceRepository {
+  if (_deviceRepository != null) return _deviceRepository!;
+  if (ApiConfig.useMockData) {
+    _deviceRepository = MockDeviceRepository();
+  } else {
+    _deviceRepository = RestDeviceRepository(client: apiClient);
+  }
+  return _deviceRepository!;
+}
+
 PlayerProvider get playerProvider => _playerProvider ??= PlayerProvider(
   authProvider: authProvider,
   roomsProvider: roomsProvider,
+  deviceRepository: deviceRepository,
 );
 
 SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
