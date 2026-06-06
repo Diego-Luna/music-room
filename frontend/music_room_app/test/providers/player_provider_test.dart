@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:music_room_app/core/audio/audio_player_service.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/models/user.dart';
@@ -10,6 +11,28 @@ import 'package:music_room_app/providers/player_provider.dart';
 class MockAuthProvider extends Mock implements AuthProvider {}
 
 class MockRoomsProvider extends Mock implements RoomsProvider {}
+
+/// No-op audio backend so the provider's logic is tested without the plugin.
+class FakeAudioPlayerService implements AudioPlayerService {
+  @override
+  Stream<Duration> get positionStream => const Stream.empty();
+  @override
+  Stream<Duration?> get durationStream => const Stream.empty();
+  @override
+  Stream<bool> get playingStream => const Stream.empty();
+  @override
+  Stream<void> get completedStream => const Stream.empty();
+  @override
+  Future<void> play(String url) async {}
+  @override
+  Future<void> pause() async {}
+  @override
+  Future<void> resume() async {}
+  @override
+  Future<void> stop() async {}
+  @override
+  Future<void> dispose() async {}
+}
 
 void main() {
   late PlayerProvider playerProvider;
@@ -22,6 +45,7 @@ void main() {
     playerProvider = PlayerProvider(
       authProvider: mockAuthProvider,
       roomsProvider: mockRoomsProvider,
+      audioService: FakeAudioPlayerService(),
     );
   });
 
@@ -39,6 +63,7 @@ void main() {
         title: 'Song',
         artist: 'Artist',
         durationMs: 180000,
+        previewUrl: 'https://example.com/preview.mp3',
       );
       when(() => mockRoomsProvider.currentActiveRoom).thenReturn(null);
 
@@ -88,6 +113,7 @@ void main() {
         title: 'Song',
         artist: 'Artist',
         durationMs: 180000,
+        previewUrl: 'https://example.com/preview.mp3',
       );
       final room = Room(
         id: 'r-1',
@@ -109,6 +135,23 @@ void main() {
       expect(playerProvider.currentTrack, equals(track));
       expect(playerProvider.isPlaying, true);
       expect(playerProvider.error, isNull);
+    });
+
+    test('playTrack() sets error when track has no preview url', () {
+      final track = Track(
+        id: 't-2',
+        providerId: 'p-2',
+        title: 'No Preview',
+        artist: 'Artist',
+        durationMs: 180000,
+      );
+      when(() => mockRoomsProvider.currentActiveRoom).thenReturn(null);
+
+      playerProvider.playTrack(track);
+
+      expect(playerProvider.currentTrack, equals(track));
+      expect(playerProvider.isPlaying, false);
+      expect(playerProvider.error, contains('No 30-second preview'));
     });
 
     test('pause() pauses playback if permission exists', () {

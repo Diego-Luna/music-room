@@ -95,6 +95,7 @@ class RestApiRepository implements RoomRepository {
         'artist': track.artist,
         'durationMs': track.durationMs,
         if (track.artworkUrl != null) 'artworkUrl': track.artworkUrl,
+        if (track.previewUrl != null) 'previewUrl': track.previewUrl,
       },
     );
     return Track.fromJson(response.data);
@@ -138,6 +139,7 @@ class RestApiRepository implements RoomRepository {
         'artist': track.artist,
         'durationMs': track.durationMs,
         if (track.artworkUrl != null) 'artworkUrl': track.artworkUrl,
+        if (track.previewUrl != null) 'previewUrl': track.previewUrl,
       },
     );
     return Track.fromJson(response.data);
@@ -175,22 +177,25 @@ class RestApiRepository implements RoomRepository {
   }
 
   @override
-  Future<List<Track>> searchSpotifyTracks(String query) async {
+  Future<List<Track>> searchTracks(String query) async {
     final response = await _client.get(
       ApiConfig.search,
       queryParameters: {'q': query},
     );
     final data = response.data as List;
     return data.map((json) {
-      final artistsList = json['artists'] as List;
+      // Back (Deezer) returns: providerId, title, artist, durationMs,
+      // artworkUrl, previewUrl. We key our local id on providerId.
+      final providerId = json['providerId'] as String;
       return Track(
-        id: json['id'] as String,
-        providerId: json['id'] as String,
-        provider: 'spotify',
-        title: json['name'] as String,
-        artist: artistsList.join(', '),
+        id: providerId,
+        providerId: providerId,
+        provider: 'deezer',
+        title: json['title'] as String,
+        artist: json['artist'] as String,
         durationMs: json['durationMs'] as int,
         artworkUrl: json['artworkUrl'] as String?,
+        previewUrl: json['previewUrl'] as String?,
       );
     }).toList();
   }

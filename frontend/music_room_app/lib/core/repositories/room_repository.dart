@@ -51,6 +51,6 @@ abstract class RoomRepository {
 	Future<void> delegateRoomControl(String roomId, String userId);
 	Future<void> revokeRoomControl(String roomId);
 
-	// * Search Spotify tracks
-	Future<List<Track>> searchSpotifyTracks(String query);
+	// * Search tracks via the music provider (Deezer)
+	Future<List<Track>> searchTracks(String query);
 }
