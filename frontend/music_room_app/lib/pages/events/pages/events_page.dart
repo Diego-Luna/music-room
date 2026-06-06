@@ -239,11 +239,6 @@ class _EventsPageState extends State<EventsPage> {
                 SliverToBoxAdapter(
                   child: Builder(
                     builder: (context) {
-                      final votedTracks = activeEvent.tracks
-                          .where(
-                            (t) => eventsProvider.votedTrackIds.contains(t.id),
-                          )
-                          .toList();
                       if (eventsProvider.votedTrackIds.isEmpty) {
                         return const SizedBox.shrink();
                       }

@@ -11,8 +11,6 @@ import 'package:music_room_app/providers/theme_provider.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
-import 'package:music_room_app/models/room.dart';
-import 'package:music_room_app/models/track.dart';
 
 /// Apple Music / Youtube Music style home page
 class HomePage extends StatefulWidget {
@@ -40,10 +38,10 @@ class _HomePageState extends State<HomePage> {
     final mixes = playlistsProvider.playlists;
     final recentEvents = eventsProvider.events;
 
-    final allTracks = [
+    final allTracks = {
       ...playlistsProvider.playlists.expand((r) => r.tracks),
       ...eventsProvider.events.expand((r) => r.tracks),
-    ].toSet().toList();
+    }.toList();
 
     final topSongs = allTracks;
 
