@@ -254,7 +254,7 @@ class _ProfilePageState extends State<ProfilePage> {
             Center(
               child: NeumorphicIconButton(
                 icon: Icons.settings,
-                onTap: () => context.push(routeSettings),
+                onTap: () => _showSettingsModal(context, theme),
                 tooltip: 'Settings',
               ),
             ),
@@ -299,7 +299,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: AppDimens.xs),
                 Text(
-                  user.email ?? '',
+                  user.email,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.disabledColor,
                   ),
@@ -429,6 +429,97 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       ],
+    );
+  }
+
+  // * Bottom Sheet Modal to choose settings
+  void _showSettingsModal(BuildContext context, ThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(AppDimens.radiusLarge),
+              topRight: Radius.circular(AppDimens.radiusLarge),
+            ),
+            boxShadow: theme.extension<AppDesignTokens>()?.neumorphicShadow,
+          ),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppDimens.xl,
+            horizontal: AppDimens.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Settings',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: AppTypography.bold,
+                ),
+              ),
+              const SizedBox(height: AppDimens.xxl),
+              NeumorphicInteractiveContainer(
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(routeSettings);
+                },
+                padding: const EdgeInsets.all(AppDimens.md),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.manage_accounts,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: AppDimens.md),
+                    Expanded(
+                      child: Text(
+                        'Account Settings',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: AppTypography.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppDimens.lg),
+              NeumorphicInteractiveContainer(
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(routeDevices);
+                },
+                padding: const EdgeInsets.all(AppDimens.md),
+                child: Row(
+                  children: [
+                    Icon(Icons.devices_other, color: theme.colorScheme.primary),
+                    const SizedBox(width: AppDimens.md),
+                    Expanded(
+                      child: Text(
+                        'Devices & Delegation',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: AppTypography.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppDimens.xl),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -217,6 +217,10 @@ class OfflineRoomRepository implements RoomRepository {
   Future<void> leaveRoom(String id) => _remote.leaveRoom(id);
 
   @override
+  Future<void> inviteToRoom(String roomId, String userId) =>
+      _remote.inviteToRoom(roomId, userId);
+
+  @override
   Future<List<Track>> getVoteTracks(String roomId) async {
     if (!await _isOnline()) {
       return _cache.getRoomById(roomId)?.tracks ?? [];
@@ -330,12 +334,28 @@ class OfflineRoomRepository implements RoomRepository {
       _remote.removePlaylistTrack(roomId, trackId);
 
   @override
-  Future<List<Track>> searchSpotifyTracks(String query) async {
+  Future<List<Track>> searchTracks(String query) async {
     if (!await _isOnline()) {
-      throw Exception(
-        'Search failed. Make sure you are online and Spotify is connected.',
-      );
+      throw Exception('Search failed. Make sure you are online.');
     }
-    return _remote.searchSpotifyTracks(query);
+    return _remote.searchTracks(query);
+  }
+
+  @override
+  Future<void> delegateRoomControl(String roomId, String userId) async {
+    if (await _isOnline()) {
+      await _remote.delegateRoomControl(roomId, userId);
+    } else {
+      throw Exception('Cannot delegate control while offline.');
+    }
+  }
+
+  @override
+  Future<void> revokeRoomControl(String roomId) async {
+    if (await _isOnline()) {
+      await _remote.revokeRoomControl(roomId);
+    } else {
+      throw Exception('Cannot revoke control while offline.');
+    }
   }
 }

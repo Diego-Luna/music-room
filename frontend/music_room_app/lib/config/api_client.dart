@@ -65,6 +65,7 @@ class ApiClient {
               path == ApiConfig.resetPassword ||
               path == ApiConfig.verifyEmail ||
               path == ApiConfig.resendVerification ||
+              path == ApiConfig.socialLogin ||
               path == '/health';
           if (!isPublic) {
             final token = await _tokenStorage.accessToken;

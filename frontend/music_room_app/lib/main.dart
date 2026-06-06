@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
@@ -11,16 +10,23 @@ void main() async {
   setUrlStrategy(HashUrlStrategy());
   WidgetsFlutterBinding.ensureInitialized();
 
-  try {} catch (e) {
-    if (kDebugMode) {
-      print('Error initializing Firebase: $e');
-    }
-  }
-
   setupLocator();
   await HiveConfig.initialize();
   syncManager.startMonitoring();
   await authProvider.tryAutoLogin();
+
+  // * Register/refresh the device push token whenever the session changes.
+  // Best-effort bonus feature — never blocks startup or auth.
+  authProvider.addListener(() {
+    if (authProvider.signedIn) {
+      pushTokenService.registerIfNeeded();
+    } else {
+      pushTokenService.reset();
+    }
+  });
+  if (authProvider.signedIn) {
+    pushTokenService.registerIfNeeded();
+  }
 
   runApp(const AppState());
 }

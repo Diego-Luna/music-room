@@ -9,6 +9,7 @@ import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.da
 import 'package:music_room_app/pages/events/widgets/swipeable_track_card.dart';
 import 'package:music_room_app/pages/events/widgets/suggest_track_dialog.dart';
 import 'package:music_room_app/pages/events/widgets/create_event_dialog.dart';
+import 'package:music_room_app/pages/events/widgets/invite_friend_dialog.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
@@ -115,6 +116,14 @@ class _EventsPageState extends State<EventsPage> {
                       tooltip: 'Create Event',
                       onPressed: () => _showCreateEventDialog(context),
                     ),
+                    // * Invitations only matter for private rooms.
+                    if (!activeEvent.isPublic)
+                      IconButton(
+                        icon: const Icon(Icons.person_add_alt_1),
+                        tooltip: 'Invite Friend',
+                        onPressed: () =>
+                            _showInviteFriendDialog(context, activeEvent),
+                      ),
                     IconButton(
                       icon: const Icon(Icons.add),
                       tooltip: 'Suggest Song',
@@ -341,6 +350,14 @@ class _EventsPageState extends State<EventsPage> {
       context: context,
       isScrollControlled: true,
       builder: (context) => SuggestTrackDialog(room: room),
+    );
+  }
+
+  void _showInviteFriendDialog(BuildContext context, Room room) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => InviteFriendDialog(room: room),
     );
   }
 

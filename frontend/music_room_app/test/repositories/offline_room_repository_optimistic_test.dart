@@ -24,7 +24,7 @@ void main() {
     registerFallbackValue(FakeRoom());
   });
 
-  test('searchSpotifyTracks throws when offline', () async {
+  test('searchTracks throws when offline', () async {
     final remote = MockRoomRepository();
     final cache = MockOfflineCache();
     final connectivity = MockConnectivity();
@@ -39,7 +39,7 @@ void main() {
       connectivity: connectivity,
     );
 
-    expect(() => repo.searchSpotifyTracks('test'), throwsA(isA<Exception>()));
+    expect(() => repo.searchTracks('test'), throwsA(isA<Exception>()));
   });
 
   test(

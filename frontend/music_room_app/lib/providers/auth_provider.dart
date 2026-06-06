@@ -3,15 +3,22 @@ import 'package:dio/dio.dart';
 import 'package:music_room_app/config/api_client.dart';
 import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/config/token_storage.dart';
+import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/models/user.dart';
+import 'package:music_room_app/models/session_info.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiClient _apiClient;
   final TokenStorage _tokenStorage;
+  final SocialAuthService _socialAuth;
 
-  AuthProvider({ApiClient? apiClient, TokenStorage? tokenStorage})
-    : _apiClient = apiClient ?? ApiClient(),
-      _tokenStorage = tokenStorage ?? TokenStorage();
+  AuthProvider({
+    ApiClient? apiClient,
+    TokenStorage? tokenStorage,
+    SocialAuthService? socialAuth,
+  }) : _apiClient = apiClient ?? ApiClient(),
+       _tokenStorage = tokenStorage ?? TokenStorage(),
+       _socialAuth = socialAuth ?? DefaultSocialAuthService();
 
   User? _user;
   bool _isLoading = false;
@@ -98,6 +105,74 @@ class AuthProvider extends ChangeNotifier {
       _error = e.response?.data['message']?.toString() ?? 'Login failed';
     } catch (e) {
       _error = 'An unexpected error occurred';
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Login or register through a social provider (Google / Facebook).
+  /// Runs the native OAuth flow, then exchanges the provider token at
+  /// `POST /auth/social` for our session tokens. Returns true on success.
+  Future<bool> socialLogin(SocialProvider provider) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      final providerToken = await _socialAuth.signIn(provider);
+      if (providerToken == null) {
+        // User cancelled the native flow — not an error.
+        return false;
+      }
+
+      final response = await _apiClient.post(
+        ApiConfig.socialLogin,
+        data: {'provider': provider.apiValue, 'accessToken': providerToken},
+      );
+
+      final accessToken = response.data['accessToken'] as String;
+      final refreshToken = response.data['refreshToken'] as String;
+
+      await _tokenStorage.saveTokens(accessToken, refreshToken);
+      _user = User.decodeFromToken(accessToken);
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      _error = e.response?.data['message']?.toString() ?? 'Social login failed';
+      return false;
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// Link a social provider to the currently signed-in account via
+  /// `POST /auth/link-social` (protected route — token attached automatically).
+  /// Returns true on success.
+  Future<bool> linkSocial(SocialProvider provider) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      final providerToken = await _socialAuth.signIn(provider);
+      if (providerToken == null) {
+        return false; // cancelled
+      }
+
+      await _apiClient.post(
+        ApiConfig.linkSocial,
+        data: {'provider': provider.apiValue, 'accessToken': providerToken},
+      );
+      notifyListeners();
+      return true;
+    } on DioException catch (e) {
+      _error =
+          e.response?.data['message']?.toString() ?? 'Linking account failed';
+      return false;
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      return false;
     } finally {
       _setLoading(false);
     }
@@ -202,6 +277,21 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  // ── Active sessions (bonus) ──────────────────────────────────────
+  // GET /auth/sessions — list active refresh-token sessions.
+  Future<List<SessionInfo>> listSessions() async {
+    final response = await _apiClient.get(ApiConfig.sessions);
+    final data = response.data as List;
+    return data
+        .map((json) => SessionInfo.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  // DELETE /auth/sessions/:id — revoke one session.
+  Future<void> revokeSession(String sessionId) async {
+    await _apiClient.delete('${ApiConfig.sessions}/$sessionId');
   }
 
   void _setLoading(bool value) {

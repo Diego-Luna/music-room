@@ -15,6 +15,7 @@ import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/core/repositories/device_repository.dart';
 import 'package:music_room_app/core/repositories/rest_device_repository.dart';
 import 'package:music_room_app/core/repositories/mock_device_repository.dart';
+import 'package:music_room_app/core/services/push_token_service.dart';
 import 'package:music_room_app/pages/auth/pages/forgot_page.dart';
 import 'package:music_room_app/pages/auth/pages/reset_password_page.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
@@ -25,12 +26,15 @@ import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/rooms_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
+import 'package:music_room_app/core/audio/audio_player_service.dart';
 import 'package:music_room_app/pages/home/pages/home_page.dart';
 import 'package:music_room_app/pages/main/pages/main_screen.dart';
 import 'package:music_room_app/pages/playlists/pages/playlists_page.dart';
 import 'package:music_room_app/pages/playlists/pages/playlist_detail_page.dart';
 import 'package:music_room_app/pages/events/pages/events_page.dart';
 import 'package:music_room_app/pages/settings/pages/settings_page.dart';
+import 'package:music_room_app/pages/settings/pages/devices_page.dart';
+import 'package:music_room_app/pages/subscription/pages/subscription_page.dart';
 import 'package:music_room_app/pages/profile/pages/profile_page.dart';
 import 'package:music_room_app/pages/auth/pages/login_page.dart';
 import 'package:music_room_app/pages/auth/pages/signup_page.dart';
@@ -48,6 +52,7 @@ FriendsRepository? _friendsRepository;
 ApiClient? _apiClient;
 OfflineCache? _offlineCache;
 ConnectivitySyncManager? _syncManager;
+PushTokenService? _pushTokenService;
 NavigationProvider? _navigationProvider;
 AuthProvider? _authProvider;
 ThemeProvider? _themeProvider;
@@ -73,6 +78,7 @@ void setupLocator() {
     authProvider: authProvider,
     roomsProvider: roomsProvider,
     deviceRepository: deviceRepository,
+    audioService: JustAudioPlayerService(),
   );
   _socketProvider ??= SocketProvider(
     authProvider: authProvider,
@@ -112,6 +118,9 @@ ConnectivitySyncManager get syncManager =>
       remoteRepository: remoteRepository,
       cache: offlineCache,
     );
+
+PushTokenService get pushTokenService =>
+    _pushTokenService ??= PushTokenService(client: apiClient);
 
 RoomRepository get roomRepository {
   if (_roomRepository != null) return _roomRepository!;
@@ -158,6 +167,7 @@ PlayerProvider get playerProvider => _playerProvider ??= PlayerProvider(
   authProvider: authProvider,
   roomsProvider: roomsProvider,
   deviceRepository: deviceRepository,
+  audioService: JustAudioPlayerService(),
 );
 
 SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
@@ -271,6 +281,22 @@ class AppRouter {
           context: context,
           state: state,
           child: const SettingsPage(),
+        ),
+      ),
+      GoRoute(
+        path: routeDevices,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context: context,
+          state: state,
+          child: const DevicesPage(),
+        ),
+      ),
+      GoRoute(
+        path: routeSubscription,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context: context,
+          state: state,
+          child: const SubscriptionPage(),
         ),
       ),
       GoRoute(

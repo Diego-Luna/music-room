@@ -29,6 +29,9 @@ abstract class RoomRepository {
 
   Future<void> leaveRoom(String id);
 
+  // * Invite a user to a (private) room — POST /rooms/:id/invitations
+  Future<void> inviteToRoom(String roomId, String userId);
+
   // * VOTE room
   Future<List<Track>> getVoteTracks(String roomId);
 
@@ -58,7 +61,10 @@ abstract class RoomRepository {
 
   Future<void> removePlaylistTrack(String roomId, String trackId);
 
-  // * Search Spotify tracks
-  // Todo: is gonna change for Deezer
-  Future<List<Track>> searchSpotifyTracks(String query);
+  // *DELEGATE room
+  Future<void> delegateRoomControl(String roomId, String userId);
+  Future<void> revokeRoomControl(String roomId);
+
+  // * Search tracks via the music provider (Deezer)
+  Future<List<Track>> searchTracks(String query);
 }

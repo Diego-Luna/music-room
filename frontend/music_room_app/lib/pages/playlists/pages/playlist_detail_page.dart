@@ -10,6 +10,7 @@ import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/models/room.dart';
+import 'package:music_room_app/widgets/track_search_sheet.dart';
 
 class PlaylistDetailPage extends StatefulWidget {
   const PlaylistDetailPage({super.key});
@@ -47,57 +48,16 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   void _showAddTrackDialog(
     BuildContext context,
     Room playlist,
-    ThemeData theme,
     PlaylistsProvider playlistsProvider,
   ) {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
-    final navigator = Navigator.of(context);
     showModalBottomSheet(
       context: context,
-      builder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(AppDimens.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Add Song to Playlist', style: theme.textTheme.titleLarge),
-              const SizedBox(height: AppDimens.md),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: playlist.tracks.length,
-                  itemBuilder: (context, index) {
-                    final track = playlist.tracks[index];
-                    return ListTile(
-                      leading: const Icon(Icons.music_note),
-                      title: Text(track.title),
-                      subtitle: Text(track.artist),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.add_circle, color: Colors.green),
-                        onPressed: () {
-                          playlistsProvider.addTrack(playlist.id, track).then((
-                            _,
-                          ) {
-                            navigator.pop();
-                            scaffoldMessenger.showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  '${track.title} added to playlist!',
-                                ),
-                                duration: const Duration(seconds: 1),
-                              ),
-                            );
-                          });
-                        },
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+      isScrollControlled: true,
+      builder: (context) => TrackSearchSheet(
+        title: 'Add Song to Playlist',
+        onSelected: (track) => playlistsProvider.addTrack(playlist.id, track),
+        confirmationBuilder: (track) => '${track.title} added to playlist!',
+      ),
     );
   }
 
@@ -135,7 +95,6 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                 onPressed: () => _showAddTrackDialog(
                   context,
                   playlist,
-                  theme,
                   playlistsProvider,
                 ),
               ),
@@ -208,7 +167,6 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                       onPressed: () => _showAddTrackDialog(
                         context,
                         playlist,
-                        theme,
                         playlistsProvider,
                       ),
                     ),

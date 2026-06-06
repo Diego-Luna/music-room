@@ -9,6 +9,7 @@ import 'package:music_room_app/core/animations/neumorphic_interactive_container.
 import 'package:music_room_app/pages/auth/widgets/auth_text_field.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 
 class LoginPage extends StatefulWidget {
@@ -44,6 +45,23 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       }
+    }
+  }
+
+  void _handleSocial(SocialProvider provider) async {
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.socialLogin(provider);
+
+    if (!mounted) return;
+    if (ok && auth.signedIn) {
+      context.go(routeHome);
+    } else if (auth.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(auth.error!),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
@@ -136,7 +154,7 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       Expanded(
                         child: NeumorphicInteractiveContainer(
-                          onTap: _handleLogin,
+                          onTap: () => _handleSocial(SocialProvider.google),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(
                               AppDimens.radiusMedium,
@@ -163,7 +181,7 @@ class _LoginPageState extends State<LoginPage> {
                       const SizedBox(width: AppDimens.lg),
                       Expanded(
                         child: NeumorphicInteractiveContainer(
-                          onTap: _handleLogin,
+                          onTap: () => _handleSocial(SocialProvider.facebook),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(
                               AppDimens.radiusMedium,

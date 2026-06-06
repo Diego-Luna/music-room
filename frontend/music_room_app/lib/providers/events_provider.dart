@@ -73,6 +73,12 @@ class EventsProvider extends ChangeNotifier {
     }
   }
 
+  // * Invite a friend to a (private) room — POST /rooms/:id/invitations.
+  // Throws on failure so the UI can surface the backend message.
+  Future<void> inviteFriend(String roomId, String userId) async {
+    await _repository.inviteToRoom(roomId, userId);
+  }
+
   Future<void> suggestTrack(String roomId, Track track) async {
     try {
       await _repository.addVoteTrack(roomId, track);

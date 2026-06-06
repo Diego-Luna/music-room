@@ -55,10 +55,7 @@ class RestDeviceRepository implements DeviceRepository {
   }) async {
     await _client.post(
       '/delegations/$delegationId/playback/play',
-      data: {
-        if (uris != null) 'uris': uris,
-        if (contextUri != null) 'contextUri': contextUri,
-      },
+      data: {'uris': ?uris, 'contextUri': ?contextUri},
     );
   }
 

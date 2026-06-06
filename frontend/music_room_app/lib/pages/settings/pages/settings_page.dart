@@ -1,117 +1,33 @@
 import 'package:flutter/material.dart';
-import 'package:music_room_app/core/repositories/device_repository.dart';
-import 'package:music_room_app/core/routing/app_router.dart';
-import 'package:music_room_app/models/account_device.dart';
-import 'package:music_room_app/models/music_control_delegation.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:music_room_app/core/auth/social_auth_service.dart';
+import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/providers/auth_provider.dart';
+import 'package:music_room_app/pages/settings/widgets/active_sessions_section.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
-import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
-import 'package:music_room_app/widgets/primary_button.dart';
-import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 
-class SettingsPage extends StatefulWidget {
+//* Settings page (Account Settings).
+class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
 
-  @override
-  State<SettingsPage> createState() => _SettingsPageState();
-}
-
-class _SettingsPageState extends State<SettingsPage> {
-  final DeviceRepository _deviceRepo = deviceRepository;
-  bool _isLoading = true;
-  String? _error;
-
-  List<AccountDevice> _myDevices = [];
-  List<MusicControlDelegation> _controlledDevices = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final results = await Future.wait([
-        _deviceRepo.getDevices(),
-        _deviceRepo.getControlledDevices(),
-      ]);
-
-      setState(() {
-        _myDevices = results[0] as List<AccountDevice>;
-        _controlledDevices = results[1] as List<MusicControlDelegation>;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() {
-        _error = 'Failed to load devices: $e';
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _delegateControl(String deviceId) async {
-    final delegateUserId = await _promptForUserId(
-      'Delegate Control',
-      'Enter user ID to delegate control to:',
-    );
-    if (delegateUserId == null || delegateUserId.isEmpty) return;
-
-    try {
-      await _deviceRepo.delegateControl(deviceId, delegateUserId);
-      _showResult(true, 'Delegation successful');
-      _loadData();
-    } catch (e) {
-      _showResult(false, e.toString());
-    }
-  }
-
-  Future<void> _revokeControl(String deviceId) async {
-    try {
-      await _deviceRepo.revokeControl(deviceId);
-      _showResult(true, 'Control revoked');
-      _loadData();
-    } catch (e) {
-      _showResult(false, e.toString());
-    }
-  }
-
-  Future<String?> _promptForUserId(String title, String message) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(hintText: message),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showResult(bool ok, String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+  Future<void> _linkAccount(
+    BuildContext context,
+    SocialProvider provider,
+  ) async {
+    final auth = context.read<AuthProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await auth.linkSocial(provider);
+    if (!context.mounted) return;
+    messenger.showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Text(
+          ok
+              ? '${provider.label} account linked.'
+              : (auth.error ?? 'Could not link ${provider.label}.'),
+        ),
         backgroundColor: ok ? Colors.green : Colors.redAccent,
       ),
     );
@@ -125,271 +41,124 @@ class _SettingsPageState extends State<SettingsPage> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
         toolbarHeight: 76.0,
-        title: const Text('Settings & Devices'),
+        title: const Text('Account Settings'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        actions: [
-          Center(
-            child: NeumorphicIconButton(
-              icon: Icons.refresh,
-              onTap: _loadData,
-              tooltip: 'Refresh',
-            ),
-          ),
-          const SizedBox(width: AppDimens.md),
-        ],
       ),
       body: Stack(
         children: [
           const Opacity(opacity: 0.3, child: BackgroundFloaters()),
-          _isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-              ? _buildError(theme)
-              : _buildContent(theme),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildError(ThemeData theme) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(_error!, style: theme.textTheme.bodyLarge),
-          const SizedBox(height: AppDimens.lg),
-          PrimaryButton(label: 'Retry', onPressed: _loadData),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContent(ThemeData theme) {
-    return ListView(
-      padding: const EdgeInsets.all(AppDimens.xl),
-      children: [
-        Text(
-          'My Devices',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: AppTypography.bold,
-          ),
-        ),
-        const SizedBox(height: AppDimens.md),
-        if (_myDevices.isEmpty)
-          const Text('No devices found.')
-        else
-          ..._myDevices.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final dev = entry.value;
-            return StaggeredList(
-              index: idx,
-              child: _buildDeviceCard(theme, dev),
-            );
-          }),
-
-        const SizedBox(height: AppDimens.xxl),
-
-        Text(
-          'Controlled Devices (Delegated to me)',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: AppTypography.bold,
-          ),
-        ),
-        const SizedBox(height: AppDimens.md),
-        if (_controlledDevices.isEmpty)
-          const Text('You do not control any devices.')
-        else
-          ..._controlledDevices.asMap().entries.map((entry) {
-            final idx = entry.key;
-            final del = entry.value;
-            return StaggeredList(
-              index: idx,
-              child: _buildControlledDeviceCard(theme, del),
-            );
-          }),
-      ],
-    );
-  }
-
-  Widget _buildDeviceCard(ThemeData theme, AccountDevice device) {
-    final hasDelegation = device.delegation != null;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppDimens.md),
-      child: NeumorphicInteractiveContainer(
-        onTap: () {},
-        padding: const EdgeInsets.all(AppDimens.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.devices, color: theme.colorScheme.primary),
-                const SizedBox(width: AppDimens.md),
-                Expanded(
-                  child: Text(
-                    device.userAgent ?? 'Unknown Device',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: AppTypography.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: AppDimens.sm),
-            SelectableText(
-              'Device ID: ${device.deviceId}',
-              style: theme.textTheme.bodySmall ?? const TextStyle(),
-            ),
-            if (device.lastSeenAt != null)
+          ListView(
+            padding: const EdgeInsets.all(AppDimens.xl),
+            children: [
               Text(
-                'Last seen: ${device.lastSeenAt!.toLocal()}',
-                style: theme.textTheme.bodySmall,
-              ),
-
-            const SizedBox(height: AppDimens.md),
-            if (hasDelegation) ...[
-              Container(
-                padding: const EdgeInsets.all(AppDimens.sm),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.error.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
+                'Subscription',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: AppTypography.bold,
                 ),
+              ),
+              const SizedBox(height: AppDimens.md),
+              NeumorphicInteractiveContainer(
+                onTap: () => context.push(routeSubscription),
+                padding: const EdgeInsets.all(AppDimens.md),
                 child: Row(
                   children: [
                     Icon(
-                      Icons.warning,
-                      color: theme.colorScheme.error,
-                      size: 16,
+                      Icons.workspace_premium,
+                      color: theme.colorScheme.primary,
                     ),
-                    const SizedBox(width: AppDimens.sm),
+                    const SizedBox(width: AppDimens.md),
                     Expanded(
-                      child: Text(
-                        'Delegated to: ${device.delegation!.delegateUserId}',
-                        style: TextStyle(
-                          color: theme.colorScheme.error,
-                          fontSize: 12,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Manage subscription',
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: AppTypography.bold,
+                            ),
+                          ),
+                          Text(
+                            'Free / Premium plans',
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
                       ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurface,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: AppDimens.sm),
-              NeumorphicInteractiveContainer(
-                onTap: () => _revokeControl(device.deviceId),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.lg,
-                  vertical: AppDimens.md,
-                ),
-                child: Center(
-                  child: Text(
-                    'Revoke Control',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: AppTypography.bold,
-                      color: theme.colorScheme.error,
-                    ),
-                  ),
-                ),
-              ),
-            ] else ...[
-              NeumorphicInteractiveContainer(
-                onTap: () => _delegateControl(device.deviceId),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppDimens.lg,
-                  vertical: AppDimens.md,
-                ),
-                child: Center(
-                  child: Text(
-                    'Delegate Control',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      fontWeight: AppTypography.bold,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+              const SizedBox(height: AppDimens.xxl),
 
-  Widget _buildControlledDeviceCard(
-    ThemeData theme,
-    MusicControlDelegation delegation,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppDimens.md),
-      child: NeumorphicInteractiveContainer(
-        onTap: () {},
-        padding: const EdgeInsets.all(AppDimens.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.settings_remote, color: theme.colorScheme.secondary),
-                const SizedBox(width: AppDimens.md),
-                Expanded(
-                  child: SelectableText(
-                    'Owner: ${delegation.ownerId}',
-                    style:
-                        theme.textTheme.titleMedium?.copyWith(
+              Text(
+                'Linked accounts',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: AppTypography.bold,
+                ),
+              ),
+              const SizedBox(height: AppDimens.md),
+              NeumorphicInteractiveContainer(
+                onTap: () => _linkAccount(context, SocialProvider.google),
+                padding: const EdgeInsets.all(AppDimens.md),
+                child: Row(
+                  children: [
+                    const Icon(Icons.g_mobiledata, size: 30),
+                    const SizedBox(width: AppDimens.md),
+                    Expanded(
+                      child: Text(
+                        'Link Google account',
+                        style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: AppTypography.bold,
-                        ) ??
-                        const TextStyle(),
-                  ),
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: AppDimens.sm),
-            SelectableText(
-              'Device ID: ${delegation.deviceId}',
-              style: theme.textTheme.bodySmall ?? const TextStyle(),
-            ),
-            Text(
-              'Granted At: ${delegation.grantedAt.toLocal()}',
-              style: theme.textTheme.bodySmall,
-            ),
-            const SizedBox(height: AppDimens.md),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                NeumorphicIconButton(
-                  icon: Icons.play_arrow,
-                  onTap: () => _deviceRepo.playPlayback(delegation.id),
-                  tooltip: 'Play',
+              ),
+              const SizedBox(height: AppDimens.md),
+              NeumorphicInteractiveContainer(
+                onTap: () => _linkAccount(context, SocialProvider.facebook),
+                padding: const EdgeInsets.all(AppDimens.md),
+                child: Row(
+                  children: [
+                    const Icon(Icons.facebook, color: Colors.blue),
+                    const SizedBox(width: AppDimens.md),
+                    Expanded(
+                      child: Text(
+                        'Link Facebook account',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: AppTypography.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ],
                 ),
-                NeumorphicIconButton(
-                  icon: Icons.pause,
-                  onTap: () => _deviceRepo.pausePlayback(delegation.id),
-                  tooltip: 'Pause',
+              ),
+              const SizedBox(height: AppDimens.xxl),
+
+              Text(
+                'Active Sessions',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: AppTypography.bold,
                 ),
-                NeumorphicIconButton(
-                  icon: Icons.skip_previous,
-                  onTap: () => _deviceRepo.previousTrack(delegation.id),
-                  tooltip: 'Previous',
-                ),
-                NeumorphicIconButton(
-                  icon: Icons.skip_next,
-                  onTap: () => _deviceRepo.nextTrack(delegation.id),
-                  tooltip: 'Next',
-                ),
-              ],
-            ),
-          ],
-        ),
+              ),
+              const SizedBox(height: AppDimens.md),
+              const ActiveSessionsSection(),
+            ],
+          ),
+        ],
       ),
     );
   }
