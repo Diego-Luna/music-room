@@ -57,17 +57,25 @@ class Track {
     if (position != null) 'position': position,
   };
 
-  Track copyWith({int? score, String? position}) {
-    return Track(
-      id: id,
-      providerId: providerId,
-      provider: provider,
-      title: title,
-      artist: artist,
-      durationMs: durationMs,
-      artworkUrl: artworkUrl,
-      score: score ?? this.score,
-      position: position ?? this.position,
-    );
-  }
+	Track copyWith({int? score, String? position}) {
+		return Track(
+			id: id,
+			providerId: providerId,
+			provider: provider,
+			title: title,
+			artist: artist,
+			durationMs: durationMs,
+			artworkUrl: artworkUrl,
+			score: score ?? this.score,
+			position: position ?? this.position,
+		);
+	}
+
+	@override
+	bool operator ==(Object other) =>
+		identical(this, other) ||
+		other is Track && runtimeType == other.runtimeType && id == other.id;
+
+	@override
+	int get hashCode => id.hashCode;
 }

@@ -124,6 +124,7 @@ export class PlaylistService {
       data: { position },
     });
     this.realtime?.emitToRoom(roomId, 'playlist:item-moved', {
+      roomId,
       trackId,
       position,
     });

@@ -3,15 +3,12 @@ import 'package:music_room_app/models/track.dart';
 // * The same like the backend `Room.kind`
 enum RoomKind {
   vote,
-  playlist,
-  delegate;
+  playlist;
 
   static RoomKind fromString(String? value) {
     switch (value?.toUpperCase()) {
       case 'PLAYLIST':
         return RoomKind.playlist;
-      case 'DELEGATE':
-        return RoomKind.delegate;
       default:
         return RoomKind.vote;
     }
@@ -76,22 +73,30 @@ class Room {
     'createdAt': createdAt.toIso8601String(),
   };
 
-  Room copyWith({
-    String? name,
-    RoomKind? kind,
-    bool? isPublic,
-    List<Track>? tracks,
-    String? currentControllerId,
-  }) {
-    return Room(
-      id: id,
-      name: name ?? this.name,
-      ownerId: ownerId,
-      kind: kind ?? this.kind,
-      isPublic: isPublic ?? this.isPublic,
-      tracks: tracks ?? this.tracks,
-      currentControllerId: currentControllerId ?? this.currentControllerId,
-      createdAt: createdAt,
-    );
-  }
+	Room copyWith({
+		String? name,
+		RoomKind? kind,
+		bool? isPublic,
+		List<Track>? tracks,
+		String? currentControllerId,
+	}) {
+		return Room(
+			id: id,
+			name: name ?? this.name,
+			ownerId: ownerId,
+			kind: kind ?? this.kind,
+			isPublic: isPublic ?? this.isPublic,
+			tracks: tracks ?? this.tracks,
+			currentControllerId: currentControllerId ?? this.currentControllerId,
+			createdAt: createdAt,
+		);
+	}
+
+	@override
+	bool operator ==(Object other) =>
+		identical(this, other) ||
+		other is Room && runtimeType == other.runtimeType && id == other.id;
+
+	@override
+	int get hashCode => id.hashCode;
 }

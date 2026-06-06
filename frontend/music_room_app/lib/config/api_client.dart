@@ -5,14 +5,32 @@ import 'package:music_room_app/config/token_storage.dart';
 class ApiClient {
   final Dio _dio;
   final TokenStorage _tokenStorage = TokenStorage();
+  final void Function()? onUnauthorized;
 
-  ApiClient() : _dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl)) {
+  ApiClient({this.onUnauthorized})
+    : _dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl)) {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          final token = await _tokenStorage.accessToken;
-          if (token != null) {
-            options.headers['Authorization'] = 'Bearer $token';
+          // * Only attach the Bearer token to protected endpoints.
+          // ! Public auth routes must NOT receive the header — an expired token
+          // ! on /auth/refresh triggers the global guard, causing a logout loop.
+          final path = options.path;
+          final isPublic =
+              path == ApiConfig.register ||
+              path == ApiConfig.login ||
+              path == ApiConfig.refresh ||
+              path == ApiConfig.forgotPassword ||
+              path == ApiConfig.resetPassword ||
+              path == ApiConfig.verifyEmail ||
+              path == ApiConfig.resendVerification ||
+              path == ApiConfig.socialLogin ||
+              path == '/health';
+          if (!isPublic) {
+            final token = await _tokenStorage.accessToken;
+            if (token != null) {
+              options.headers['Authorization'] = 'Bearer $token';
+            }
           }
           return handler.next(options);
         },
@@ -27,6 +45,9 @@ class ApiClient {
               options.headers['Authorization'] = 'Bearer $token';
               final response = await _dio.fetch(options);
               return handler.resolve(response);
+            } else {
+              // Refresh failed, notify unauthorized
+              onUnauthorized?.call();
             }
           }
           return handler.next(e);
@@ -53,6 +74,7 @@ class ApiClient {
       }
     } catch (e) {
       await _tokenStorage.clear();
+      onUnauthorized?.call();
     }
     return false;
   }
@@ -61,7 +83,10 @@ class ApiClient {
     return _dio.post(path, data: data);
   }
 
-  Future<Response> get(String path, {Map<String, dynamic>? queryParameters}) async {
+  Future<Response> get(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
     return _dio.get(path, queryParameters: queryParameters);
   }
 

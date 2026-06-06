@@ -18,11 +18,15 @@ class ApiConfig {
   static const String resetPassword = '/auth/reset-password';
   static const String verifyEmail = '/auth/verify-email';
   static const String resendVerification = '/auth/resend-verification';
+  // * Social auth — login/register via provider token, and linking a
+  //   provider to the signed-in account.
+  static const String socialLogin = '/auth/social';
+  static const String linkSocial = '/auth/link-social';
 
   // * all rooms share the /rooms base
   static const String rooms = '/rooms';
   static const String profile = '/users/me';
-  static const String search = '/spotify/search';
+  static const String search = '/auth/spotify/search';
 
   // * Feature flag — toggle between mock and live API
   // Use mock data while backend is auth-only

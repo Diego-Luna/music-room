@@ -12,6 +12,9 @@ export interface UserProfile {
   visibility: Visibility;
   subscriptionTier: string;
   musicPreferences: string[];
+  publicInfo: string | null;
+  friendsInfo: string | null;
+  privateInfo: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +25,18 @@ export interface PublicUserProfile {
   avatarUrl: string | null;
   visibility: Visibility;
   musicPreferences: string[];
+  publicInfo: string | null;
+  // Only present when the caller is a friend (or self).
+  friendsInfo?: string | null;
+  // Only present when the caller is the profile owner.
+  privateInfo?: string | null;
+}
+
+export interface UserSearchResult {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  visibility: Visibility;
 }
 
 @Injectable()
@@ -47,12 +62,54 @@ export class UsersService {
     if (dto.musicPreferences !== undefined) {
       data.musicPreferences = dto.musicPreferences;
     }
+    if (dto.publicInfo !== undefined) data.publicInfo = dto.publicInfo;
+    if (dto.friendsInfo !== undefined) data.friendsInfo = dto.friendsInfo;
+    if (dto.privateInfo !== undefined) data.privateInfo = dto.privateInfo;
 
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data,
     });
     return this.scrub(updated);
+  }
+
+  /**
+   * Search users by displayName to send friend requests.
+   *
+   * Visibility rules (V.1):
+   *  - PRIVATE profiles are excluded — a private user must not be discoverable,
+   *    mirroring `findOnePublic`, which 404s for them.
+   *  - PUBLIC and FRIENDS_ONLY users are returned so they can receive requests;
+   *    only the safe identity fields (id, displayName, avatarUrl) are exposed,
+   *    never the audience-scoped info tiers.
+   * The caller is always excluded from their own results.
+   */
+  async searchByName(
+    callerId: string,
+    query: string,
+    limit = 20,
+  ): Promise<UserSearchResult[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: { not: callerId },
+        visibility: { not: Visibility.PRIVATE },
+        displayName: { contains: query, mode: 'insensitive' },
+      },
+      orderBy: { displayName: 'asc' },
+      take: limit,
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+        visibility: true,
+      },
+    });
+    return users.map((u) => ({
+      id: u.id,
+      displayName: u.displayName,
+      avatarUrl: u.avatarUrl ?? null,
+      visibility: u.visibility as Visibility,
+    }));
   }
 
   /**
@@ -68,33 +125,49 @@ export class UsersService {
     callerId: string,
     targetId: string,
   ): Promise<PublicUserProfile> {
-    if (callerId === targetId) {
-      const self = await this.findOne(targetId);
-      return this.toPublic(self);
-    }
+    const isSelf = callerId === targetId;
     const target = await this.prisma.user.findUnique({
       where: { id: targetId },
     });
     if (!target) throw new NotFoundException('User not found');
 
-    const visibility = target.visibility as Visibility;
-    if (visibility === Visibility.PRIVATE) {
-      throw new NotFoundException('User not found');
+    // Self always sees the friend tier; otherwise resolve the friendship once.
+    const isFriend = isSelf
+      ? true
+      : await this.friends.areFriends(callerId, targetId);
+
+    if (!isSelf) {
+      const visibility = target.visibility as Visibility;
+      if (visibility === Visibility.PRIVATE) {
+        throw new NotFoundException('User not found');
+      }
+      if (visibility === Visibility.FRIENDS_ONLY && !isFriend) {
+        throw new NotFoundException('User not found');
+      }
     }
-    if (visibility === Visibility.FRIENDS_ONLY) {
-      const ok = await this.friends.areFriends(callerId, targetId);
-      if (!ok) throw new NotFoundException('User not found');
-    }
-    return this.toPublic(this.scrub(target));
+    return this.toPublic(this.scrub(target), isSelf, isFriend);
   }
 
-  private toPublic(p: UserProfile): PublicUserProfile {
+  /**
+   * Builds the visibility-filtered profile per the V.1 audience tiers:
+   *  - publicInfo  → everyone who can see the profile
+   *  - friendsInfo → friends (and self) only
+   *  - privateInfo → self only
+   */
+  private toPublic(
+    p: UserProfile,
+    isSelf = false,
+    isFriend = false,
+  ): PublicUserProfile {
     return {
       id: p.id,
       displayName: p.displayName,
       avatarUrl: p.avatarUrl,
       visibility: p.visibility,
       musicPreferences: p.musicPreferences,
+      publicInfo: p.publicInfo,
+      friendsInfo: isSelf || isFriend ? p.friendsInfo : undefined,
+      privateInfo: isSelf ? p.privateInfo : undefined,
     };
   }
 
@@ -108,6 +181,9 @@ export class UsersService {
       visibility: user.visibility as Visibility,
       subscriptionTier: user.subscriptionTier as string,
       musicPreferences: (user.musicPreferences as string[]) ?? [],
+      publicInfo: (user.publicInfo as string | null) ?? null,
+      friendsInfo: (user.friendsInfo as string | null) ?? null,
+      privateInfo: (user.privateInfo as string | null) ?? null,
       createdAt: user.createdAt as Date,
       updatedAt: user.updatedAt as Date,
     };

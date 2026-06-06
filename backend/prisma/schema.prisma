@@ -29,6 +29,9 @@ model User {
   visibility       Visibility @default(PUBLIC)
   subscriptionTier SubscriptionTier @default(FREE)
   musicPreferences String[]   @default([])
+  publicInfo       String?
+  friendsInfo      String?
+  privateInfo      String?
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 

@@ -32,6 +32,14 @@ class RestApiRepository implements RoomRepository {
     required String name,
     required RoomKind kind,
     required bool isPublic,
+    String? description,
+    String? voteAccess,
+    String? voteWindow,
+    DateTime? voteStartsAt,
+    DateTime? voteEndsAt,
+    double? voteLocationLat,
+    double? voteLocationLng,
+    double? voteLocationRadiusM,
   }) async {
     final response = await _client.post(
       ApiConfig.rooms,
@@ -39,6 +47,15 @@ class RestApiRepository implements RoomRepository {
         'name': name,
         'kind': kind.toJson(),
         'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
+        'description': ?description,
+        'voteAccess': ?voteAccess,
+        'voteWindow': ?voteWindow,
+        if (voteStartsAt != null)
+          'voteStartsAt': voteStartsAt.toIso8601String(),
+        if (voteEndsAt != null) 'voteEndsAt': voteEndsAt.toIso8601String(),
+        'voteLocationLat': ?voteLocationLat,
+        'voteLocationLng': ?voteLocationLng,
+        'voteLocationRadiusM': ?voteLocationRadiusM,
       },
     );
     return Room.fromJson(response.data);
@@ -155,5 +172,26 @@ class RestApiRepository implements RoomRepository {
   @override
   Future<void> revokeRoomControl(String roomId) async {
     await _client.delete('${ApiConfig.rooms}/$roomId/delegate');
+  }
+
+  @override
+  Future<List<Track>> searchSpotifyTracks(String query) async {
+    final response = await _client.get(
+      ApiConfig.search,
+      queryParameters: {'q': query},
+    );
+    final data = response.data as List;
+    return data.map((json) {
+      final artistsList = json['artists'] as List;
+      return Track(
+        id: json['id'] as String,
+        providerId: json['id'] as String,
+        provider: 'spotify',
+        title: json['name'] as String,
+        artist: artistsList.join(', '),
+        durationMs: json['durationMs'] as int,
+        artworkUrl: json['artworkUrl'] as String?,
+      );
+    }).toList();
   }
 }

@@ -1,23 +1,18 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
+import 'package:music_room_app/config/hive_config.dart';
 
 void main() async {
-  usePathUrlStrategy();
+  setUrlStrategy(HashUrlStrategy());
   WidgetsFlutterBinding.ensureInitialized();
 
-  try {} catch (e) {
-    if (kDebugMode) {
-      print('Error initializing Firebase: $e');
-    }
-  }
-
   setupLocator();
-  // await HiveConfig.init();
+  await HiveConfig.initialize();
+  syncManager.startMonitoring();
   await authProvider.tryAutoLogin();
 
   runApp(const AppState());
@@ -45,6 +40,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: eventsProvider),
         ChangeNotifierProvider.value(value: playlistsProvider),
         ChangeNotifierProvider.value(value: roomsProvider),
+        ChangeNotifierProvider.value(value: friendsProvider),
         ChangeNotifierProvider.value(value: playerProvider),
         ChangeNotifierProvider.value(value: socketProvider),
       ],

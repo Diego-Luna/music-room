@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:dio/dio.dart';
+import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/config/api_client.dart';
 import 'package:music_room_app/config/api_config.dart';
@@ -10,17 +11,31 @@ class MockApiClient extends Mock implements ApiClient {}
 
 class MockTokenStorage extends Mock implements TokenStorage {}
 
+/// Fake provider sign-in: returns [token] (null simulates a cancelled flow).
+class FakeSocialAuthService implements SocialAuthService {
+  String? token;
+  FakeSocialAuthService({this.token});
+
+  @override
+  Future<String?> signIn(SocialProvider provider) async => token;
+  @override
+  Future<void> signOut() async {}
+}
+
 void main() {
   late AuthProvider authProvider;
   late MockApiClient mockApiClient;
   late MockTokenStorage mockTokenStorage;
+  late FakeSocialAuthService fakeSocialAuth;
 
   setUp(() {
     mockApiClient = MockApiClient();
     mockTokenStorage = MockTokenStorage();
+    fakeSocialAuth = FakeSocialAuthService(token: 'provider-access-token');
     authProvider = AuthProvider(
       apiClient: mockApiClient,
       tokenStorage: mockTokenStorage,
+      socialAuth: fakeSocialAuth,
     );
   });
 
@@ -29,6 +44,14 @@ void main() {
       expect(authProvider.signedIn, false);
       expect(authProvider.user, null);
       expect(authProvider.isLoading, false);
+    });
+
+    test('accessToken getter returns stored token', () async {
+      when(
+        () => mockTokenStorage.accessToken,
+      ).thenAnswer((_) async => 'stored_token');
+      final token = await authProvider.accessToken;
+      expect(token, 'stored_token');
     });
 
     test('login sets user on success', () async {
@@ -157,6 +180,69 @@ void main() {
         () => mockApiClient.post(
           ApiConfig.resendVerification,
           data: {'email': 'test@example.com'},
+        ),
+      ).called(1);
+    });
+
+    test('socialLogin signs in and stores tokens on success', () async {
+      final response = Response(
+        requestOptions: RequestOptions(path: ''),
+        data: {
+          'accessToken':
+              'header.eyJzdWIiOiIxMjMiLCJlbWFpbCI6InRlc3RAZXhhbXBsZS5jb20ifQ.signature',
+          'refreshToken': 'refresh_token',
+        },
+        statusCode: 200,
+      );
+      when(
+        () => mockApiClient.post(any(), data: any(named: 'data')),
+      ).thenAnswer((_) async => response);
+      when(
+        () => mockTokenStorage.saveTokens(any(), any()),
+      ).thenAnswer((_) async => {});
+
+      final ok = await authProvider.socialLogin(SocialProvider.google);
+
+      expect(ok, true);
+      expect(authProvider.signedIn, true);
+      expect(authProvider.error, null);
+      verify(
+        () => mockApiClient.post(
+          ApiConfig.socialLogin,
+          data: {
+            'provider': 'google',
+            'accessToken': 'provider-access-token',
+          },
+        ),
+      ).called(1);
+    });
+
+    test('socialLogin returns false without API call when cancelled', () async {
+      fakeSocialAuth.token = null; // user cancelled the native flow
+
+      final ok = await authProvider.socialLogin(SocialProvider.facebook);
+
+      expect(ok, false);
+      expect(authProvider.signedIn, false);
+      verifyNever(() => mockApiClient.post(any(), data: any(named: 'data')));
+    });
+
+    test('linkSocial posts provider token to link endpoint', () async {
+      when(() => mockApiClient.post(any(), data: any(named: 'data'))).thenAnswer(
+        (_) async =>
+            Response(requestOptions: RequestOptions(path: ''), statusCode: 200),
+      );
+
+      final ok = await authProvider.linkSocial(SocialProvider.facebook);
+
+      expect(ok, true);
+      verify(
+        () => mockApiClient.post(
+          ApiConfig.linkSocial,
+          data: {
+            'provider': 'facebook',
+            'accessToken': 'provider-access-token',
+          },
         ),
       ).called(1);
     });

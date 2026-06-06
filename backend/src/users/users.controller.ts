@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOkResponse,
@@ -9,10 +9,16 @@ import {
 import {
   PublicUserProfile,
   UserProfile,
+  UserSearchResult,
   UsersService,
 } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { UserProfileDto, PublicUserProfileDto } from './dto/user-response.dto';
+import { SearchUsersDto } from './dto/search-users.dto';
+import {
+  UserProfileDto,
+  PublicUserProfileDto,
+  UserSearchResultDto,
+} from './dto/user-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
 
@@ -43,6 +49,21 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ): Promise<UserProfile> {
     return this.users.update(user.sub, dto);
+  }
+
+  @Get('search')
+  @ApiOperation({
+    summary: 'Search users by displayName (to send friend requests)',
+    description:
+      'Case-insensitive substring match on displayName. Excludes the caller ' +
+      'and PRIVATE profiles. Returns identity fields only.',
+  })
+  @ApiOkResponse({ type: UserSearchResultDto, isArray: true })
+  async search(
+    @CurrentUser() user: JwtPayload,
+    @Query() dto: SearchUsersDto,
+  ): Promise<UserSearchResult[]> {
+    return this.users.searchByName(user.sub, dto.q, dto.limit);
   }
 
   @Get(':id')
