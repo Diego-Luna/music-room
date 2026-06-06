@@ -16,7 +16,16 @@ enum UserVisibility {
     }
   }
 
-  String toJson() => name.toUpperCase();
+  String toJson() {
+    switch (this) {
+      case UserVisibility.public:
+        return 'PUBLIC';
+      case UserVisibility.friendsOnly:
+        return 'FRIENDS_ONLY';
+      case UserVisibility.private:
+        return 'PRIVATE';
+    }
+  }
 }
 
 class User {
@@ -27,6 +36,12 @@ class User {
   final bool emailVerified;
   final UserVisibility visibility;
   final List<String> musicPreferences;
+  // V.1 — the three audience-scoped profile texts.
+  // friendsInfo/privateInfo are only present when the API exposes them
+  // (self always; friend tier only for friends), so they stay nullable.
+  final String? publicInfo;
+  final String? friendsInfo;
+  final String? privateInfo;
   final DateTime createdAt;
 
   User({
@@ -37,6 +52,9 @@ class User {
     this.emailVerified = false,
     this.visibility = UserVisibility.public,
     this.musicPreferences = const [],
+    this.publicInfo,
+    this.friendsInfo,
+    this.privateInfo,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -51,6 +69,9 @@ class User {
       emailVerified: payload['emailVerified'] as bool? ?? false,
       visibility: UserVisibility.fromString(payload['visibility'] as String?),
       musicPreferences: List<String>.from(payload['musicPreferences'] ?? []),
+      publicInfo: payload['publicInfo'] as String?,
+      friendsInfo: payload['friendsInfo'] as String?,
+      privateInfo: payload['privateInfo'] as String?,
       createdAt: payload['createdAt'] != null
           ? DateTime.parse(payload['createdAt'])
           : null,
@@ -66,6 +87,9 @@ class User {
       emailVerified: json['emailVerified'] as bool? ?? false,
       visibility: UserVisibility.fromString(json['visibility'] as String?),
       musicPreferences: List<String>.from(json['musicPreferences'] ?? []),
+      publicInfo: json['publicInfo'] as String?,
+      friendsInfo: json['friendsInfo'] as String?,
+      privateInfo: json['privateInfo'] as String?,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),
@@ -80,6 +104,9 @@ class User {
     'emailVerified': emailVerified,
     'visibility': visibility.toJson(),
     'musicPreferences': musicPreferences,
+    'publicInfo': publicInfo,
+    'friendsInfo': friendsInfo,
+    'privateInfo': privateInfo,
     'createdAt': createdAt.toIso8601String(),
   };
 
@@ -105,6 +132,9 @@ class User {
     bool? emailVerified,
     UserVisibility? visibility,
     List<String>? musicPreferences,
+    String? publicInfo,
+    String? friendsInfo,
+    String? privateInfo,
   }) {
     return User(
       id: id,
@@ -114,6 +144,9 @@ class User {
       emailVerified: emailVerified ?? this.emailVerified,
       visibility: visibility ?? this.visibility,
       musicPreferences: musicPreferences ?? this.musicPreferences,
+      publicInfo: publicInfo ?? this.publicInfo,
+      friendsInfo: friendsInfo ?? this.friendsInfo,
+      privateInfo: privateInfo ?? this.privateInfo,
       createdAt: createdAt,
     );
   }
