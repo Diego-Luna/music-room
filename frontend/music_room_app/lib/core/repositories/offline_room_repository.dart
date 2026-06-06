@@ -338,10 +338,10 @@ class OfflineRoomRepository implements RoomRepository {
       _remote.revokeRoomControl(roomId);
 
 	@override
-	Future<List<Track>> searchSpotifyTracks(String query) async {
+	Future<List<Track>> searchTracks(String query) async {
 		if (!await _isOnline()) {
-			throw Exception('Search failed. Make sure you are online and Spotify is connected.');
+			throw Exception('Search failed. Make sure you are online.');
 		}
-		return _remote.searchSpotifyTracks(query);
+		return _remote.searchTracks(query);
 	}
 }

@@ -10,6 +10,12 @@ import 'package:music_room_app/widgets/interactive_3d/interactive_mpc.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/config/mock/mock_data.dart';
 
+String _formatDuration(Duration d) {
+  final minutes = d.inMinutes;
+  final seconds = d.inSeconds % 60;
+  return '$minutes:${seconds.toString().padLeft(2, '0')}';
+}
+
 // * Full-screen Player with swipe for voting.
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key});
@@ -83,6 +89,15 @@ class _PlayerPageState extends State<PlayerPage> {
     if (track == null) {
       return const Scaffold(body: Center(child: Text('No track available')));
     }
+
+    // Real playback progress from the audio backend (30s Deezer preview).
+    final position = playerProvider.position;
+    final duration = playerProvider.duration;
+    final totalMs = duration.inMilliseconds;
+    final progress = totalMs > 0
+        ? (position.inMilliseconds / totalMs).clamp(0.0, 1.0)
+        : 0.0;
+    final remaining = duration > position ? duration - position : Duration.zero;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -202,7 +217,7 @@ class _PlayerPageState extends State<PlayerPage> {
                         ),
                         child: FractionallySizedBox(
                           alignment: Alignment.centerLeft,
-                          widthFactor: playerProvider.isPlaying ? 0.45 : 0.3,
+                          widthFactor: progress,
                           child: Container(
                             decoration: BoxDecoration(
                               color: theme.colorScheme.primary,
@@ -222,14 +237,14 @@ class _PlayerPageState extends State<PlayerPage> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              playerProvider.isPlaying ? '1:45' : '1:12',
+                              _formatDuration(position),
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.disabledColor,
                                 fontWeight: AppTypography.bold,
                               ),
                             ),
                             Text(
-                              playerProvider.isPlaying ? '-2:15' : '-3:45',
+                              '-${_formatDuration(remaining)}',
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.disabledColor,
                                 fontWeight: AppTypography.bold,

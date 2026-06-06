@@ -174,7 +174,7 @@ class MockApiRepository implements RoomRepository {
 	}
 
 	@override
-	Future<List<Track>> searchSpotifyTracks(String query) async {
+	Future<List<Track>> searchTracks(String query) async {
 		await Future.delayed(const Duration(milliseconds: 50));
 		final allTracks = _rooms.expand((r) => r.tracks).toList();
 		final cleaned = query.toLowerCase();
