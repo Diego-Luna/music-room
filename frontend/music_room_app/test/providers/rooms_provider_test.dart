@@ -46,43 +46,6 @@ void main() {
       expect(roomsProvider.error, contains('API Error'));
     });
 
-    test(
-      'handleDelegateUpdated updates current active room controller',
-      () async {
-        final mockRoom = Room(
-          id: 'room-1',
-          name: 'Rock Room',
-          ownerId: 'user-1',
-          currentControllerId: null,
-        );
-        roomsProvider.selectRoom(mockRoom);
-        expect(roomsProvider.currentActiveRoom?.currentControllerId, isNull);
-
-        roomsProvider.handleDelegateUpdated('room-1', 'delegate-123');
-        expect(
-          roomsProvider.currentActiveRoom?.currentControllerId,
-          equals('delegate-123'),
-        );
-      },
-    );
-
-    test('handleDJRoleGranted updates delegate controller', () async {
-      final mockRoom = Room(
-        id: 'room-1',
-        name: 'Rock Room',
-        ownerId: 'user-1',
-        currentControllerId: null,
-      );
-      roomsProvider.selectRoom(mockRoom);
-      expect(roomsProvider.currentActiveRoom?.currentControllerId, isNull);
-
-      roomsProvider.handleDJRoleGranted('room-1', 'dj-456');
-      expect(
-        roomsProvider.currentActiveRoom?.currentControllerId,
-        equals('dj-456'),
-      );
-    });
-
     test('handleMemberJoined triggers notifications/listeners', () async {
       var notified = false;
       roomsProvider.addListener(() {

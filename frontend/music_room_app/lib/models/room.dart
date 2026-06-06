@@ -28,9 +28,6 @@ class Room {
   // * Tracks list is for used by VOTE and PLAYLIST rooms
   final List<Track> tracks;
 
-  // * DJ/admins/owners delegation is for DELEGATE rooms
-  final String? currentControllerId;
-
   Room({
     required this.id,
     required this.name,
@@ -38,7 +35,6 @@ class Room {
     this.kind = RoomKind.vote,
     this.isPublic = true,
     this.tracks = const [],
-    this.currentControllerId,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -53,8 +49,6 @@ class Room {
       tracks: (json['tracks'] as List? ?? [])
           .map((t) => Track.fromJson(t))
           .toList(),
-      currentControllerId:
-          (json['currentControllerId'] ?? json['delegateUserId']) as String?,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
@@ -69,34 +63,31 @@ class Room {
     // * Frontend bool maps to backend enum string
     'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
     'tracks': tracks.map((t) => t.toJson()).toList(),
-    if (currentControllerId != null) 'currentControllerId': currentControllerId,
     'createdAt': createdAt.toIso8601String(),
   };
 
-	Room copyWith({
-		String? name,
-		RoomKind? kind,
-		bool? isPublic,
-		List<Track>? tracks,
-		String? currentControllerId,
-	}) {
-		return Room(
-			id: id,
-			name: name ?? this.name,
-			ownerId: ownerId,
-			kind: kind ?? this.kind,
-			isPublic: isPublic ?? this.isPublic,
-			tracks: tracks ?? this.tracks,
-			currentControllerId: currentControllerId ?? this.currentControllerId,
-			createdAt: createdAt,
-		);
-	}
+  Room copyWith({
+    String? name,
+    RoomKind? kind,
+    bool? isPublic,
+    List<Track>? tracks,
+  }) {
+    return Room(
+      id: id,
+      name: name ?? this.name,
+      ownerId: ownerId,
+      kind: kind ?? this.kind,
+      isPublic: isPublic ?? this.isPublic,
+      tracks: tracks ?? this.tracks,
+      createdAt: createdAt,
+    );
+  }
 
-	@override
-	bool operator ==(Object other) =>
-		identical(this, other) ||
-		other is Room && runtimeType == other.runtimeType && id == other.id;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Room && runtimeType == other.runtimeType && id == other.id;
 
-	@override
-	int get hashCode => id.hashCode;
+  @override
+  int get hashCode => id.hashCode;
 }
