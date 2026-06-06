@@ -2,9 +2,41 @@ import 'package:dio/dio.dart';
 import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/config/token_storage.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter/foundation.dart';
 
 String? _cachedUserAgent;
+String? _cachedAppVersion;
+
+// V.6: every request must carry the platform so the back-end can log it.
+// Same convention as PushTokenService (IOS/ANDROID/WEB).
+String get _platform {
+  if (kIsWeb) return 'WEB';
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.iOS:
+      return 'IOS';
+    case TargetPlatform.android:
+      return 'ANDROID';
+    case TargetPlatform.macOS:
+      return 'MACOS';
+    default:
+      return 'WEB';
+  }
+}
+
+// V.6: app version header (e.g. "1.0.0+1"), read once from the bundle.
+Future<String> _getAppVersion() async {
+  if (_cachedAppVersion != null) return _cachedAppVersion!;
+  try {
+    final info = await PackageInfo.fromPlatform();
+    _cachedAppVersion = info.buildNumber.isEmpty
+        ? info.version
+        : '${info.version}+${info.buildNumber}';
+  } catch (_) {
+    _cachedAppVersion = 'unknown';
+  }
+  return _cachedAppVersion!;
+}
 
 Future<String> _getUserAgent() async {
   if (_cachedUserAgent != null) return _cachedUserAgent!;
@@ -48,10 +80,19 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // * Attach device info headers to ALL requests (including auth)
+          // * Attach device info headers to ALL requests (including auth).
+          // * V.6: Platform + Device + App Version must be logged by the
+          //   back-end on every action, so they ride on every request.
           final deviceId = await _tokenStorage.getOrCreateDeviceId();
           options.headers['x-device'] = deviceId;
-          options.headers['user-agent'] = await _getUserAgent();
+          options.headers['x-platform'] = _platform;
+          options.headers['x-app-version'] = await _getAppVersion();
+          // Browsers forbid scripts from setting "User-Agent" (it triggers
+          // "Refused to set unsafe header"). On web the browser sends its own
+          // real UA anyway, so we only set ours on native platforms.
+          if (!kIsWeb) {
+            options.headers['user-agent'] = await _getUserAgent();
+          }
 
           // * Only attach the Bearer token to protected endpoints.
           // ! Public auth routes must NOT receive the header — an expired token
