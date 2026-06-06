@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
@@ -18,7 +18,7 @@ class MockRoomsProvider extends Mock implements RoomsProvider {}
 
 class MockPlayerProvider extends Mock implements PlayerProvider {}
 
-class MockSocket extends Mock implements IO.Socket {}
+class MockSocket extends Mock implements io.Socket {}
 
 void main() {
   test('SocketProvider registers listener on AuthProvider', () {

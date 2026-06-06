@@ -119,7 +119,7 @@ class _CreateEventDialogState extends State<CreateEventDialog> {
         ),
         const SizedBox(height: AppDimens.sm),
         DropdownButtonFormField<String>(
-          value: _voteAccess,
+          initialValue: _voteAccess,
           decoration: const InputDecoration(labelText: 'Who can vote?'),
           items: const [
             DropdownMenuItem(value: 'EVERYONE', child: Text('Everyone')),

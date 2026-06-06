@@ -112,8 +112,8 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
 
     try {
-      print('Registering user...');
-      print('wsUrl: ${ApiConfig.wsUrl}');
+      debugPrint('Registering user...');
+      debugPrint('wsUrl: ${ApiConfig.wsUrl}');
 
       await _apiClient.post(
         ApiConfig.register,
@@ -127,8 +127,8 @@ class AuthProvider extends ChangeNotifier {
       // * Verification is required; no session tokens are returned
       notifyListeners();
     } on DioException catch (e) {
-      print('Error in registration:');
-      print(e.response?.data.toString());
+      debugPrint('Error in registration:');
+      debugPrint(e.response?.data.toString());
       _error = e.response?.data['message']?.toString() ?? 'Registration failed';
     } catch (e) {
       _error = 'An unexpected error occurred';

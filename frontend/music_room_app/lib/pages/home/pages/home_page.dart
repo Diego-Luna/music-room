@@ -11,8 +11,6 @@ import 'package:music_room_app/providers/theme_provider.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
-import 'package:music_room_app/models/room.dart';
-import 'package:music_room_app/models/track.dart';
 
 /// Apple Music / Youtube Music style home page
 class HomePage extends StatefulWidget {
@@ -40,10 +38,10 @@ class _HomePageState extends State<HomePage> {
     final mixes = playlistsProvider.playlists;
     final recentEvents = eventsProvider.events;
 
-    final allTracks = [
+    final allTracks = {
       ...playlistsProvider.playlists.expand((r) => r.tracks),
       ...eventsProvider.events.expand((r) => r.tracks),
-    ].toSet().toList();
+    }.toList();
 
     final topSongs = allTracks;
 
@@ -58,6 +56,7 @@ class _HomePageState extends State<HomePage> {
             slivers: [
               SliverAppBar(
                 expandedHeight: 120.0,
+                toolbarHeight: 76.0,
                 floating: true,
                 pinned:
                     false, // I set pinned to false so the title doesn't stay on top when scrolling down
@@ -82,7 +81,7 @@ class _HomePageState extends State<HomePage> {
                     onTap: () {
                       context.read<ThemeProvider>().toggleTheme();
                     },
-                    margin: const EdgeInsets.all(AppDimens.md),
+                    margin: const EdgeInsets.all(AppDimens.sm),
                     padding: const EdgeInsets.all(AppDimens.sm),
                     decoration: const BoxDecoration(shape: BoxShape.circle),
                     child: Icon(
@@ -95,7 +94,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   NeumorphicInteractiveContainer(
                     onTap: () {},
-                    margin: const EdgeInsets.all(AppDimens.md),
+                    margin: const EdgeInsets.all(AppDimens.sm),
                     padding: const EdgeInsets.all(AppDimens.sm),
                     decoration: const BoxDecoration(shape: BoxShape.circle),
                     child: Icon(
@@ -106,6 +105,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                 ],
               ),
+
               SliverToBoxAdapter(
                 child: FadeIn(
                   duration: const Duration(milliseconds: 600),

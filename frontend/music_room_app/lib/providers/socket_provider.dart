@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/providers/events_provider.dart';
@@ -10,7 +10,7 @@ import 'package:music_room_app/providers/player_provider.dart';
 
 // * Central provider for managing WebSocket connection and forwarding events
 class SocketProvider extends ChangeNotifier {
-  late final IO.Socket _socket;
+  late final io.Socket _socket;
   final AuthProvider _authProvider;
 
   bool get isConnected => _socket.connected;
@@ -21,7 +21,7 @@ class SocketProvider extends ChangeNotifier {
     required PlaylistsProvider playlistsProvider,
     required RoomsProvider roomsProvider,
     required PlayerProvider playerProvider,
-    IO.Socket? socket,
+    io.Socket? socket,
   }) : _authProvider = authProvider {
     _authProvider.addListener(_onAuthChanged);
     _initializeSocket(
@@ -56,12 +56,12 @@ class SocketProvider extends ChangeNotifier {
     PlaylistsProvider playlistsProvider,
     RoomsProvider roomsProvider,
     PlayerProvider playerProvider,
-    IO.Socket? injectedSocket,
+    io.Socket? injectedSocket,
   ) {
     // ! Connect to backend WebSocket endpoint defined in ApiConfig
     _socket =
         injectedSocket ??
-        IO.io(ApiConfig.wsUrl, <String, dynamic>{
+        io.io(ApiConfig.wsUrl, <String, dynamic>{
           'transports': ['websocket'],
           'autoConnect': false,
         });
