@@ -23,6 +23,9 @@ abstract class RoomRepository {
   Future<void> joinRoom(String id);
   Future<void> leaveRoom(String id);
 
+  // * Invite a user to a (private) room — POST /rooms/:id/invitations
+  Future<void> inviteToRoom(String roomId, String userId);
+
   // * VOTE room
   Future<List<Track>> getVoteTracks(String roomId);
   Future<Track> addVoteTrack(String roomId, Track track);

@@ -5,6 +5,7 @@ import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/config/token_storage.dart';
 import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/models/user.dart';
+import 'package:music_room_app/models/session_info.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiClient _apiClient;
@@ -276,6 +277,21 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  // ── Active sessions (bonus) ──────────────────────────────────────
+  // GET /auth/sessions — list active refresh-token sessions.
+  Future<List<SessionInfo>> listSessions() async {
+    final response = await _apiClient.get(ApiConfig.sessions);
+    final data = response.data as List;
+    return data
+        .map((json) => SessionInfo.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  // DELETE /auth/sessions/:id — revoke one session.
+  Future<void> revokeSession(String sessionId) async {
+    await _apiClient.delete('${ApiConfig.sessions}/$sessionId');
   }
 
   void _setLoading(bool value) {

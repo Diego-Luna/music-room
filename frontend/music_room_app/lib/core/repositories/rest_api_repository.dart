@@ -162,6 +162,15 @@ class RestApiRepository implements RoomRepository {
     await _client.delete('${ApiConfig.rooms}/$roomId/playlist/$trackId');
   }
 
+  // INVITATIONS
+  @override
+  Future<void> inviteToRoom(String roomId, String userId) async {
+    await _client.post(
+      '${ApiConfig.rooms}/$roomId/invitations',
+      data: {'userId': userId},
+    );
+  }
+
   // DELEGATE room
   @override
   Future<void> delegateRoomControl(String roomId, String userId) async {

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
+import 'package:music_room_app/pages/settings/widgets/active_sessions_section.dart';
 
 //* Settings page.
 class SettingsPage extends StatelessWidget {
@@ -69,6 +70,8 @@ class SettingsPage extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => _linkAccount(context, SocialProvider.facebook),
           ),
+          const Divider(),
+          const ActiveSessionsSection(),
         ],
       ),
     );

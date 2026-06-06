@@ -29,6 +29,12 @@ class ApiConfig {
   // * Deezer-backed track search (GET /search?q=&limit=)
   static const String search = '/search';
 
+  // * Auth sessions (bonus) — list/revoke active refresh-token sessions.
+  static const String sessions = '/auth/sessions';
+
+  // * Push notifications (bonus) — register/unregister a device token.
+  static const String notificationsRegister = '/notifications/register';
+
   // * Subscription (VI.3 bonus) — free vs premium offers.
   // GET /subscription/plans (catalogue), GET/PUT /subscription/me (my tier).
   static const String subscriptionPlans = '/subscription/plans';

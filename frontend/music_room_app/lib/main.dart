@@ -15,6 +15,19 @@ void main() async {
   syncManager.startMonitoring();
   await authProvider.tryAutoLogin();
 
+  // * Register/refresh the device push token whenever the session changes.
+  // Best-effort bonus feature — never blocks startup or auth.
+  authProvider.addListener(() {
+    if (authProvider.signedIn) {
+      pushTokenService.registerIfNeeded();
+    } else {
+      pushTokenService.reset();
+    }
+  });
+  if (authProvider.signedIn) {
+    pushTokenService.registerIfNeeded();
+  }
+
   runApp(const AppState());
 }
 

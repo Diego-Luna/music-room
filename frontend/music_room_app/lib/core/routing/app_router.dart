@@ -12,6 +12,7 @@ import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
+import 'package:music_room_app/core/services/push_token_service.dart';
 import 'package:music_room_app/pages/auth/pages/forgot_page.dart';
 import 'package:music_room_app/pages/auth/pages/reset_password_page.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
@@ -46,6 +47,7 @@ FriendsRepository? _friendsRepository;
 ApiClient? _apiClient;
 OfflineCache? _offlineCache;
 ConnectivitySyncManager? _syncManager;
+PushTokenService? _pushTokenService;
 NavigationProvider? _navigationProvider;
 AuthProvider? _authProvider;
 ThemeProvider? _themeProvider;
@@ -108,6 +110,9 @@ ConnectivitySyncManager get syncManager =>
       remoteRepository: remoteRepository,
       cache: offlineCache,
     );
+
+PushTokenService get pushTokenService =>
+    _pushTokenService ??= PushTokenService(client: apiClient);
 
 RoomRepository get roomRepository {
   if (_roomRepository != null) return _roomRepository!;

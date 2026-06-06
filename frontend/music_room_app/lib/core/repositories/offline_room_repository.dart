@@ -217,6 +217,10 @@ class OfflineRoomRepository implements RoomRepository {
   Future<void> leaveRoom(String id) => _remote.leaveRoom(id);
 
   @override
+  Future<void> inviteToRoom(String roomId, String userId) =>
+      _remote.inviteToRoom(roomId, userId);
+
+  @override
   Future<List<Track>> getVoteTracks(String roomId) async {
     if (!await _isOnline()) {
       return _cache.getRoomById(roomId)?.tracks ?? [];

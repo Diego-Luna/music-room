@@ -156,6 +156,12 @@ class MockApiRepository implements RoomRepository {
 
 	// DELEGATE room
 	@override
+	Future<void> inviteToRoom(String roomId, String userId) async {
+		await Future.delayed(const Duration(milliseconds: 50));
+		// * Mock: invitations are not persisted in the in-memory store.
+	}
+
+	@override
 	Future<void> delegateRoomControl(String roomId, String userId) async {
 		await Future.delayed(const Duration(milliseconds: 50));
 		final idx = _rooms.indexWhere((r) => r.id == roomId);
