@@ -3,7 +3,10 @@
 # ─── Stage 1: deps ────────────────────────────────────────────────────────────
 FROM node:24-alpine AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json prisma.config.ts ./
+# The `postinstall` hook runs `prisma generate`, so the schema must be present
+# before `npm install` — otherwise it fails with "schema.prisma: file not found".
+COPY prisma ./prisma
 # npm install (not ci) tolerates platform-specific lockfile divergences
 # for optional native peer deps (@emnapi/*) on multi-arch builds.
 RUN npm install --no-audit --no-fund

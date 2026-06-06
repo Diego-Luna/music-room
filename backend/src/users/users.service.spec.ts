@@ -11,6 +11,7 @@ describe('UsersService', () => {
     user: {
       findUnique: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
+      findMany: ReturnType<typeof vi.fn>;
     };
   };
   let friends: { areFriends: ReturnType<typeof vi.fn> };
@@ -36,6 +37,7 @@ describe('UsersService', () => {
       user: {
         findUnique: vi.fn(),
         update: vi.fn(),
+        findMany: vi.fn(),
       },
     };
     friends = { areFriends: vi.fn().mockResolvedValue(false) };
@@ -218,6 +220,63 @@ describe('UsersService', () => {
       await expect(
         service.findOnePublic('user-2', 'ghost'),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('searchByName', () => {
+    const row = {
+      id: 'user-2',
+      displayName: 'Bob',
+      avatarUrl: 'https://cdn/b.png',
+      visibility: 'PUBLIC',
+    };
+
+    it('excludes the caller and PRIVATE profiles, matches displayName case-insensitively', async () => {
+      prisma.user.findMany.mockResolvedValue([row]);
+
+      const results = await service.searchByName('user-1', 'bo', 10);
+
+      expect(prisma.user.findMany).toHaveBeenCalledWith({
+        where: {
+          id: { not: 'user-1' },
+          visibility: { not: 'PRIVATE' },
+          displayName: { contains: 'bo', mode: 'insensitive' },
+        },
+        orderBy: { displayName: 'asc' },
+        take: 10,
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+          visibility: true,
+        },
+      });
+      expect(results).toEqual([
+        {
+          id: 'user-2',
+          displayName: 'Bob',
+          avatarUrl: 'https://cdn/b.png',
+          visibility: 'PUBLIC',
+        },
+      ]);
+    });
+
+    it('defaults the limit to 20 and never leaks info tiers', async () => {
+      prisma.user.findMany.mockResolvedValue([row]);
+
+      const results = await service.searchByName('user-1', 'b');
+
+      expect(prisma.user.findMany.mock.calls[0][0].take).toBe(20);
+      expect(results[0]).not.toHaveProperty('email');
+      expect(results[0]).not.toHaveProperty('publicInfo');
+      expect(results[0]).not.toHaveProperty('friendsInfo');
+      expect(results[0]).not.toHaveProperty('privateInfo');
+    });
+
+    it('normalises a missing avatarUrl to null', async () => {
+      prisma.user.findMany.mockResolvedValue([{ ...row, avatarUrl: null }]);
+      const results = await service.searchByName('user-1', 'bob');
+      expect(results[0].avatarUrl).toBeNull();
     });
   });
 });

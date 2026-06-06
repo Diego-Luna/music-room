@@ -32,6 +32,13 @@ export interface PublicUserProfile {
   privateInfo?: string | null;
 }
 
+export interface UserSearchResult {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+  visibility: Visibility;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -64,6 +71,45 @@ export class UsersService {
       data,
     });
     return this.scrub(updated);
+  }
+
+  /**
+   * Search users by displayName to send friend requests.
+   *
+   * Visibility rules (V.1):
+   *  - PRIVATE profiles are excluded — a private user must not be discoverable,
+   *    mirroring `findOnePublic`, which 404s for them.
+   *  - PUBLIC and FRIENDS_ONLY users are returned so they can receive requests;
+   *    only the safe identity fields (id, displayName, avatarUrl) are exposed,
+   *    never the audience-scoped info tiers.
+   * The caller is always excluded from their own results.
+   */
+  async searchByName(
+    callerId: string,
+    query: string,
+    limit = 20,
+  ): Promise<UserSearchResult[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        id: { not: callerId },
+        visibility: { not: Visibility.PRIVATE },
+        displayName: { contains: query, mode: 'insensitive' },
+      },
+      orderBy: { displayName: 'asc' },
+      take: limit,
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+        visibility: true,
+      },
+    });
+    return users.map((u) => ({
+      id: u.id,
+      displayName: u.displayName,
+      avatarUrl: u.avatarUrl ?? null,
+      visibility: u.visibility as Visibility,
+    }));
   }
 
   /**

@@ -18,6 +18,14 @@ export class UserProfileDto {
   @ApiProperty() updatedAt!: Date;
 }
 
+export class UserSearchResultDto {
+  @ApiProperty() id!: string;
+  @ApiProperty() displayName!: string;
+  @ApiProperty({ nullable: true }) avatarUrl!: string | null;
+  @ApiProperty({ example: 'PUBLIC', description: 'PUBLIC | FRIENDS_ONLY' })
+  visibility!: string;
+}
+
 export class PublicUserProfileDto {
   @ApiProperty() id!: string;
   @ApiProperty() displayName!: string;
