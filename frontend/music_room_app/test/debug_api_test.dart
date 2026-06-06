@@ -5,7 +5,15 @@ import 'package:dio/dio.dart';
 
 void main() {
   test('Debug API and Room Fetching', () async {
-    final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000'));
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: 'http://localhost:3000',
+        headers: {
+          'x-device': 'debug-test-device-id',
+          'user-agent': 'Dart/3.11 (Test)',
+        },
+      ),
+    );
 
     try {
       // 1. Login

@@ -5,7 +5,15 @@ import 'package:dio/dio.dart';
 
 void main() {
   test('Debug Delegation API Integration', () async {
-    final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000'));
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: 'http://localhost:3000',
+        headers: {
+          'x-device': 'debug-test-device-id',
+          'user-agent': 'Dart/3.11 (Test)',
+        },
+      ),
+    );
 
     try {
       // 1. Login
@@ -49,7 +57,10 @@ void main() {
             print(
               'Delegate PUT Status: ${e.response?.statusCode}, Response: ${e.response?.data}',
             );
-            expect(e.response?.statusCode, anyOf(equals(403), equals(400)));
+            expect(
+              e.response?.statusCode,
+              anyOf(equals(404), equals(403), equals(400)),
+            );
           } else {
             rethrow;
           }

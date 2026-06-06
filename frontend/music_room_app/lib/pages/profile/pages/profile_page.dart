@@ -10,6 +10,7 @@ import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/profile_provider.dart';
 import 'package:music_room_app/models/user.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
+import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -61,7 +62,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? '$title updated' : (_profile.error ?? 'Update failed')),
+        content: Text(
+          ok ? '$title updated' : (_profile.error ?? 'Update failed'),
+        ),
         backgroundColor: ok ? Colors.green : Colors.redAccent,
       ),
     );
@@ -241,11 +244,22 @@ class _ProfilePageState extends State<ProfilePage> {
         SliverAppBar(
           title: const Text('Profile'),
           centerTitle: true,
+          toolbarHeight: 76.0,
           expandedHeight: 250.0,
           floating: true,
           pinned: false,
           backgroundColor: theme.scaffoldBackgroundColor,
           elevation: 0,
+          actions: [
+            Center(
+              child: NeumorphicIconButton(
+                icon: Icons.settings,
+                onTap: () => context.push(routeSettings),
+                tooltip: 'Settings',
+              ),
+            ),
+            const SizedBox(width: AppDimens.md),
+          ],
           flexibleSpace: FlexibleSpaceBar(
             background: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -285,8 +299,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
                 const SizedBox(height: AppDimens.xs),
                 Text(
-                  user.email,
+                  user.email ?? '',
                   style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.disabledColor,
+                  ),
+                ),
+                const SizedBox(height: AppDimens.xs),
+                SelectableText(
+                  'User ID: ${user.id}',
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.disabledColor,
                   ),
                 ),
@@ -338,13 +359,12 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ),
-        const SliverToBoxAdapter(
-          child: SizedBox(height: AppDimens.xxl * 3),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: AppDimens.xxl * 3)),
       ],
     );
   }
 
+  // * Builds an editable field for the profile page.
   Widget _buildEditableField(
     ThemeData theme,
     String title,
