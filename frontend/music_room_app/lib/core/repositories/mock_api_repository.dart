@@ -20,31 +20,31 @@ class MockApiRepository implements RoomRepository {
     return _rooms.firstWhere((r) => r.id == id);
   }
 
-	@override
-	Future<Room> createRoom({
-		required String name,
-		required RoomKind kind,
-		required bool isPublic,
-		String? description,
-		String? voteAccess,
-		String? voteWindow,
-		DateTime? voteStartsAt,
-		DateTime? voteEndsAt,
-		double? voteLocationLat,
-		double? voteLocationLng,
-		double? voteLocationRadiusM,
-	}) async {
-		await Future.delayed(const Duration(milliseconds: 50));
-		final room = Room(
-			id: 'room-${DateTime.now().millisecondsSinceEpoch}',
-			name: name,
-			ownerId: 'user-1',
-			kind: kind,
-			isPublic: isPublic,
-		);
-		_rooms.add(room);
-		return room;
-	}
+  @override
+  Future<Room> createRoom({
+    required String name,
+    required RoomKind kind,
+    required bool isPublic,
+    String? description,
+    String? voteAccess,
+    String? voteWindow,
+    DateTime? voteStartsAt,
+    DateTime? voteEndsAt,
+    double? voteLocationLat,
+    double? voteLocationLng,
+    double? voteLocationRadiusM,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final room = Room(
+      id: 'room-${DateTime.now().millisecondsSinceEpoch}',
+      name: name,
+      ownerId: 'user-1',
+      kind: kind,
+      isPublic: isPublic,
+    );
+    _rooms.add(room);
+    return room;
+  }
 
   @override
   Future<void> deleteRoom(String id) async {

@@ -42,26 +42,6 @@ class RoomsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> delegateControl(String roomId, String userId) async {
-    try {
-      await _repository.delegateRoomControl(roomId, userId);
-      await fetchRooms();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
-
-  Future<void> revokeControl(String roomId) async {
-    try {
-      await _repository.revokeRoomControl(roomId);
-      await fetchRooms();
-    } catch (e) {
-      _error = e.toString();
-      notifyListeners();
-    }
-  }
-
   // * Handler methods for socket events
   void handleDelegateUpdated(String roomId, String? controllerId) {
     for (var i = 0; i < _rooms.length; i++) {

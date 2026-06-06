@@ -1,6 +1,42 @@
 import 'package:dio/dio.dart';
 import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/config/token_storage.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart';
+
+String? _cachedUserAgent;
+
+Future<String> _getUserAgent() async {
+  if (_cachedUserAgent != null) return _cachedUserAgent!;
+  final deviceInfo = DeviceInfoPlugin();
+  try {
+    if (kIsWeb) {
+      final webInfo = await deviceInfo.webBrowserInfo;
+      _cachedUserAgent = 'Web Browser (${webInfo.browserName.name})';
+    } else {
+      switch (defaultTargetPlatform) {
+        case TargetPlatform.android:
+          final androidInfo = await deviceInfo.androidInfo;
+          _cachedUserAgent = 'Android (${androidInfo.model})';
+          break;
+        case TargetPlatform.iOS:
+          final iosInfo = await deviceInfo.iosInfo;
+          _cachedUserAgent = 'iOS (${iosInfo.name})';
+          break;
+        case TargetPlatform.macOS:
+          final macInfo = await deviceInfo.macOsInfo;
+          _cachedUserAgent = 'macOS (${macInfo.model})';
+          break;
+        default:
+          _cachedUserAgent = 'Unknown Device';
+          break;
+      }
+    }
+  } catch (e) {
+    _cachedUserAgent = 'Unknown Device';
+  }
+  return _cachedUserAgent!;
+}
 
 class ApiClient {
   final Dio _dio;
@@ -12,6 +48,11 @@ class ApiClient {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // * Attach device info headers to ALL requests (including auth)
+          final deviceId = await _tokenStorage.getOrCreateDeviceId();
+          options.headers['x-device'] = deviceId;
+          options.headers['user-agent'] = await _getUserAgent();
+
           // * Only attach the Bearer token to protected endpoints.
           // ! Public auth routes must NOT receive the header — an expired token
           // ! on /auth/refresh triggers the global guard, causing a logout loop.

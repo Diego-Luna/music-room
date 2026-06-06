@@ -125,6 +125,12 @@ class SocketProvider extends ChangeNotifier {
       playerProvider.handlePlaybackPlayed(track);
     });
 
+    _socket.on('playback:command', (data) {
+      if (data is Map) {
+        playerProvider.handlePlaybackCommand(Map<String, dynamic>.from(data));
+      }
+    });
+
     // * Finally, connect if signed in
     if (_authProvider.signedIn) {
       _connectSocket();

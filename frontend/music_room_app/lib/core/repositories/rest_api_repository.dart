@@ -162,29 +162,6 @@ class RestApiRepository implements RoomRepository {
     await _client.delete('${ApiConfig.rooms}/$roomId/playlist/$trackId');
   }
 
-  // INVITATIONS
-  @override
-  Future<void> inviteToRoom(String roomId, String userId) async {
-    await _client.post(
-      '${ApiConfig.rooms}/$roomId/invitations',
-      data: {'userId': userId},
-    );
-  }
-
-  // DELEGATE room
-  @override
-  Future<void> delegateRoomControl(String roomId, String userId) async {
-    await _client.post(
-      '${ApiConfig.rooms}/$roomId/delegate',
-      data: {'userId': userId},
-    );
-  }
-
-  @override
-  Future<void> revokeRoomControl(String roomId) async {
-    await _client.delete('${ApiConfig.rooms}/$roomId/delegate');
-  }
-
   @override
   Future<List<Track>> searchTracks(String query) async {
     final response = await _client.get(
@@ -207,5 +184,21 @@ class RestApiRepository implements RoomRepository {
         previewUrl: json['previewUrl'] as String?,
       );
     }).toList();
+  }
+
+  @override
+  Future<void> inviteToRoom(String roomId, String userId) async {
+    // Implement REST call here later
+    // await _client.post('/rooms/$roomId/invitations', data: {'userId': userId});
+  }
+
+  @override
+  Future<void> delegateRoomControl(String roomId, String userId) async {
+    // Legacy room-based delegation endpoints are obsolete
+  }
+
+  @override
+  Future<void> revokeRoomControl(String roomId) async {
+    // Legacy room-based delegation endpoints are obsolete
   }
 }

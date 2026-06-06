@@ -5,22 +5,28 @@ import 'package:music_room_app/models/track.dart';
 abstract class RoomRepository {
   // * Rooms
   Future<List<Room>> getRooms({RoomKind? kind});
+
   Future<Room> getRoomById(String id);
-	Future<Room> createRoom({
-		required String name,
-		required RoomKind kind,
-		required bool isPublic,
-		String? description,
-		String? voteAccess,
-		String? voteWindow,
-		DateTime? voteStartsAt,
-		DateTime? voteEndsAt,
-		double? voteLocationLat,
-		double? voteLocationLng,
-		double? voteLocationRadiusM,
-	});
+
+  // ? posible to do better with a type, or maybe a class that
+  Future<Room> createRoom({
+    required String name,
+    required RoomKind kind,
+    required bool isPublic,
+    String? description,
+    String? voteAccess,
+    String? voteWindow,
+    DateTime? voteStartsAt,
+    DateTime? voteEndsAt,
+    double? voteLocationLat,
+    double? voteLocationLng,
+    double? voteLocationRadiusM,
+  });
+
   Future<void> deleteRoom(String id);
+
   Future<void> joinRoom(String id);
+
   Future<void> leaveRoom(String id);
 
   // * Invite a user to a (private) room — POST /rooms/:id/invitations
@@ -28,7 +34,9 @@ abstract class RoomRepository {
 
   // * VOTE room
   Future<List<Track>> getVoteTracks(String roomId);
+
   Future<Track> addVoteTrack(String roomId, Track track);
+
   Future<void> voteForTrack(
     String roomId,
     String trackId,
@@ -42,18 +50,21 @@ abstract class RoomRepository {
 
   // *PLAYLIST room
   Future<List<Track>> getPlaylistTracks(String roomId);
+
   Future<Track> addPlaylistTrack(String roomId, Track track);
+
   Future<void> movePlaylistTrack(
     String roomId,
     String trackId,
     String newPosition,
   );
+
   Future<void> removePlaylistTrack(String roomId, String trackId);
 
   // *DELEGATE room
-	Future<void> delegateRoomControl(String roomId, String userId);
-	Future<void> revokeRoomControl(String roomId);
+  Future<void> delegateRoomControl(String roomId, String userId);
+  Future<void> revokeRoomControl(String roomId);
 
-	// * Search tracks via the music provider (Deezer)
-	Future<List<Track>> searchTracks(String query);
+  // * Search tracks via the music provider (Deezer)
+  Future<List<Track>> searchTracks(String query);
 }

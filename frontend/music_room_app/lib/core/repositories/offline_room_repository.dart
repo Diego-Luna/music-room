@@ -70,69 +70,69 @@ class OfflineRoomRepository implements RoomRepository {
     }
   }
 
-	@override
-	Future<void> voteForTrack(
-		String roomId,
-		String trackId,
-		int value, {
-		double? lat,
-		double? lng,
-	}) async {
-		if (!await _isOnline()) {
-			// * Optimistic vote update locally
-			final room = _cache.getRoomById(roomId);
-			if (room != null) {
-				final updatedTracks = room.tracks.map((t) {
-					if (t.id == trackId) {
-						final currentScore = t.score;
-						return t.copyWith(score: currentScore + value);
-					}
-					return t;
-				}).toList();
-				updatedTracks.sort((a, b) => b.score.compareTo(a.score));
-				await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
-			}
+  @override
+  Future<void> voteForTrack(
+    String roomId,
+    String trackId,
+    int value, {
+    double? lat,
+    double? lng,
+  }) async {
+    if (!await _isOnline()) {
+      // * Optimistic vote update locally
+      final room = _cache.getRoomById(roomId);
+      if (room != null) {
+        final updatedTracks = room.tracks.map((t) {
+          if (t.id == trackId) {
+            final currentScore = t.score;
+            return t.copyWith(score: currentScore + value);
+          }
+          return t;
+        }).toList();
+        updatedTracks.sort((a, b) => b.score.compareTo(a.score));
+        await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
+      }
 
-			// * Queue action
-			final action = OfflineAction(
-				id: 'vote-$roomId-$trackId-${DateTime.now().millisecondsSinceEpoch}',
-				roomId: roomId,
-				type: 'vote',
-				payload: {'trackId': trackId, 'value': value, 'lat': lat, 'lng': lng},
-				createdAt: DateTime.now(),
-			);
-			await _cache.enqueueAction(action);
-			return;
-		}
+      // * Queue action
+      final action = OfflineAction(
+        id: 'vote-$roomId-$trackId-${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        type: 'vote',
+        payload: {'trackId': trackId, 'value': value, 'lat': lat, 'lng': lng},
+        createdAt: DateTime.now(),
+      );
+      await _cache.enqueueAction(action);
+      return;
+    }
 
-		try {
-			await _remote.voteForTrack(roomId, trackId, value, lat: lat, lng: lng);
-		} catch (e) {
-			// * Optimistic vote update locally
-			final room = _cache.getRoomById(roomId);
-			if (room != null) {
-				final updatedTracks = room.tracks.map((t) {
-					if (t.id == trackId) {
-						final currentScore = t.score;
-						return t.copyWith(score: currentScore + value);
-					}
-					return t;
-				}).toList();
-				updatedTracks.sort((a, b) => b.score.compareTo(a.score));
-				await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
-			}
+    try {
+      await _remote.voteForTrack(roomId, trackId, value, lat: lat, lng: lng);
+    } catch (e) {
+      // * Optimistic vote update locally
+      final room = _cache.getRoomById(roomId);
+      if (room != null) {
+        final updatedTracks = room.tracks.map((t) {
+          if (t.id == trackId) {
+            final currentScore = t.score;
+            return t.copyWith(score: currentScore + value);
+          }
+          return t;
+        }).toList();
+        updatedTracks.sort((a, b) => b.score.compareTo(a.score));
+        await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
+      }
 
-			// * Queue action
-			final action = OfflineAction(
-				id: 'vote-$roomId-$trackId-${DateTime.now().millisecondsSinceEpoch}',
-				roomId: roomId,
-				type: 'vote',
-				payload: {'trackId': trackId, 'value': value, 'lat': lat, 'lng': lng},
-				createdAt: DateTime.now(),
-			);
-			await _cache.enqueueAction(action);
-		}
-	}
+      // * Queue action
+      final action = OfflineAction(
+        id: 'vote-$roomId-$trackId-${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        type: 'vote',
+        payload: {'trackId': trackId, 'value': value, 'lat': lat, 'lng': lng},
+        createdAt: DateTime.now(),
+      );
+      await _cache.enqueueAction(action);
+    }
+  }
 
   @override
   Future<Track> addPlaylistTrack(String roomId, Track track) async {
@@ -235,49 +235,49 @@ class OfflineRoomRepository implements RoomRepository {
     }
   }
 
-	@override
-	Future<Track> addVoteTrack(String roomId, Track track) async {
-		if (!await _isOnline()) {
-			// * Optimistic add locally
-			final room = _cache.getRoomById(roomId);
-			if (room != null) {
-				final updatedTracks = List<Track>.from(room.tracks)..add(track);
-				await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
-			}
+  @override
+  Future<Track> addVoteTrack(String roomId, Track track) async {
+    if (!await _isOnline()) {
+      // * Optimistic add locally
+      final room = _cache.getRoomById(roomId);
+      if (room != null) {
+        final updatedTracks = List<Track>.from(room.tracks)..add(track);
+        await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
+      }
 
-			// * Queues in offline actions
-			final action = OfflineAction(
-				id: 'addVote-$roomId-${track.providerId}-${DateTime.now().millisecondsSinceEpoch}',
-				roomId: roomId,
-				type: 'addTrack',
-				payload: track.toJson(),
-				createdAt: DateTime.now(),
-			);
-			await _cache.enqueueAction(action);
-			return track;
-		}
-		try {
-			return await _remote.addVoteTrack(roomId, track);
-		} catch (_) {
-			// * Optimistic add locally
-			final room = _cache.getRoomById(roomId);
-			if (room != null) {
-				final updatedTracks = List<Track>.from(room.tracks)..add(track);
-				await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
-			}
+      // * Queues in offline actions
+      final action = OfflineAction(
+        id: 'addVote-$roomId-${track.providerId}-${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        type: 'addTrack',
+        payload: track.toJson(),
+        createdAt: DateTime.now(),
+      );
+      await _cache.enqueueAction(action);
+      return track;
+    }
+    try {
+      return await _remote.addVoteTrack(roomId, track);
+    } catch (_) {
+      // * Optimistic add locally
+      final room = _cache.getRoomById(roomId);
+      if (room != null) {
+        final updatedTracks = List<Track>.from(room.tracks)..add(track);
+        await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
+      }
 
-			// * Queues in offline actions
-			final action = OfflineAction(
-				id: 'addVote-$roomId-${track.providerId}-${DateTime.now().millisecondsSinceEpoch}',
-				roomId: roomId,
-				type: 'addTrack',
-				payload: track.toJson(),
-				createdAt: DateTime.now(),
-			);
-			await _cache.enqueueAction(action);
-			return track;
-		}
-	}
+      // * Queues in offline actions
+      final action = OfflineAction(
+        id: 'addVote-$roomId-${track.providerId}-${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        type: 'addTrack',
+        payload: track.toJson(),
+        createdAt: DateTime.now(),
+      );
+      await _cache.enqueueAction(action);
+      return track;
+    }
+  }
 
   @override
   Future<void> removeVoteTrack(String roomId, String trackId) =>
@@ -334,18 +334,28 @@ class OfflineRoomRepository implements RoomRepository {
       _remote.removePlaylistTrack(roomId, trackId);
 
   @override
-  Future<void> delegateRoomControl(String roomId, String userId) =>
-      _remote.delegateRoomControl(roomId, userId);
+  Future<List<Track>> searchTracks(String query) async {
+    if (!await _isOnline()) {
+      throw Exception('Search failed. Make sure you are online.');
+    }
+    return _remote.searchTracks(query);
+  }
 
   @override
-  Future<void> revokeRoomControl(String roomId) =>
-      _remote.revokeRoomControl(roomId);
+  Future<void> delegateRoomControl(String roomId, String userId) async {
+    if (await _isOnline()) {
+      await _remote.delegateRoomControl(roomId, userId);
+    } else {
+      throw Exception('Cannot delegate control while offline.');
+    }
+  }
 
-	@override
-	Future<List<Track>> searchTracks(String query) async {
-		if (!await _isOnline()) {
-			throw Exception('Search failed. Make sure you are online.');
-		}
-		return _remote.searchTracks(query);
-	}
+  @override
+  Future<void> revokeRoomControl(String roomId) async {
+    if (await _isOnline()) {
+      await _remote.revokeRoomControl(roomId);
+    } else {
+      throw Exception('Cannot revoke control while offline.');
+    }
+  }
 }

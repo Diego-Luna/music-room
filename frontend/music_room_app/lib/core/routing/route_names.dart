@@ -7,6 +7,7 @@ const String routeHome = '/home';
 const String routePlaylists = '/playlists';
 const String routeEvents = '/events';
 const String routeSettings = '/settings';
+const String routeDevices = '/devices';
 const String routeSubscription = '/subscription';
 const String routeProfile = '/profile';
 const String routeLogin = '/login';
