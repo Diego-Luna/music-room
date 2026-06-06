@@ -28,6 +28,7 @@ import 'package:music_room_app/pages/playlists/pages/playlists_page.dart';
 import 'package:music_room_app/pages/playlists/pages/playlist_detail_page.dart';
 import 'package:music_room_app/pages/events/pages/events_page.dart';
 import 'package:music_room_app/pages/settings/pages/settings_page.dart';
+import 'package:music_room_app/pages/subscription/pages/subscription_page.dart';
 import 'package:music_room_app/pages/profile/pages/profile_page.dart';
 import 'package:music_room_app/pages/auth/pages/login_page.dart';
 import 'package:music_room_app/pages/auth/pages/signup_page.dart';
@@ -254,6 +255,14 @@ class AppRouter {
           context: context,
           state: state,
           child: const SettingsPage(),
+        ),
+      ),
+      GoRoute(
+        path: routeSubscription,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context: context,
+          state: state,
+          child: const SubscriptionPage(),
         ),
       ),
       GoRoute(
