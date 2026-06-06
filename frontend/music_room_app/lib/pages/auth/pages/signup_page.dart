@@ -8,6 +8,7 @@ import 'package:music_room_app/core/animations/neumorphic_interactive_container.
 import 'package:music_room_app/pages/auth/widgets/auth_text_field.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 
 class SignupPage extends StatefulWidget {
@@ -57,6 +58,23 @@ class _SignupPageState extends State<SignupPage> {
 			}
 		}
 	}
+
+  void _handleSocial(SocialProvider provider) async {
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.socialLogin(provider);
+
+    if (!mounted) return;
+    if (ok && auth.signedIn) {
+      context.go(routeHome);
+    } else if (auth.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(auth.error!),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +164,7 @@ class _SignupPageState extends State<SignupPage> {
                     children: [
                       Expanded(
                         child: NeumorphicInteractiveContainer(
-                          onTap: _handleSignup,
+                          onTap: () => _handleSocial(SocialProvider.google),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(
                               AppDimens.radiusMedium,
@@ -173,7 +191,7 @@ class _SignupPageState extends State<SignupPage> {
                       const SizedBox(width: AppDimens.lg),
                       Expanded(
                         child: NeumorphicInteractiveContainer(
-                          onTap: _handleSignup,
+                          onTap: () => _handleSocial(SocialProvider.facebook),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(
                               AppDimens.radiusMedium,

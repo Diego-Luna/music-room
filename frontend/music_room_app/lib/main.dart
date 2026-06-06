@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
@@ -10,12 +9,6 @@ import 'package:music_room_app/config/hive_config.dart';
 void main() async {
   setUrlStrategy(HashUrlStrategy());
   WidgetsFlutterBinding.ensureInitialized();
-
-  try {} catch (e) {
-    if (kDebugMode) {
-      print('Error initializing Firebase: $e');
-    }
-  }
 
   setupLocator();
   await HiveConfig.initialize();
