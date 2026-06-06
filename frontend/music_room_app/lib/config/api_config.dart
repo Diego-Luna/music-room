@@ -28,6 +28,11 @@ class ApiConfig {
   static const String profile = '/users/me';
   static const String search = '/auth/spotify/search';
 
+  // * Subscription (VI.3 bonus) — free vs premium offers.
+  // GET /subscription/plans (catalogue), GET/PUT /subscription/me (my tier).
+  static const String subscriptionPlans = '/subscription/plans';
+  static const String subscriptionMe = '/subscription/me';
+
   // * Feature flag — toggle between mock and live API
   // Use mock data while backend is auth-only
   static bool useMockData = false;
