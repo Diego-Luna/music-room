@@ -246,6 +246,13 @@ class _ProfilePageState extends State<ProfilePage> {
           pinned: false,
           backgroundColor: theme.scaffoldBackgroundColor,
           elevation: 0,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings_outlined),
+              tooltip: 'Settings',
+              onPressed: () => context.push(routeSettings),
+            ),
+          ],
           flexibleSpace: FlexibleSpaceBar(
             background: Column(
               mainAxisAlignment: MainAxisAlignment.center,
