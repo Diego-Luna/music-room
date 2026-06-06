@@ -12,7 +12,6 @@ import 'package:music_room_app/providers/rooms_provider.dart';
 
 class PlayerProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
-  final RoomsProvider _roomsProvider;
   final DeviceRepository _deviceRepository;
   final AudioPlayer _audioPlayer;
   final AudioPlayerService _audio;
@@ -20,6 +19,7 @@ class PlayerProvider extends ChangeNotifier {
   List<AccountDevice> devices = [];
   List<MusicControlDelegation> controlledDevices = [];
   String? activeDelegationId;
+  Timer? _delegationFetchDebounce;
 
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
@@ -35,7 +35,6 @@ class PlayerProvider extends ChangeNotifier {
     AudioPlayer? audioPlayer,
     AudioPlayerService? audioService,
   }) : _authProvider = authProvider,
-       _roomsProvider = roomsProvider,
        _deviceRepository = deviceRepository,
        _audioPlayer = audioPlayer ?? AudioPlayer(),
        _audio =
@@ -68,11 +67,9 @@ class PlayerProvider extends ChangeNotifier {
   Duration get duration => _duration;
 
   bool get hasControlPermission {
-    final activeRoom = _roomsProvider.currentActiveRoom;
-    if (activeRoom == null) return true;
     final currentUser = _authProvider.user;
     if (currentUser == null) return false;
-    return activeRoom.currentControllerId == currentUser.id;
+    return true;
   }
 
   void playTrack(Track track) {
@@ -164,6 +161,15 @@ class PlayerProvider extends ChangeNotifier {
   void setActiveDelegation(String delegationId) {
     activeDelegationId = delegationId;
     notifyListeners();
+  }
+
+  void handleDelegationGranted(String deviceId, String ownerId) {
+    if (_delegationFetchDebounce?.isActive ?? false) {
+      _delegationFetchDebounce!.cancel();
+    }
+    _delegationFetchDebounce = Timer(const Duration(milliseconds: 1000), () {
+      fetchControlledDevices();
+    });
   }
 
   // * Delegate remote commands
@@ -284,6 +290,7 @@ class PlayerProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _delegationFetchDebounce?.cancel();
     _audioPlayer.dispose();
     _audio.dispose();
     super.dispose();

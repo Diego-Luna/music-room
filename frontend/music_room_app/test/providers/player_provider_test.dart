@@ -2,7 +2,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:music_room_app/core/audio/audio_player_service.dart';
-import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/models/user.dart';
 import 'package:music_room_app/models/account_device.dart';
@@ -62,6 +61,13 @@ void main() {
     mockRoomsProvider = MockRoomsProvider();
     mockDeviceRepository = MockDeviceRepository();
     mockAudioPlayer = MockAudioPlayer();
+
+    final defaultUser = User(
+      id: 'user-1',
+      email: 'user1@test.com',
+      displayName: 'User 1',
+    );
+    when(() => mockAuthProvider.user).thenReturn(defaultUser);
 
     // * Mock AudioPlayer streams and futures
     when(
@@ -172,67 +178,30 @@ void main() {
     });
 
     test(
-      'playTrack() sets error if in room but current user is not controller',
-      () {
-        final track = Track(
-          id: 't-1',
-          providerId: 'spotify:track:1',
-          title: 'Song',
-          artist: 'Artist',
-          durationMs: 180000,
-        );
-        final room = Room(
-          id: 'r-1',
-          name: 'Room',
-          ownerId: 'user-1',
-          currentControllerId: 'user-1',
-        );
-        final currentUser = User(
-          id: 'user-2',
-          email: 'user2@test.com',
-          displayName: 'User 2',
-        );
+      'handleDelegationGranted fetches controlled devices after debounce',
+      () async {
+        final mockControlled = [
+          MusicControlDelegation(
+            id: 'del-1',
+            ownerId: 'owner-1',
+            deviceId: 'dev-1',
+            delegateUserId: 'delegate-1',
+            grantedAt: DateTime.now(),
+          ),
+        ];
+        when(
+          () => mockDeviceRepository.getControlledDevices(),
+        ).thenAnswer((_) async => mockControlled);
 
-        when(() => mockRoomsProvider.currentActiveRoom).thenReturn(room);
-        when(() => mockAuthProvider.user).thenReturn(currentUser);
+        playerProvider.handleDelegationGranted('dev-1', 'owner-1');
 
-        playerProvider.playTrack(track);
+        expect(playerProvider.controlledDevices, isEmpty);
 
-        expect(playerProvider.isPlaying, false);
-        expect(playerProvider.error, contains('do not have permission'));
+        await Future.delayed(const Duration(milliseconds: 1600));
+
+        expect(playerProvider.controlledDevices, equals(mockControlled));
       },
     );
-
-    test('playTrack() succeeds if in room and user is controller', () {
-      final track = Track(
-        id: 't-1',
-        providerId: 'spotify:track:1',
-        title: 'Song',
-        artist: 'Artist',
-        durationMs: 180000,
-        previewUrl: 'https://example.com/preview.mp3',
-      );
-      final room = Room(
-        id: 'r-1',
-        name: 'Room',
-        ownerId: 'user-1',
-        currentControllerId: 'user-2',
-      );
-      final currentUser = User(
-        id: 'user-2',
-        email: 'user2@test.com',
-        displayName: 'User 2',
-      );
-
-      when(() => mockRoomsProvider.currentActiveRoom).thenReturn(room);
-      when(() => mockAuthProvider.user).thenReturn(currentUser);
-
-      playerProvider.playTrack(track);
-
-      expect(playerProvider.currentTrack, equals(track));
-      expect(playerProvider.isPlaying, true);
-      expect(playerProvider.error, isNull);
-    });
 
     test('playTrack() sets error when track has no preview url', () {
       final track = Track(

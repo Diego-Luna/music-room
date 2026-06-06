@@ -131,6 +131,16 @@ class SocketProvider extends ChangeNotifier {
       }
     });
 
+    _socket.on('device:delegation:granted', (data) {
+      if (data is Map) {
+        final deviceId = data['deviceId'] as String?;
+        final ownerId = data['ownerId'] as String?;
+        if (deviceId != null && ownerId != null) {
+          playerProvider.handleDelegationGranted(deviceId, ownerId);
+        }
+      }
+    });
+
     // * Finally, connect if signed in
     if (_authProvider.signedIn) {
       _connectSocket();

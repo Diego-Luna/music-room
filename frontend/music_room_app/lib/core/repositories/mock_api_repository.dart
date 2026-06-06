@@ -154,40 +154,34 @@ class MockApiRepository implements RoomRepository {
     _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
   }
 
-	// DELEGATE room
-	@override
-	Future<void> inviteToRoom(String roomId, String userId) async {
-		await Future.delayed(const Duration(milliseconds: 50));
-		// * Mock: invitations are not persisted in the in-memory store.
-	}
+  // DELEGATE room
+  @override
+  Future<void> inviteToRoom(String roomId, String userId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    // * Mock: invitations are not persisted in the in-memory store.
+  }
 
-	@override
-	Future<void> delegateRoomControl(String roomId, String userId) async {
-		await Future.delayed(const Duration(milliseconds: 50));
-		final idx = _rooms.indexWhere((r) => r.id == roomId);
-		if (idx == -1) return;
-		_rooms[idx] = _rooms[idx].copyWith(currentControllerId: userId);
-	}
+  @override
+  Future<void> delegateRoomControl(String roomId, String userId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+  }
 
-	@override
-	Future<void> revokeRoomControl(String roomId) async {
-		await Future.delayed(const Duration(milliseconds: 50));
-		final idx = _rooms.indexWhere((r) => r.id == roomId);
-		if (idx == -1) return;
-		_rooms[idx] = _rooms[idx].copyWith(
-			currentControllerId: _rooms[idx].ownerId,
-		);
-	}
+  @override
+  Future<void> revokeRoomControl(String roomId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+  }
 
-	@override
-	Future<List<Track>> searchTracks(String query) async {
-		await Future.delayed(const Duration(milliseconds: 50));
-		final allTracks = _rooms.expand((r) => r.tracks).toList();
-		final cleaned = query.toLowerCase();
-		return allTracks
-				.where((t) =>
-						t.title.toLowerCase().contains(cleaned) ||
-						t.artist.toLowerCase().contains(cleaned))
-				.toList();
-	}
+  @override
+  Future<List<Track>> searchTracks(String query) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final allTracks = _rooms.expand((r) => r.tracks).toList();
+    final cleaned = query.toLowerCase();
+    return allTracks
+        .where(
+          (t) =>
+              t.title.toLowerCase().contains(cleaned) ||
+              t.artist.toLowerCase().contains(cleaned),
+        )
+        .toList();
+  }
 }
