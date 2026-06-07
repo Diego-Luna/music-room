@@ -46,8 +46,14 @@ class JustAudioPlayerService implements AudioPlayerService {
 
   @override
   Future<void> play(String url) async {
+    // Stop any in-flight playback/loading first. just_audio throws a
+    // PlayerInterruptedException when setUrl() is called while a previous
+    // source is still playing or loading; that exception was being swallowed
+    // upstream, leaving the previous track playing — so every track selected
+    // after the first appeared to replay the same song. stop() resets the
+    // player to idle (position back to zero) so the new URL loads cleanly.
+    await _player.stop();
     await _player.setUrl(url);
-    await _player.seek(Duration.zero);
     await _player.play();
   }
 

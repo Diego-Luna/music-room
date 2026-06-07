@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/repositories/device_repository.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
+import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/models/account_device.dart';
 import 'package:music_room_app/models/music_control_delegation.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
+import 'package:music_room_app/widgets/user_search_sheet.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 
 class DevicesPage extends StatefulWidget {
@@ -55,20 +58,24 @@ class _DevicesPageState extends State<DevicesPage> {
     }
   }
 
-  Future<void> _delegateControl(String deviceId) async {
-    final delegateUserId = await _promptForUserId(
-      'Delegate Control',
-      'Enter user ID to delegate control to:',
+  void _delegateControl(String deviceId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => UserSearchSheet(
+        title: 'Delegate Control To',
+        onSelected: (user) async {
+          try {
+            await _deviceRepo.delegateControl(deviceId, user.id);
+            _showResult(true, 'Delegated to ${user.displayName}');
+            _loadData();
+          } catch (e) {
+            _showResult(false, e.toString());
+          }
+        },
+      ),
     );
-    if (delegateUserId == null || delegateUserId.isEmpty) return;
-
-    try {
-      await _deviceRepo.delegateControl(deviceId, delegateUserId);
-      _showResult(true, 'Delegation successful');
-      _loadData();
-    } catch (e) {
-      _showResult(false, e.toString());
-    }
   }
 
   Future<void> _revokeControl(String deviceId) async {
@@ -79,31 +86,6 @@ class _DevicesPageState extends State<DevicesPage> {
     } catch (e) {
       _showResult(false, e.toString());
     }
-  }
-
-  Future<String?> _promptForUserId(String title, String message) async {
-    final controller = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(hintText: message),
-          autofocus: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
-            child: const Text('Confirm'),
-          ),
-        ],
-      ),
-    );
   }
 
   void _showResult(bool ok, String message) {
@@ -364,10 +346,10 @@ class _DevicesPageState extends State<DevicesPage> {
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 NeumorphicInteractiveContainer(
-                  onTap: () {
-                    // Logic to jump into remote control player goes here
-                    // e.g. context.push('/remote-player/${delegation.deviceId}');
-                  },
+                  onTap: () => context.push(
+                    routeRemotePlayer,
+                    extra: {'delegation': delegation},
+                  ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: AppDimens.md,
                     vertical: AppDimens.sm,
