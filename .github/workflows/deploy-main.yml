@@ -40,7 +40,10 @@ jobs:
 
       - name: Build web
         working-directory: frontend/music_room_app
-        run: flutter build web --release --base-href=/ --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }}
+        run: |
+          flutter build web --release --base-href=/ \
+            --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }} \
+            --dart-define=FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID || '1028619539827089' }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4

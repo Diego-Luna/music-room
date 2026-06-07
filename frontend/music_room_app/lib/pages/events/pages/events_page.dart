@@ -57,6 +57,7 @@ class _EventsPageState extends State<EventsPage> {
                   title: const Text('Events'),
                   centerTitle: true,
                   floating: true,
+                  toolbarHeight: 90.0,
                   pinned: false,
                   backgroundColor: Theme.of(
                     context,

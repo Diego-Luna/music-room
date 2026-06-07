@@ -61,6 +61,7 @@ class DefaultSocialAuthService implements SocialAuthService {
   Future<String?> _signInFacebook() async {
     final result = await _facebook.login(
       permissions: const ['email', 'public_profile'],
+      loginTracking: LoginTracking.enabled,
     );
     switch (result.status) {
       case LoginStatus.success:

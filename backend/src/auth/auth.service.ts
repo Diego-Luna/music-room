@@ -26,6 +26,7 @@ export interface TokenPair {
 export interface JwtPayload {
   sub: string;
   email: string;
+  jti?: string;
 }
 
 export interface DeviceContext {
@@ -72,7 +73,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly jwtBlacklist: JwtBlacklistService,
     private readonly mail: MailService,
-  ) {}
+  ) { }
 
   // ── Registration ───────────────────────────────────────────────
   async register(dto: RegisterDto): Promise<{ message: string }> {
@@ -451,7 +452,7 @@ export class AuthService {
     email: string,
     ctx?: DeviceContext,
   ): Promise<TokenPair> {
-    const payload = { sub: userId, email };
+    const payload = { sub: userId, email, jti: crypto.randomUUID() };
 
     const accessToken = this.jwtService.sign(payload, {
       secret: this.configService.get<string>('JWT_SECRET'),
@@ -502,6 +503,9 @@ export class AuthService {
       await this.verifyGoogleAudience(accessToken);
       url = 'https://www.googleapis.com/oauth2/v2/userinfo';
     } else if (provider === 'facebook') {
+      if (accessToken.startsWith('eyJ')) {
+        return this.verifyFacebookJwt(accessToken);
+      }
       await this.verifyFacebookApp(accessToken);
       url = 'https://graph.facebook.com/me?fields=id,name,email,picture';
     } else {
@@ -513,6 +517,8 @@ export class AuthService {
     });
 
     if (!response.ok) {
+      const errorBody = typeof response.text === 'function' ? await response.text().catch(() => 'unknown') : 'unknown';
+      this.logger.error(`Social token verification failed for ${provider}. URL: ${url}, Status: ${response.status}, Response: ${errorBody}`);
       throw new UnauthorizedException(`Invalid ${provider} token`);
     }
 
@@ -521,26 +527,27 @@ export class AuthService {
     const profile: SocialProfile =
       provider === 'google'
         ? {
-            id: data.id as string,
-            email: data.email as string,
-            name: data.name as string,
-            picture: data.picture as string | undefined,
-          }
+          id: data.id as string,
+          email: data.email as string,
+          name: data.name as string,
+          picture: data.picture as string | undefined,
+        }
         : {
-            id: data.id as string,
-            email: data.email as string,
-            name: data.name as string,
-            picture: (
-              (data.picture as Record<string, unknown>)?.data as
-                | Record<string, unknown>
-                | undefined
-            )?.url as string | undefined,
-          };
+          id: data.id as string,
+          email: data.email as string,
+          name: data.name as string,
+          picture: (
+            (data.picture as Record<string, unknown>)?.data as
+            | Record<string, unknown>
+            | undefined
+          )?.url as string | undefined,
+        };
 
     // A provider may withhold the email (a Facebook account without one, or
     // the email permission denied). We cannot create an account without it —
     // email is the unique account key.
     if (!profile.id || !profile.email) {
+      this.logger.error(`Social provider ${provider} did not return ID or email. Data: ${JSON.stringify(data)}`);
       throw new BadRequestException(
         `The ${provider} account did not provide an email address`,
       );
@@ -556,10 +563,13 @@ export class AuthService {
       `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(accessToken)}`,
     );
     if (!response.ok) {
+      const errorBody = typeof response.text === 'function' ? await response.text().catch(() => 'unknown') : 'unknown';
+      this.logger.error(`Google tokeninfo verification failed. Status: ${response.status}, Response: ${errorBody}`);
       throw new UnauthorizedException('Invalid google token');
     }
     const info = (await response.json()) as Record<string, unknown>;
     if (info.aud !== expectedAud) {
+      this.logger.error(`Google token audience mismatch. Expected: ${expectedAud}, Got: ${info.aud}`);
       throw new UnauthorizedException('Google token audience mismatch');
     }
   }
@@ -572,20 +582,117 @@ export class AuthService {
     const appSecret = this.configService.get<string>('FACEBOOK_APP_SECRET');
     if (!appId || !appSecret) return; // dev mode without a real Facebook app
 
+    this.logger.debug(`verifyFacebookApp token prefix: ${accessToken.substring(0, 15)}... (length: ${accessToken.length})`);
     const appToken = `${appId}|${appSecret}`;
-    const response = await fetch(
-      `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(accessToken)}&access_token=${encodeURIComponent(appToken)}`,
-    );
+    const url = `https://graph.facebook.com/debug_token?input_token=${encodeURIComponent(accessToken)}&access_token=${encodeURIComponent(appToken)}`;
+    const response = await fetch(url);
     if (!response.ok) {
+      const errorBody = typeof response.text === 'function' ? await response.text().catch(() => 'unknown') : 'unknown';
+      this.logger.error(`Facebook debug_token API call failed. Status: ${response.status}, Response: ${errorBody}`);
       throw new UnauthorizedException('Invalid facebook token');
     }
     const body = (await response.json()) as {
-      data?: { app_id?: string; is_valid?: boolean };
+      data?: { app_id?: string; is_valid?: boolean; error?: any };
     };
     if (body.data?.is_valid !== true || body.data?.app_id !== appId) {
+      this.logger.error(`Facebook token validation failed. isValid: ${body.data?.is_valid}, app_id: ${body.data?.app_id}, expected: ${appId}, Error detail: ${JSON.stringify(body.data?.error)}`);
       throw new UnauthorizedException(
         'Facebook token was not issued for this app',
       );
     }
+  }
+
+  private async verifyFacebookJwt(token: string): Promise<SocialProfile> {
+    const appId = this.configService.get<string>('FACEBOOK_APP_ID');
+    if (!appId) {
+      throw new UnauthorizedException('Facebook App ID not configured');
+    }
+
+    const parts = token.split('.');
+    if (parts.length !== 3) {
+      throw new UnauthorizedException('Invalid JWT format');
+    }
+
+    const [headerB64, payloadB64, signatureB64] = parts;
+
+    let header: { kid?: string; alg?: string };
+    try {
+      header = JSON.parse(Buffer.from(headerB64, 'base64url').toString('utf8'));
+    } catch {
+      throw new UnauthorizedException('Failed to parse JWT header');
+    }
+
+    if (!header.kid) {
+      throw new UnauthorizedException('JWT header is missing key ID (kid)');
+    }
+
+    let payload: {
+      sub?: string;
+      email?: string;
+      name?: string;
+      picture?: string | { data?: { url?: string } };
+      aud?: string;
+      iss?: string;
+      exp?: number;
+    };
+    try {
+      payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+    } catch {
+      throw new UnauthorizedException('Failed to parse JWT payload');
+    }
+
+    if (payload.aud !== appId) {
+      this.logger.error(`Facebook JWT audience mismatch. Expected: ${appId}, Got: ${payload.aud}`);
+      throw new UnauthorizedException('Facebook JWT audience mismatch');
+    }
+
+    const iss = payload.iss;
+    const allowedIssuers = ['https://www.facebook.com', 'https://limited.facebook.com', 'www.facebook.com', 'limited.facebook.com'];
+    if (!iss || !allowedIssuers.some(allowed => iss.includes(allowed))) {
+      this.logger.error(`Facebook JWT issuer mismatch. Got: ${iss}`);
+      throw new UnauthorizedException('Facebook JWT issuer mismatch');
+    }
+
+    if (payload.exp && payload.exp * 1000 < Date.now()) {
+      throw new UnauthorizedException('Facebook JWT expired');
+    }
+
+    try {
+      const keysResponse = await fetch('https://limited.facebook.com/.well-known/oauth/openid/keys/');
+      if (!keysResponse.ok) {
+        throw new Error(`Failed to fetch Facebook keys: ${keysResponse.statusText}`);
+      }
+      const keys = (await keysResponse.json()) as Record<string, string>;
+      const publicKey = keys[header.kid];
+      if (!publicKey) {
+        throw new UnauthorizedException(`Facebook public key for kid "${header.kid}" not found`);
+      }
+
+      const verifier = crypto.createVerify('SHA256');
+      verifier.update(`${headerB64}.${payloadB64}`);
+      const isSignatureValid = verifier.verify(publicKey, signatureB64, 'base64url');
+
+      if (!isSignatureValid) {
+        throw new UnauthorizedException('Invalid Facebook JWT signature');
+      }
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`Facebook JWT signature verification failed: ${errMsg}`);
+      throw new UnauthorizedException('Invalid Facebook token signature');
+    }
+
+    let pictureUrl: string | undefined;
+    if (typeof payload.picture === 'string') {
+      pictureUrl = payload.picture;
+    } else if (payload.picture && typeof payload.picture === 'object') {
+      pictureUrl = payload.picture.data?.url;
+    }
+
+    return {
+      id: payload.sub ?? '',
+      email: payload.email ?? '',
+      name: payload.name ?? '',
+      picture: pictureUrl,
+    };
   }
 }

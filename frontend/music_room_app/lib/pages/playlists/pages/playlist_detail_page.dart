@@ -39,8 +39,11 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     return b.every((t) => ids.contains(t.id));
   }
 
-  // newIndex is already adjusted for the removed item (onReorderItem semantics).
+  // * newIndex is adjusted here for standard Flutter onReorder semantics.
   Future<void> _onReorder(Room playlist, int oldIndex, int newIndex) async {
+    if (newIndex > oldIndex) {
+      newIndex -= 1;
+    }
     if (newIndex == oldIndex) return;
 
     final reordered = List<Track>.from(_orderedTracks);
@@ -171,7 +174,10 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   }
 
   // * Owner-only: confirm, delete the playlist, then go back to the list.
-  Future<void> _confirmDeletePlaylist(BuildContext context, Room playlist) async {
+  Future<void> _confirmDeletePlaylist(
+    BuildContext context,
+    Room playlist,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -259,7 +265,10 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.people_alt_outlined, color: Colors.white),
+                icon: const Icon(
+                  Icons.people_alt_outlined,
+                  color: Colors.white,
+                ),
                 tooltip: 'Members',
                 onPressed: () => _showMembersSheet(context, playlist),
               ),
@@ -377,7 +386,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
           // The Tracks — long-press a row to drag and reorder (Premium).
           SliverReorderableList(
             itemCount: _orderedTracks.length,
-            onReorderItem: (oldIndex, newIndex) =>
+            onReorder: (oldIndex, newIndex) =>
                 _onReorder(playlist, oldIndex, newIndex),
             itemBuilder: (context, i) {
               final track = _orderedTracks[i];
@@ -432,10 +441,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                                 });
                           },
                         ),
-                        Icon(
-                          Icons.drag_handle,
-                          color: theme.disabledColor,
-                        ),
+                        Icon(Icons.drag_handle, color: theme.disabledColor),
                       ],
                     ),
                     onTap: () {

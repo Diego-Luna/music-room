@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
@@ -27,6 +29,19 @@ void _notifyRejectedSync(List<SyncDiscard> rejected) {
 void main() async {
   setUrlStrategy(HashUrlStrategy());
   WidgetsFlutterBinding.ensureInitialized();
+
+  if (kIsWeb) {
+    const facebookAppId = String.fromEnvironment(
+      'FACEBOOK_APP_ID',
+      defaultValue: '1028619539827089',
+    );
+    await FacebookAuth.i.webAndDesktopInitialize(
+      appId: facebookAppId,
+      cookie: true,
+      xfbml: true,
+      version: 'v15.0',
+    );
+  }
 
   setupLocator();
   await HiveConfig.initialize();
