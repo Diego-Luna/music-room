@@ -2,6 +2,7 @@ import 'package:music_room_app/config/mock/mock_data.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
+import 'package:music_room_app/models/invitation.dart';
 
 class MockApiRepository implements RoomRepository {
   final List<Room> _rooms = List.from(MockData.rooms);
@@ -162,16 +163,6 @@ class MockApiRepository implements RoomRepository {
   }
 
   @override
-  Future<void> delegateRoomControl(String roomId, String userId) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-  }
-
-  @override
-  Future<void> revokeRoomControl(String roomId) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-  }
-
-  @override
   Future<List<Track>> searchTracks(String query) async {
     await Future.delayed(const Duration(milliseconds: 50));
     final allTracks = _rooms.expand((r) => r.tracks).toList();
@@ -183,5 +174,32 @@ class MockApiRepository implements RoomRepository {
               t.artist.toLowerCase().contains(cleaned),
         )
         .toList();
+  }
+
+  @override
+  Future<List<RoomInvitationDto>> getInvitations() async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    return [];
+  }
+
+  @override
+  Future<AcceptInvitationResultDto> acceptInvitation(
+    String invitationId,
+  ) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    return AcceptInvitationResultDto(message: 'Joined room');
+  }
+
+  @override
+  Future<RoomInvitationDto> declineInvitation(String invitationId) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    return RoomInvitationDto(
+      id: invitationId,
+      roomId: 'room-mock-1',
+      inviterId: 'inviter-mock-1',
+      inviteeId: 'invitee-mock-1',
+      status: 'DECLINED',
+      createdAt: DateTime.now(),
+    );
   }
 }

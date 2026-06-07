@@ -3,6 +3,7 @@ import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
+import 'package:music_room_app/models/invitation.dart';
 
 // * REST implementation NestJS backend API
 class RestApiRepository implements RoomRepository {
@@ -188,17 +189,34 @@ class RestApiRepository implements RoomRepository {
 
   @override
   Future<void> inviteToRoom(String roomId, String userId) async {
-    // Implement REST call here later
-    // await _client.post('/rooms/$roomId/invitations', data: {'userId': userId});
+    await _client.post(
+      '${ApiConfig.rooms}/$roomId/invitations',
+      data: {'userId': userId},
+    );
   }
 
   @override
-  Future<void> delegateRoomControl(String roomId, String userId) async {
-    // Legacy room-based delegation endpoints are obsolete
+  Future<List<RoomInvitationDto>> getInvitations() async {
+    final response = await _client.get('/users/me/invitations');
+    final data = response.data as List;
+    return data.map((json) => RoomInvitationDto.fromJson(json)).toList();
   }
 
   @override
-  Future<void> revokeRoomControl(String roomId) async {
-    // Legacy room-based delegation endpoints are obsolete
+  Future<AcceptInvitationResultDto> acceptInvitation(
+    String invitationId,
+  ) async {
+    final response = await _client.post(
+      '/users/me/invitations/$invitationId/accept',
+    );
+    return AcceptInvitationResultDto.fromJson(response.data);
+  }
+
+  @override
+  Future<RoomInvitationDto> declineInvitation(String invitationId) async {
+    final response = await _client.post(
+      '/users/me/invitations/$invitationId/decline',
+    );
+    return RoomInvitationDto.fromJson(response.data);
   }
 }

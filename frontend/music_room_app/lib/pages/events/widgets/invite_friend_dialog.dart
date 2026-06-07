@@ -3,7 +3,9 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
+
 import 'package:music_room_app/models/room.dart';
+import 'package:music_room_app/core/utils/api_error_handler.dart';
 
 //* Bottom sheet to invite a friend to a (private) room.
 //* Lists the current user's friends and sends POST /rooms/:id/invitations.
@@ -40,15 +42,17 @@ class _InviteFriendDialogState extends State<InviteFriendDialog> {
         _invitingIds.remove(userId);
         _invitedIds.add(userId);
       });
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Invitation sent')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Invitation sent')));
     } catch (e) {
       if (!mounted) return;
       setState(() => _invitingIds.remove(userId));
+      final errorMsg = ApiErrorHandler.getMessage(
+        e,
+        defaultMessage: 'Failed to invite',
+      );
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Could not invite: ${e.toString()}'),
+          content: Text('Could not invite: $errorMsg'),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -61,7 +65,9 @@ class _InviteFriendDialogState extends State<InviteFriendDialog> {
     final friends = context.watch<FriendsProvider>();
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         padding: const EdgeInsets.all(AppDimens.lg),
         height: MediaQuery.of(context).size.height * 0.6,
@@ -131,15 +137,15 @@ class _InviteFriendDialogState extends State<InviteFriendDialog> {
           trailing: invited
               ? const Icon(Icons.check_circle, color: Colors.green)
               : inviting
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : TextButton(
-                      onPressed: () => _invite(friend.friendId),
-                      child: const Text('Invite'),
-                    ),
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : TextButton(
+                  onPressed: () => _invite(friend.friendId),
+                  child: const Text('Invite'),
+                ),
         );
       },
     );

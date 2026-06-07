@@ -2,30 +2,47 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
+import 'package:music_room_app/providers/notifications_provider.dart';
 import 'package:music_room_app/core/repositories/friends_repository.dart';
+import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/pages/friends/pages/friends_page.dart';
 import 'package:mocktail/mocktail.dart';
 
 class MockFriendsRepository extends Mock implements FriendsRepository {}
 
+class MockRoomRepository extends Mock implements RoomRepository {}
+
 void main() {
   late FriendsProvider provider;
+  late NotificationsProvider notificationsProvider;
   late MockFriendsRepository repository;
+  late MockRoomRepository roomRepository;
 
   setUp(() {
     repository = MockFriendsRepository();
+    roomRepository = MockRoomRepository();
     provider = FriendsProvider(repository: repository);
+    notificationsProvider = NotificationsProvider(
+      roomRepository: roomRepository,
+      friendsRepository: repository,
+    );
 
     when(() => repository.getFriends()).thenAnswer((_) async => []);
     when(() => repository.getIncomingRequests()).thenAnswer((_) async => []);
     when(() => repository.getOutgoingRequests()).thenAnswer((_) async => []);
+    when(() => roomRepository.getInvitations()).thenAnswer((_) async => []);
   });
 
   testWidgets('FriendsPage renders correctly', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: ChangeNotifierProvider<FriendsProvider>.value(
-          value: provider,
+        home: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<FriendsProvider>.value(value: provider),
+            ChangeNotifierProvider<NotificationsProvider>.value(
+              value: notificationsProvider,
+            ),
+          ],
           child: const FriendsPage(),
         ),
       ),

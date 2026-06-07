@@ -4,6 +4,7 @@ import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/models/offline_action.dart';
+import 'package:music_room_app/models/invitation.dart';
 
 class OfflineRoomRepository implements RoomRepository {
   final RoomRepository _remote;
@@ -342,20 +343,28 @@ class OfflineRoomRepository implements RoomRepository {
   }
 
   @override
-  Future<void> delegateRoomControl(String roomId, String userId) async {
-    if (await _isOnline()) {
-      await _remote.delegateRoomControl(roomId, userId);
-    } else {
-      throw Exception('Cannot delegate control while offline.');
+  Future<List<RoomInvitationDto>> getInvitations() async {
+    if (!await _isOnline()) {
+      throw Exception('Cannot fetch invitations while offline.');
     }
+    return _remote.getInvitations();
   }
 
   @override
-  Future<void> revokeRoomControl(String roomId) async {
-    if (await _isOnline()) {
-      await _remote.revokeRoomControl(roomId);
-    } else {
-      throw Exception('Cannot revoke control while offline.');
+  Future<AcceptInvitationResultDto> acceptInvitation(
+    String invitationId,
+  ) async {
+    if (!await _isOnline()) {
+      throw Exception('Cannot accept invitations while offline.');
     }
+    return _remote.acceptInvitation(invitationId);
+  }
+
+  @override
+  Future<RoomInvitationDto> declineInvitation(String invitationId) async {
+    if (!await _isOnline()) {
+      throw Exception('Cannot decline invitations while offline.');
+    }
+    return _remote.declineInvitation(invitationId);
   }
 }

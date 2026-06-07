@@ -1,5 +1,6 @@
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
+import 'package:music_room_app/models/invitation.dart';
 
 // * The contract
 abstract class RoomRepository {
@@ -62,9 +63,12 @@ abstract class RoomRepository {
   Future<void> removePlaylistTrack(String roomId, String trackId);
 
   // *DELEGATE room
-  Future<void> delegateRoomControl(String roomId, String userId);
-  Future<void> revokeRoomControl(String roomId);
 
   // * Search tracks via the music provider (Deezer)
   Future<List<Track>> searchTracks(String query);
+
+  // * Room Invitations
+  Future<List<RoomInvitationDto>> getInvitations();
+  Future<AcceptInvitationResultDto> acceptInvitation(String invitationId);
+  Future<RoomInvitationDto> declineInvitation(String invitationId);
 }

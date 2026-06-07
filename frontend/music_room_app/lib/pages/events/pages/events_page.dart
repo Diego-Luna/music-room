@@ -14,7 +14,8 @@ import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/models/room.dart';
-// import 'package:music_room_app/models/track.dart';
+import 'package:music_room_app/widgets/primary_button.dart';
+import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 
 //* Events page skeleton with Staggered Animations and Dual Voting Interface.
 class EventsPage extends StatefulWidget {
@@ -87,10 +88,10 @@ class _EventsPageState extends State<EventsPage> {
                     style: TextStyle(fontSize: 18),
                   ),
                   const SizedBox(height: AppDimens.md),
-                  ElevatedButton.icon(
+                  PrimaryButton(
                     onPressed: () => _showCreateEventDialog(context),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Create Event'),
+                    leading: const Icon(Icons.add),
+                    label: 'Create Event',
                   ),
                 ],
               ),
@@ -106,29 +107,34 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   centerTitle: true,
                   floating: true,
+                  toolbarHeight: 76.0,
                   pinned: false,
                   backgroundColor: Theme.of(
                     context,
                   ).scaffoldBackgroundColor.withValues(alpha: 0.8),
                   actions: [
-                    IconButton(
-                      icon: const Icon(Icons.add_box_outlined),
-                      tooltip: 'Create Event',
-                      onPressed: () => _showCreateEventDialog(context),
+                    Center(
+                      child: NeumorphicIconButton(
+                        icon: Icons.add_box_outlined,
+                        tooltip: 'Create Event',
+                        onTap: () => _showCreateEventDialog(context),
+                      ),
                     ),
-                    // * Invitations only matter for private rooms.
-                    if (!activeEvent.isPublic)
-                      IconButton(
-                        icon: const Icon(Icons.person_add_alt_1),
+                    Center(
+                      child: NeumorphicIconButton(
+                        icon: Icons.person_add_alt_1,
                         tooltip: 'Invite Friend',
-                        onPressed: () =>
+                        onTap: () =>
                             _showInviteFriendDialog(context, activeEvent),
                       ),
-                    IconButton(
-                      icon: const Icon(Icons.add),
-                      tooltip: 'Suggest Song',
-                      onPressed: () =>
-                          _showSuggestTrackDialog(context, activeEvent),
+                    ),
+                    Center(
+                      child: NeumorphicIconButton(
+                        icon: Icons.add,
+                        tooltip: 'Suggest Song',
+                        onTap: () =>
+                            _showSuggestTrackDialog(context, activeEvent),
+                      ),
                     ),
                   ],
                 ),
@@ -377,28 +383,43 @@ class _EventsPageState extends State<EventsPage> {
       return Text(activeEvent.name);
     }
 
-    return Theme(
-      data: Theme.of(
-        context,
-      ).copyWith(canvasColor: Theme.of(context).colorScheme.surface),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<Room>(
-          value: activeEvent,
-          icon: Icon(
-            Icons.arrow_drop_down,
-            color: Theme.of(context).colorScheme.primary,
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppDesignTokens>();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.xs,
+      ),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppDimens.radiusPill),
+        boxShadow: tokens?.neumorphicShadow,
+      ),
+      child: Theme(
+        data: theme.copyWith(canvasColor: theme.colorScheme.surface),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<Room>(
+            isExpanded: true,
+            value: activeEvent,
+            icon: Icon(Icons.arrow_drop_down, color: theme.colorScheme.primary),
+            onChanged: (Room? newValue) {
+              if (newValue != null) {
+                eventsProvider.selectEvent(newValue);
+              }
+            },
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            items: eventsProvider.events.map<DropdownMenuItem<Room>>((
+              Room room,
+            ) {
+              return DropdownMenuItem<Room>(
+                value: room,
+                child: Text(room.name, overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
           ),
-          onChanged: (Room? newValue) {
-            if (newValue != null) {
-              eventsProvider.selectEvent(newValue);
-            }
-          },
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-          items: eventsProvider.events.map<DropdownMenuItem<Room>>((Room room) {
-            return DropdownMenuItem<Room>(value: room, child: Text(room.name));
-          }).toList(),
         ),
       ),
     );
