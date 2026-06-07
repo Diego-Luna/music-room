@@ -26,9 +26,17 @@ class ApiConfig {
   // * all rooms share the /rooms base
   static const String rooms = '/rooms';
   static const String profile = '/users/me';
-  static const String search = '/auth/spotify/search';
+  // * Deezer-backed track search (GET /search?q=&limit=)
+  static const String search = '/search';
 
-  // * Feature flag — toggle between mock and live API
-  // Use mock data while backend is auth-only
-  static bool useMockData = false;
+  // * Auth sessions (bonus) — list/revoke active refresh-token sessions.
+  static const String sessions = '/auth/sessions';
+
+  // * Push notifications (bonus) — register/unregister a device token.
+  static const String notificationsRegister = '/notifications/register';
+
+  // * Subscription (VI.3 bonus) — free vs premium offers.
+  // GET /subscription/plans (catalogue), GET/PUT /subscription/me (my tier).
+  static const String subscriptionPlans = '/subscription/plans';
+  static const String subscriptionMe = '/subscription/me';
 }

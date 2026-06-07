@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/events_provider.dart';
+import 'package:music_room_app/widgets/neumorphic_form_field.dart';
+import 'package:music_room_app/widgets/primary_button.dart';
 
 class CreateEventDialog extends StatefulWidget {
   const CreateEventDialog({super.key});
@@ -95,32 +97,28 @@ class _CreateEventDialogState extends State<CreateEventDialog> {
   Widget _buildBasicFields(ThemeData theme) {
     return Column(
       children: [
-        TextField(
+        NeumorphicTextField(
           controller: _nameController,
-          decoration: const InputDecoration(
-            labelText: 'Event Name *',
-            hintText: 'e.g. Summer Pool Party',
-          ),
-        ),
-        const SizedBox(height: AppDimens.sm),
-        TextField(
-          controller: _descController,
-          decoration: const InputDecoration(
-            labelText: 'Description',
-            hintText: 'e.g. Vote for electronic tracks...',
-          ),
+          label: 'Event Name *',
+          hint: 'e.g. Summer Pool Party',
         ),
         const SizedBox(height: AppDimens.md),
-        SwitchListTile(
-          title: const Text('Public Visibility'),
-          subtitle: const Text('All users can search and discover this event'),
+        NeumorphicTextField(
+          controller: _descController,
+          label: 'Description',
+          hint: 'e.g. Vote for electronic tracks...',
+        ),
+        const SizedBox(height: AppDimens.md),
+        NeumorphicToggleTile(
+          title: 'Public Visibility',
+          subtitle: 'All users can search and discover this event',
           value: _isPublic,
           onChanged: (val) => setState(() => _isPublic = val),
         ),
-        const SizedBox(height: AppDimens.sm),
-        DropdownButtonFormField<String>(
-          initialValue: _voteAccess,
-          decoration: const InputDecoration(labelText: 'Who can vote?'),
+        const SizedBox(height: AppDimens.md),
+        NeumorphicDropdown<String>(
+          value: _voteAccess,
+          label: 'Who can vote?',
           items: const [
             DropdownMenuItem(value: 'EVERYONE', child: Text('Everyone')),
             DropdownMenuItem(
@@ -139,48 +137,43 @@ class _CreateEventDialogState extends State<CreateEventDialog> {
   Widget _buildGeoGatingSection(ThemeData theme) {
     return Column(
       children: [
-        CheckboxListTile(
-          title: const Text('Enable Geo-Gating'),
-          subtitle: const Text('Restrict voting to a specific location'),
+        NeumorphicToggleTile(
+          title: 'Enable Geo-Gating',
+          subtitle: 'Restrict voting to a specific location',
           value: _isGeoGated,
-          onChanged: (val) => setState(() => _isGeoGated = val ?? false),
+          onChanged: (val) => setState(() => _isGeoGated = val),
         ),
         if (_isGeoGated) ...[
-          const SizedBox(height: AppDimens.xs),
+          const SizedBox(height: AppDimens.md),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: TextField(
+                child: NeumorphicTextField(
                   controller: _latController,
+                  label: 'Latitude (-90 to 90)',
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Latitude (-90 to 90)',
                   ),
                 ),
               ),
               const SizedBox(width: AppDimens.md),
               Expanded(
-                child: TextField(
+                child: NeumorphicTextField(
                   controller: _lngController,
+                  label: 'Longitude (-180 to 180)',
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
-                  ),
-                  decoration: const InputDecoration(
-                    labelText: 'Longitude (-180 to 180)',
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppDimens.sm),
-          TextField(
+          const SizedBox(height: AppDimens.md),
+          NeumorphicTextField(
             controller: _radiusController,
+            label: 'Radius in meters (min 10)',
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Radius in meters (min 10)',
-            ),
           ),
         ],
       ],
@@ -190,28 +183,66 @@ class _CreateEventDialogState extends State<CreateEventDialog> {
   Widget _buildSchedulingSection(ThemeData theme) {
     return Column(
       children: [
-        CheckboxListTile(
-          title: const Text('Schedule Voting Window'),
-          subtitle: const Text('Only allow voting within a specific time'),
+        NeumorphicToggleTile(
+          title: 'Schedule Voting Window',
+          subtitle: 'Only allow voting within a specific time',
           value: _isScheduled,
-          onChanged: (val) => setState(() => _isScheduled = val ?? false),
+          onChanged: (val) => setState(() => _isScheduled = val),
         ),
         if (_isScheduled) ...[
-          const SizedBox(height: AppDimens.xs),
+          const SizedBox(height: AppDimens.md),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              TextButton(
-                onPressed: _selectStartDate,
-                child: Text('Starts: ${_startsAt.toString().substring(0, 16)}'),
+              Expanded(
+                child: _dateSelector('Starts', _startsAt, _selectStartDate),
               ),
-              TextButton(
-                onPressed: _selectEndDate,
-                child: Text('Ends: ${_endsAt.toString().substring(0, 16)}'),
-              ),
+              const SizedBox(width: AppDimens.md),
+              Expanded(child: _dateSelector('Ends', _endsAt, _selectEndDate)),
             ],
           ),
         ],
+      ],
+    );
+  }
+
+  Widget _dateSelector(String label, DateTime date, VoidCallback onTap) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(
+            left: AppDimens.xs,
+            bottom: AppDimens.xs,
+          ),
+          child: Text(label, style: theme.textTheme.labelLarge),
+        ),
+        GestureDetector(
+          onTap: onTap,
+          child: NeumorphicInset(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppDimens.md,
+              vertical: AppDimens.sm,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.calendar_today,
+                  size: AppDimens.iconSmall,
+                  color: theme.colorScheme.primary,
+                ),
+                const SizedBox(width: AppDimens.sm),
+                Expanded(
+                  child: Text(
+                    date.toString().substring(0, 16),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -273,11 +304,10 @@ class _CreateEventDialogState extends State<CreateEventDialog> {
     EventsProvider eventsProvider,
     ScaffoldMessengerState scaffoldMessenger,
   ) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
+    return Center(
+      child: PrimaryButton(
         onPressed: () => _handleSubmit(eventsProvider, scaffoldMessenger),
-        child: const Text('Create Event'),
+        label: 'Create Event',
       ),
     );
   }

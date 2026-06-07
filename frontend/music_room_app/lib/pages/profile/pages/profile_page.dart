@@ -10,6 +10,7 @@ import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/profile_provider.dart';
 import 'package:music_room_app/models/user.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
+import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -61,7 +62,9 @@ class _ProfilePageState extends State<ProfilePage> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? '$title updated' : (_profile.error ?? 'Update failed')),
+        content: Text(
+          ok ? '$title updated' : (_profile.error ?? 'Update failed'),
+        ),
         backgroundColor: ok ? Colors.green : Colors.redAccent,
       ),
     );
@@ -241,11 +244,22 @@ class _ProfilePageState extends State<ProfilePage> {
         SliverAppBar(
           title: const Text('Profile'),
           centerTitle: true,
+          toolbarHeight: 76.0,
           expandedHeight: 250.0,
           floating: true,
           pinned: false,
           backgroundColor: theme.scaffoldBackgroundColor,
           elevation: 0,
+          actions: [
+            Center(
+              child: NeumorphicIconButton(
+                icon: Icons.settings,
+                onTap: () => _showSettingsModal(context, theme),
+                tooltip: 'Settings',
+              ),
+            ),
+            const SizedBox(width: AppDimens.md),
+          ],
           flexibleSpace: FlexibleSpaceBar(
             background: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -287,6 +301,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   user.email,
                   style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.disabledColor,
+                  ),
+                ),
+                const SizedBox(height: AppDimens.xs),
+                SelectableText(
+                  'User ID: ${user.id}',
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.disabledColor,
                   ),
                 ),
@@ -338,13 +359,12 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ),
-        const SliverToBoxAdapter(
-          child: SizedBox(height: AppDimens.xxl * 3),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: AppDimens.xxl * 3)),
       ],
     );
   }
 
+  // * Builds an editable field for the profile page.
   Widget _buildEditableField(
     ThemeData theme,
     String title,
@@ -409,6 +429,97 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
       ],
+    );
+  }
+
+  // * Bottom Sheet Modal to choose settings
+  void _showSettingsModal(BuildContext context, ThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (BuildContext context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(AppDimens.radiusLarge),
+              topRight: Radius.circular(AppDimens.radiusLarge),
+            ),
+            boxShadow: theme.extension<AppDesignTokens>()?.neumorphicShadow,
+          ),
+          padding: const EdgeInsets.symmetric(
+            vertical: AppDimens.xl,
+            horizontal: AppDimens.lg,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Settings',
+                style: theme.textTheme.headlineMedium?.copyWith(
+                  fontWeight: AppTypography.bold,
+                ),
+              ),
+              const SizedBox(height: AppDimens.xxl),
+              NeumorphicInteractiveContainer(
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(routeSettings);
+                },
+                padding: const EdgeInsets.all(AppDimens.md),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.manage_accounts,
+                      color: theme.colorScheme.primary,
+                    ),
+                    const SizedBox(width: AppDimens.md),
+                    Expanded(
+                      child: Text(
+                        'Account Settings',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: AppTypography.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppDimens.lg),
+              NeumorphicInteractiveContainer(
+                onTap: () {
+                  Navigator.pop(context);
+                  context.push(routeDevices);
+                },
+                padding: const EdgeInsets.all(AppDimens.md),
+                child: Row(
+                  children: [
+                    Icon(Icons.devices_other, color: theme.colorScheme.primary),
+                    const SizedBox(width: AppDimens.md),
+                    Expanded(
+                      child: Text(
+                        'Devices & Delegation',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: AppTypography.bold,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppDimens.xl),
+            ],
+          ),
+        );
+      },
     );
   }
 }

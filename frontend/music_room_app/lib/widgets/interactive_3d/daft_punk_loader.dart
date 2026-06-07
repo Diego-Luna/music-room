@@ -1,9 +1,7 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_3d_controller/flutter_3d_controller.dart';
-import 'package:sensors_plus/sensors_plus.dart';
 
 // ! dart:io is only available on native platforms
 import 'platform_stub.dart' if (dart.library.io) 'dart:io' show Platform;
@@ -28,17 +26,12 @@ class _DaftPunkLoaderState extends State<DaftPunkLoader>
     with SingleTickerProviderStateMixin {
   late final Flutter3DController _viewerController;
   Ticker? _ticker;
-  StreamSubscription<GyroscopeEvent>? _gyroSubscription;
   final bool _isTest = kIsWeb
       ? false
       : Platform.environment.containsKey('FLUTTER_TEST');
 
   bool _isLoading = true;
-  bool _gyroActive =
-      false; // Becomes true when the first gyro event is successfully received
   double _theta = 0.0;
-  double _gyroPhi = 0.0;
-  double _gyroTheta = 0.0;
 
   @override
   void initState() {
@@ -47,7 +40,7 @@ class _DaftPunkLoaderState extends State<DaftPunkLoader>
 
     // * Continuous rotation ticker (used only if gyro is active)
     _ticker = createTicker((elapsed) {
-      if (!_isLoading && _gyroActive) {
+      if (!_isLoading) {
         setState(() {
           // 360 degrees in 'duration' seconds
           final double delta =
@@ -57,74 +50,15 @@ class _DaftPunkLoaderState extends State<DaftPunkLoader>
         });
       }
     });
-
-    _initGyro();
-  }
-
-  void _initGyro() {
-    try {
-      // Listen to gyroscope events
-      _gyroSubscription = gyroscopeEventStream().listen(
-        (GyroscopeEvent event) {
-          if (!mounted || _isLoading) return;
-
-          // First time we get a valid event, gyro is working!
-          if (!_gyroActive) {
-            _gyroActive = true;
-            _viewerController
-                .stopRotation(); // Stop the fallback native rotation
-            if (!(_ticker?.isTicking ?? true)) {
-              _ticker?.start();
-            }
-          }
-
-          setState(() {
-            // We use a small factor to make the movement subtle and responsive
-            _gyroPhi = (_gyroPhi + event.x * 1.5).clamp(-30.0, 30.0);
-            _gyroTheta = (_gyroTheta - event.y * 1.5).clamp(-40.0, 40.0);
-            _updateCamera();
-          });
-        },
-        onError: (error) {
-          debugPrint('Gyroscope error: $error');
-          _fallbackToNativeRotation();
-        },
-        cancelOnError: true,
-      );
-    } catch (e) {
-      debugPrint(
-        'Gyroscope init failed (e.g. web/desktop without sensors): $e',
-      );
-      _fallbackToNativeRotation();
-    }
-  }
-
-  void _fallbackToNativeRotation() {
-    if (!mounted) return;
-    _gyroActive = false;
-    _gyroSubscription?.cancel();
-    _gyroSubscription = null;
-
-    if (_ticker?.isTicking ?? false) {
-      _ticker?.stop();
-    }
-
-    if (!_isLoading) {
-      final double speed = 360 / (widget.duration.inMilliseconds / 1000.0);
-      _viewerController.startRotation(rotationSpeed: speed.toInt());
-    }
   }
 
   void _updateCamera() {
-    // * Combine automatic rotation with gyroscope offsets
-    // * Base phi is 0 (centered)
-    _viewerController.setCameraOrbit(_theta + _gyroTheta, _gyroPhi, 70);
+    _viewerController.setCameraOrbit(_theta, 0, 70);
   }
 
   @override
   void dispose() {
     _ticker?.dispose();
-    _gyroSubscription?.cancel();
     super.dispose();
   }
 
@@ -157,15 +91,9 @@ class _DaftPunkLoaderState extends State<DaftPunkLoader>
               debugPrint('3D Model Loaded: $modelAddress');
               if (mounted) {
                 setState(() => _isLoading = false);
-
-                // Either start the gyro ticker, or fallback to native rotation
-                if (_gyroActive) {
-                  _ticker?.start();
-                } else {
-                  final double speed =
-                      360 / (widget.duration.inMilliseconds / 1000.0);
-                  _viewerController.startRotation(rotationSpeed: speed.toInt());
-                }
+                final double speed =
+                    360 / (widget.duration.inMilliseconds / 1000.0);
+                _viewerController.startRotation(rotationSpeed: speed.toInt());
               }
             },
             onError: (String error) {

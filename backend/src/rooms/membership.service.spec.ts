@@ -155,7 +155,7 @@ describe('RoomMembershipService', () => {
       prisma.room.findUnique.mockResolvedValue(privateRoom);
       prisma.user.findUnique.mockResolvedValue({ id: 'invited' });
       prisma.roomMember.findUnique.mockResolvedValue(null);
-      prisma.roomInvitation.findFirst.mockResolvedValue(null);
+      prisma.roomInvitation.findUnique.mockResolvedValue(null);
       prisma.roomInvitation.create.mockResolvedValue({ id: 'inv-1' });
 
       const inv = await service.invite('room-1', 'owner-1', {
@@ -195,6 +195,18 @@ describe('RoomMembershipService', () => {
       await expect(
         service.invite('room-1', 'owner-1', { userId: 'existing' }),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('rejects when the invitee already has a PENDING invitation', async () => {
+      prisma.room.findUnique.mockResolvedValue(privateRoom);
+      prisma.user.findUnique.mockResolvedValue({ id: 'invited' });
+      prisma.roomMember.findUnique.mockResolvedValue(null);
+      prisma.roomInvitation.findUnique.mockResolvedValue({ id: 'inv-existing' });
+
+      await expect(
+        service.invite('room-1', 'owner-1', { userId: 'invited' }),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.roomInvitation.create).not.toHaveBeenCalled();
     });
   });
 

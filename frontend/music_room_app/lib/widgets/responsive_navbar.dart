@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/navigation_provider.dart';
+import 'package:music_room_app/providers/notifications_provider.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 
 // ! Responsive navigation bar that reads destinations from `NavigationProvider`.
@@ -16,16 +17,25 @@ class ResponsiveNavbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final nav = context.watch<NavigationProvider>();
+    final notificationsProv = context.watch<NotificationsProvider>();
     final width = MediaQuery.of(context).size.width;
     final isMobile = forceMobile ?? width < 700;
 
+    final pendingCount =
+        notificationsProv.incomingFriendRequests.length +
+        notificationsProv.roomInvitations.length;
+
     if (isMobile) {
-      return _buildMobileNav(context, nav);
+      return _buildMobileNav(context, nav, pendingCount);
     }
-    return _buildWebNav(context, nav);
+    return _buildWebNav(context, nav, pendingCount);
   }
 
-  Widget _buildMobileNav(BuildContext context, NavigationProvider nav) {
+  Widget _buildMobileNav(
+    BuildContext context,
+    NavigationProvider nav,
+    int pendingCount,
+  ) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppDesignTokens>();
 
@@ -40,10 +50,20 @@ class ResponsiveNavbar extends StatelessWidget {
       ),
       clipBehavior: Clip.none,
       child: Row(
-        mainAxisAlignment:  MainAxisAlignment.spaceEvenly,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: List.generate(nav.destinations.length, (index) {
           final item = nav.destinations[index];
           final isActive = index == nav.currentIndex;
+
+          Widget iconWidget = Icon(
+            item.icon,
+            color: isActive ? theme.colorScheme.primary : theme.disabledColor,
+            size: AppDimens.iconMedium,
+          );
+
+          if (item.label == 'Inbox' && pendingCount > 0) {
+            iconWidget = Badge(label: Text('$pendingCount'), child: iconWidget);
+          }
 
           return Expanded(
             child: NeumorphicInteractiveContainer(
@@ -60,13 +80,7 @@ class ResponsiveNavbar extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    item.icon,
-                    color: isActive
-                        ? theme.colorScheme.primary
-                        : theme.disabledColor,
-                    size: AppDimens.iconMedium,
-                  ),
+                  iconWidget,
                   const SizedBox(height: 4),
                   Text(
                     item.label,
@@ -91,7 +105,11 @@ class ResponsiveNavbar extends StatelessWidget {
     );
   }
 
-  Widget _buildWebNav(BuildContext context, NavigationProvider nav) {
+  Widget _buildWebNav(
+    BuildContext context,
+    NavigationProvider nav,
+    int pendingCount,
+  ) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppDesignTokens>();
 
@@ -115,50 +133,73 @@ class ResponsiveNavbar extends StatelessWidget {
                 fontWeight: AppTypography.extraBold,
               ),
             ),
-            const Spacer(),
-            ...List.generate(nav.destinations.length, (index) {
-              final item = nav.destinations[index];
-              final isActive = index == nav.currentIndex;
+            const SizedBox(width: AppDimens.md),
+            // Items take the remaining space and scroll horizontally when they
+            // don't fit, keeping right-aligned (reverse) to mimic a Spacer.
+            // Prevents the RenderFlex overflow on narrow web windows.
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(nav.destinations.length, (index) {
+                    final item = nav.destinations[index];
+                    final isActive = index == nav.currentIndex;
 
-              return Padding(
-                padding: const EdgeInsets.only(left: AppDimens.md),
-                child: NeumorphicInteractiveContainer(
-                  onTap: () => nav.navigateToIndex(context, index),
-                  isForcedPressed: isActive,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimens.lg,
-                    vertical: AppDimens.sm,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        item.icon,
-                        color: isActive
-                            ? theme.colorScheme.primary
-                            : theme.disabledColor,
-                        size: AppDimens.iconMedium,
-                      ),
-                      const SizedBox(width: AppDimens.sm),
-                      Text(
-                        item.label,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: isActive
-                              ? theme.colorScheme.primary
-                              : theme.disabledColor,
-                          fontWeight: isActive
-                              ? AppTypography.bold
-                              : AppTypography.normal,
+                    Widget iconWidget = Icon(
+                      item.icon,
+                      color: isActive
+                          ? theme.colorScheme.primary
+                          : theme.disabledColor,
+                      size: AppDimens.iconMedium,
+                    );
+
+                    if (item.label == 'Inbox' && pendingCount > 0) {
+                      iconWidget = Badge(
+                        label: Text('$pendingCount'),
+                        child: iconWidget,
+                      );
+                    }
+
+                    return Padding(
+                      padding: const EdgeInsets.only(left: AppDimens.md),
+                      child: NeumorphicInteractiveContainer(
+                        onTap: () => nav.navigateToIndex(context, index),
+                        isForcedPressed: isActive,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppDimens.lg,
+                          vertical: AppDimens.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            AppDimens.radiusMedium,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            iconWidget,
+                            const SizedBox(width: AppDimens.sm),
+                            Text(
+                              item.label,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: isActive
+                                    ? theme.colorScheme.primary
+                                    : theme.disabledColor,
+                                fontWeight: isActive
+                                    ? AppTypography.bold
+                                    : AppTypography.normal,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  }),
                 ),
-              );
-            }),
+              ),
+            ),
           ],
         ),
       ),

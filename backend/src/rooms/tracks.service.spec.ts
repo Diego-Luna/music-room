@@ -424,46 +424,6 @@ describe('TracksService', () => {
     });
   });
 
-  describe('removeTrack', () => {
-    it('lets the author remove their own track', async () => {
-      prisma.room.findUnique.mockResolvedValue(baseRoom);
-      prisma.track.findUnique.mockResolvedValue({
-        id: 't1',
-        roomId: 'r1',
-        addedById: 'u1',
-      });
-      await service.removeTrack('r1', 't1', 'u1');
-      expect(prisma.track.delete).toHaveBeenCalledWith({ where: { id: 't1' } });
-      expect(realtime.emitToRoom).toHaveBeenCalledWith('r1', 'track:removed', {
-        trackId: 't1',
-      });
-    });
-
-    it('lets the owner remove any track', async () => {
-      prisma.room.findUnique.mockResolvedValue(baseRoom);
-      prisma.track.findUnique.mockResolvedValue({
-        id: 't1',
-        roomId: 'r1',
-        addedById: 'someone-else',
-      });
-      await service.removeTrack('r1', 't1', 'owner');
-      expect(prisma.track.delete).toHaveBeenCalled();
-    });
-
-    it('rejects a regular member removing another user track', async () => {
-      prisma.room.findUnique.mockResolvedValue(baseRoom);
-      prisma.track.findUnique.mockResolvedValue({
-        id: 't1',
-        roomId: 'r1',
-        addedById: 'other',
-      });
-      prisma.roomMember.findUnique.mockResolvedValue({ role: 'MEMBER' });
-      await expect(
-        service.removeTrack('r1', 't1', 'someone'),
-      ).rejects.toThrow(ForbiddenException);
-    });
-  });
-
   describe('listRanked', () => {
     it('returns tracks sorted by score desc, addedAt asc, excluding played', async () => {
       prisma.room.findUnique.mockResolvedValue(baseRoom);

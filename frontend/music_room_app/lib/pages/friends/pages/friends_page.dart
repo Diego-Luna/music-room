@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
+import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
+import 'package:music_room_app/providers/notifications_provider.dart';
 import 'package:music_room_app/models/user.dart';
 import 'package:music_room_app/models/friendship.dart';
+import 'package:music_room_app/models/invitation.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/pages/auth/widgets/auth_text_field.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
+import 'package:music_room_app/widgets/user_search_sheet.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -26,6 +31,7 @@ class _FriendsPageState extends State<FriendsPage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<FriendsProvider>().fetchFriendsData();
+      context.read<NotificationsProvider>().fetchNotifications();
     });
   }
 
@@ -33,6 +39,38 @@ class _FriendsPageState extends State<FriendsPage> {
   void dispose() {
     _uuidController.dispose();
     super.dispose();
+  }
+
+  void _openUserSearch(FriendsProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => UserSearchSheet(
+        title: 'Find People',
+        onSelected: (user) async {
+          try {
+            await provider.sendRequest(user.id);
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Friend request sent to ${user.displayName}'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
+            );
+            provider.fetchFriendsData();
+          } catch (e) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(provider.error ?? 'Failed to send request'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
+        },
+      ),
+    );
   }
 
   void _handleAddFriend(FriendsProvider provider) async {
@@ -73,16 +111,18 @@ class _FriendsPageState extends State<FriendsPage> {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<FriendsProvider>();
+    final notificationsProv = context.watch<NotificationsProvider>();
     final theme = Theme.of(context);
 
     return Scaffold(
       body: Stack(
         children: [
           const Opacity(opacity: 0.4, child: BackgroundFloaters()),
-          if (provider.isLoading &&
+          if ((provider.isLoading || notificationsProv.isLoading) &&
               provider.friends.isEmpty &&
-              provider.incomingRequests.isEmpty &&
-              provider.outgoingRequests.isEmpty)
+              notificationsProv.incomingFriendRequests.isEmpty &&
+              notificationsProv.roomInvitations.isEmpty &&
+              notificationsProv.outgoingFriendRequests.isEmpty)
             const Center(child: CircularProgressIndicator())
           else
             CustomScrollView(
@@ -119,7 +159,9 @@ class _FriendsPageState extends State<FriendsPage> {
                       icon: Icons.notifications_none_rounded,
                       tooltip: 'Requests',
                       isActive: provider.currentView == FriendsView.requests,
-                      badgeCount: provider.incomingRequests.length,
+                      badgeCount:
+                          notificationsProv.incomingFriendRequests.length +
+                          notificationsProv.roomInvitations.length,
                       onTap: () => provider.setView(FriendsView.requests),
                     ),
                     _buildTabButton(
@@ -134,7 +176,7 @@ class _FriendsPageState extends State<FriendsPage> {
                 if (provider.currentView == FriendsView.friends)
                   _buildFriendsList(provider, theme)
                 else if (provider.currentView == FriendsView.requests)
-                  _buildRequestsList(provider, theme)
+                  ..._buildRequestsList(notificationsProv, theme)
                 else
                   _buildAddFriendForm(provider, theme),
               ],
@@ -168,7 +210,7 @@ class _FriendsPageState extends State<FriendsPage> {
     }
 
     return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
+      delegate: SliverChildBuilderDelegate((builderContext, index) {
         final friendDto = provider.friends[index];
         final user = provider.userCache[friendDto.friendId];
         if (user == null) return const SizedBox.shrink();
@@ -185,6 +227,10 @@ class _FriendsPageState extends State<FriendsPage> {
               subtitle: friendDto.since != null
                   ? 'Friends since: ${friendDto.since!.toLocal().toString().split(' ')[0]}'
                   : 'Connected',
+              onTap: () => context.push(
+                routeUserProfile,
+                extra: {'userId': friendDto.friendId},
+              ),
               leading: CircleAvatar(
                 backgroundImage: user.avatarUrl != null
                     ? NetworkImage(user.avatarUrl!)
@@ -196,8 +242,21 @@ class _FriendsPageState extends State<FriendsPage> {
                 iconColor: theme.colorScheme.error,
                 tooltip: 'Unfriend',
                 iconSize: 20,
-                onTap: () =>
-                    provider.cancelOrRemoveFriendship(friendDto.friendshipId),
+                onTap: () async {
+                  try {
+                    await provider.cancelOrRemoveFriendship(
+                      friendDto.friendshipId,
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(provider.error ?? 'An error occurred'),
+                        backgroundColor: theme.colorScheme.error,
+                      ),
+                    );
+                  }
+                },
               ),
             ),
           ),
@@ -206,51 +265,142 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
-  Widget _buildRequestsList(FriendsProvider provider, ThemeData theme) {
-    final hasIncoming = provider.incomingRequests.isNotEmpty;
-    final hasOutgoing = provider.outgoingRequests.isNotEmpty;
+  List<Widget> _buildRequestsList(
+    NotificationsProvider provider,
+    ThemeData theme,
+  ) {
+    final hasFriendRequests = provider.incomingFriendRequests.isNotEmpty;
+    final hasRoomInvitations = provider.roomInvitations.isNotEmpty;
+    final hasOutgoing = provider.outgoingFriendRequests.isNotEmpty;
+    final hasSentInvites = provider.sentRoomInvitations.isNotEmpty;
 
-    if (!hasIncoming && !hasOutgoing) {
-      return const SliverFillRemaining(
-        child: Center(child: Text('No pending requests.')),
+    if (!hasFriendRequests &&
+        !hasRoomInvitations &&
+        !hasOutgoing &&
+        !hasSentInvites) {
+      return [
+        const SliverFillRemaining(
+          child: Center(child: Text('No pending requests.')),
+        ),
+      ];
+    }
+
+    final List<Widget> slivers = [];
+
+    if (hasRoomInvitations) {
+      slivers.add(
+        SliverToBoxAdapter(child: _buildHeaderSection('Room Invitations')),
+      );
+      slivers.add(
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (builderContext, index) => _buildRoomInvitationItem(
+              provider,
+              provider.roomInvitations[index],
+            ),
+            childCount: provider.roomInvitations.length,
+          ),
+        ),
       );
     }
 
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          if (hasIncoming) {
-            if (index == 0) {
-              return _buildHeaderSection('Incoming Requests');
-            }
-            if (index <= provider.incomingRequests.length) {
-              final req = provider.incomingRequests[index - 1];
-              final user = provider.userCache[req.requesterId];
-              if (user == null) return const SizedBox.shrink();
+    if (hasFriendRequests) {
+      slivers.add(
+        SliverToBoxAdapter(child: _buildHeaderSection('Friend Requests')),
+      );
+      slivers.add(
+        SliverList(
+          delegate: SliverChildBuilderDelegate((builderContext, index) {
+            final req = provider.incomingFriendRequests[index];
+            final user = provider.userCache[req.requesterId];
+            return user != null
+                ? _buildIncomingRequestItem(provider, req, user)
+                : const SizedBox.shrink();
+          }, childCount: provider.incomingFriendRequests.length),
+        ),
+      );
+    }
 
-              return _buildIncomingRequestItem(provider, req, user);
-            }
-          }
-
-          final outgoingIndex = hasIncoming
-              ? index - provider.incomingRequests.length - 1
-              : index;
-          if (outgoingIndex == 0) {
-            return _buildHeaderSection('Outgoing Requests');
-          }
-          if (outgoingIndex <= provider.outgoingRequests.length) {
-            final req = provider.outgoingRequests[outgoingIndex - 1];
+    if (hasOutgoing) {
+      slivers.add(
+        SliverToBoxAdapter(child: _buildHeaderSection('Outgoing Requests')),
+      );
+      slivers.add(
+        SliverList(
+          delegate: SliverChildBuilderDelegate((builderContext, index) {
+            final req = provider.outgoingFriendRequests[index];
             final user = provider.userCache[req.addresseeId];
-            if (user == null) return const SizedBox.shrink();
+            return user != null
+                ? _buildOutgoingRequestItem(provider, req, user)
+                : const SizedBox.shrink();
+          }, childCount: provider.outgoingFriendRequests.length),
+        ),
+      );
+    }
 
-            return _buildOutgoingRequestItem(provider, req, user);
-          }
+    if (hasSentInvites) {
+      slivers.add(
+        SliverToBoxAdapter(child: _buildHeaderSection('Sent Room Invitations')),
+      );
+      slivers.add(
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (builderContext, index) => _buildSentRoomInvitationItem(
+              provider,
+              provider.sentRoomInvitations[index],
+            ),
+            childCount: provider.sentRoomInvitations.length,
+          ),
+        ),
+      );
+    }
 
-          return null;
-        },
-        childCount:
-            (hasIncoming ? provider.incomingRequests.length + 1 : 0) +
-            (hasOutgoing ? provider.outgoingRequests.length + 1 : 0),
+    return slivers;
+  }
+
+  Widget _buildSentRoomInvitationItem(
+    NotificationsProvider provider,
+    RoomInvitationDto invite,
+  ) {
+    final theme = Theme.of(context);
+    final invitee = provider.userCache[invite.inviteeId];
+    final room = provider.roomCache[invite.roomId];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.sm / 2,
+      ),
+      child: PlaceholderCard(
+        title: invitee?.displayName ?? 'Someone',
+        subtitle: 'Invited to: ${room?.name ?? 'a private room'}',
+        leading: CircleAvatar(
+          backgroundImage: invitee?.avatarUrl != null
+              ? NetworkImage(invitee!.avatarUrl!)
+              : null,
+          child: invitee?.avatarUrl == null
+              ? const Icon(Icons.outgoing_mail)
+              : null,
+        ),
+        trailing: NeumorphicIconButton(
+          icon: Icons.delete_forever_rounded,
+          iconColor: theme.colorScheme.error,
+          tooltip: 'Cancel Invitation',
+          iconSize: 20,
+          onTap: () async {
+            try {
+              await provider.cancelRoomInvitation(invite.id);
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(provider.error ?? 'Could not cancel invitation'),
+                  backgroundColor: theme.colorScheme.error,
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }
@@ -272,8 +422,83 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
+  Widget _buildRoomInvitationItem(
+    NotificationsProvider provider,
+    RoomInvitationDto invite,
+  ) {
+    final theme = Theme.of(context);
+    final inviter = provider.userCache[invite.inviterId];
+    final room = provider.roomCache[invite.roomId];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.sm / 2,
+      ),
+      child: PlaceholderCard(
+        title: inviter?.displayName ?? 'Someone',
+        subtitle: 'Invited you to: ${room?.name ?? 'a private room'}',
+        leading: CircleAvatar(
+          backgroundImage: inviter?.avatarUrl != null
+              ? NetworkImage(inviter!.avatarUrl!)
+              : null,
+          child: inviter?.avatarUrl == null
+              ? const Icon(Icons.meeting_room_rounded)
+              : null,
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            NeumorphicIconButton(
+              icon: Icons.check_circle_rounded,
+              tooltip: 'Accept',
+              iconSize: 20,
+              onTap: () async {
+                try {
+                  await provider.acceptRoomInvitation(invite.id);
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        provider.error ?? 'Could not accept invitation',
+                      ),
+                      backgroundColor: theme.colorScheme.error,
+                    ),
+                  );
+                }
+              },
+            ),
+            const SizedBox(width: AppDimens.sm),
+            NeumorphicIconButton(
+              icon: Icons.cancel_rounded,
+              iconColor: theme.colorScheme.error,
+              tooltip: 'Decline',
+              iconSize: 20,
+              onTap: () async {
+                try {
+                  await provider.declineRoomInvitation(invite.id);
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        provider.error ?? 'Could not decline invitation',
+                      ),
+                      backgroundColor: theme.colorScheme.error,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildIncomingRequestItem(
-    FriendsProvider provider,
+    NotificationsProvider provider,
     FriendshipDto req,
     User user,
   ) {
@@ -299,7 +524,23 @@ class _FriendsPageState extends State<FriendsPage> {
               icon: Icons.check_circle_rounded,
               tooltip: 'Accept',
               iconSize: 20,
-              onTap: () => provider.acceptFriendRequest(req.id),
+              onTap: () async {
+                try {
+                  await provider.acceptFriendRequest(req.id);
+                  if (!mounted) return;
+                  context.read<FriendsProvider>().fetchFriendsData();
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        provider.error ?? 'Could not accept request',
+                      ),
+                      backgroundColor: theme.colorScheme.error,
+                    ),
+                  );
+                }
+              },
             ),
             const SizedBox(width: AppDimens.sm),
             NeumorphicIconButton(
@@ -307,7 +548,23 @@ class _FriendsPageState extends State<FriendsPage> {
               iconColor: theme.colorScheme.error,
               tooltip: 'Decline',
               iconSize: 20,
-              onTap: () => provider.declineFriendRequest(req.id),
+              onTap: () async {
+                try {
+                  await provider.declineFriendRequest(req.id);
+                  if (!mounted) return;
+                  context.read<FriendsProvider>().fetchFriendsData();
+                } catch (e) {
+                  if (!mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        provider.error ?? 'Could not decline request',
+                      ),
+                      backgroundColor: theme.colorScheme.error,
+                    ),
+                  );
+                }
+              },
             ),
           ],
         ),
@@ -316,7 +573,7 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Widget _buildOutgoingRequestItem(
-    FriendsProvider provider,
+    NotificationsProvider provider,
     FriendshipDto req,
     User user,
   ) {
@@ -340,7 +597,21 @@ class _FriendsPageState extends State<FriendsPage> {
           iconColor: theme.colorScheme.error,
           tooltip: 'Cancel Request',
           iconSize: 20,
-          onTap: () => provider.cancelOrRemoveFriendship(req.id),
+          onTap: () async {
+            try {
+              await provider.cancelOrRemoveFriendship(req.id);
+              if (!mounted) return;
+              context.read<FriendsProvider>().fetchFriendsData();
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(provider.error ?? 'Could not cancel request'),
+                  backgroundColor: theme.colorScheme.error,
+                ),
+              );
+            }
+          },
         ),
       ),
     );
@@ -363,10 +634,36 @@ class _FriendsPageState extends State<FriendsPage> {
             ),
             const SizedBox(height: AppDimens.sm),
             Text(
-              'Enter your friend\'s unique User ID (UUID) to send them a friendship request.',
+              'Search people by name, or paste a User ID (UUID) directly.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.disabledColor,
               ),
+            ),
+            const SizedBox(height: AppDimens.xl),
+            PrimaryButton(
+              label: 'Search by name',
+              leading: Icon(
+                Icons.search,
+                color: theme.colorScheme.primary,
+                size: AppDimens.iconMedium,
+              ),
+              onPressed: () => _openUserSearch(provider),
+            ),
+            const SizedBox(height: AppDimens.xl),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppDimens.md),
+                  child: Text(
+                    'or by ID',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.disabledColor,
+                    ),
+                  ),
+                ),
+                const Expanded(child: Divider()),
+              ],
             ),
             const SizedBox(height: AppDimens.xl),
             AuthTextField(

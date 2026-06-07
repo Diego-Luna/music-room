@@ -42,31 +42,11 @@ export class DelegationController {
     return this.delegation.listMyDevices(user.sub);
   }
 
-  @Get('delegations')
-  @ApiOperation({ summary: 'List devices I have delegated to friends' })
-  @ApiOkResponse({ type: MusicControlDelegationDto, isArray: true })
-  listMine(@CurrentUser() user: JwtPayload) {
-    return this.delegation.listMyDelegations(user.sub);
-  }
-
   @Get('controlled-devices')
   @ApiOperation({ summary: "List friends' devices I can control" })
   @ApiOkResponse({ type: MusicControlDelegationDto, isArray: true })
   listControlled(@CurrentUser() user: JwtPayload) {
     return this.delegation.listControlledDevices(user.sub);
-  }
-
-  @Get('devices/:deviceId/delegate')
-  @ApiOperation({ summary: 'Get the current delegate for one of my devices' })
-  @ApiOkResponse({
-    type: MusicControlDelegationDto,
-    description: 'The delegation for the device, or null if not delegated',
-  })
-  getCurrent(
-    @CurrentUser() user: JwtPayload,
-    @Param('deviceId') deviceId: string,
-  ) {
-    return this.delegation.getCurrent(user.sub, deviceId);
   }
 
   @Put('devices/:deviceId/delegate')

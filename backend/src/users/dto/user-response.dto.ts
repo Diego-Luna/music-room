@@ -26,6 +26,15 @@ export class UserSearchResultDto {
   visibility!: string;
 }
 
+export class PaginatedUsersDto {
+  @ApiProperty({ type: [UserSearchResultDto] })
+  items!: UserSearchResultDto[];
+  @ApiProperty({ description: 'Total users matching the filter' })
+  total!: number;
+  @ApiProperty() limit!: number;
+  @ApiProperty() offset!: number;
+}
+
 export class PublicUserProfileDto {
   @ApiProperty() id!: string;
   @ApiProperty() displayName!: string;

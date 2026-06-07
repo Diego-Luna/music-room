@@ -116,6 +116,19 @@ export class RoomMembershipService {
       throw new ConflictException('User is already a member');
     }
 
+    const pendingInvite = await this.prisma.roomInvitation.findUnique({
+      where: {
+        roomId_inviteeId_status: {
+          roomId,
+          inviteeId: dto.userId,
+          status: 'PENDING',
+        },
+      },
+    });
+    if (pendingInvite) {
+      throw new ConflictException('User is already invited');
+    }
+
     const invitation = await this.prisma.roomInvitation.create({
       data: {
         roomId,

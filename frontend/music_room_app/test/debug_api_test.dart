@@ -1,11 +1,22 @@
 // ignore_for_file: avoid_print
 
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dio/dio.dart';
 
 void main() {
   test('Debug API and Room Fetching', () async {
-    final dio = Dio(BaseOptions(baseUrl: 'http://localhost:3000'));
+    final baseUrl =
+        Platform.environment['BACKEND_API_URL'] ?? 'http://localhost:3000';
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: baseUrl,
+        headers: {
+          'x-device': 'debug-test-device-id',
+          'user-agent': 'Dart/3.11 (Test)',
+        },
+      ),
+    );
 
     try {
       // 1. Login

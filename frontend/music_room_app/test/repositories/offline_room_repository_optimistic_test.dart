@@ -24,7 +24,7 @@ void main() {
     registerFallbackValue(FakeRoom());
   });
 
-  test('searchSpotifyTracks throws when offline', () async {
+  test('searchTracks throws when offline', () async {
     final remote = MockRoomRepository();
     final cache = MockOfflineCache();
     final connectivity = MockConnectivity();
@@ -39,7 +39,7 @@ void main() {
       connectivity: connectivity,
     );
 
-    expect(() => repo.searchSpotifyTracks('test'), throwsA(isA<Exception>()));
+    expect(() => repo.searchTracks('test'), throwsA(isA<Exception>()));
   });
 
   test(
@@ -132,5 +132,70 @@ void main() {
     final Room savedRoom = capturedRooms.first as Room;
     expect(savedRoom.tracks, hasLength(1));
     expect(savedRoom.tracks.first.id, equals('t3'));
+
+    // * Must queue a vote-specific action so resync hits the vote endpoint,
+    // * not the playlist one (regression guard).
+    final capturedActions =
+        verify(() => cache.enqueueAction(captureAny())).captured;
+    final OfflineAction queued = capturedActions.first as OfflineAction;
+    expect(queued.type, equals('addVoteTrack'));
+  });
+
+  test('removePlaylistTrack offline removes from cache and queues action', () async {
+    final remote = MockRoomRepository();
+    final cache = MockOfflineCache();
+    final connectivity = MockConnectivity();
+
+    final keep = Track(
+      id: 't1',
+      providerId: 'p1',
+      title: 'Keep',
+      artist: 'A1',
+      durationMs: 1000,
+    );
+    final remove = Track(
+      id: 't2',
+      providerId: 'p2',
+      title: 'Remove',
+      artist: 'A2',
+      durationMs: 1000,
+    );
+    final room = Room(
+      id: 'r1',
+      name: 'Room 1',
+      ownerId: 'o1',
+      tracks: [keep, remove],
+    );
+
+    when(
+      () => connectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.none]);
+    when(() => cache.getRoomById('r1')).thenReturn(room);
+    when(() => cache.saveRoom(any())).thenAnswer((_) async {});
+    when(() => cache.enqueueAction(any())).thenAnswer((_) async {});
+
+    final repo = OfflineRoomRepository(
+      remoteRepository: remote,
+      cache: cache,
+      connectivity: connectivity,
+    );
+
+    await repo.removePlaylistTrack('r1', 't2');
+
+    // * Optimistic removal: track gone from cached room immediately.
+    final capturedRooms = verify(() => cache.saveRoom(captureAny())).captured;
+    final Room savedRoom = capturedRooms.first as Room;
+    expect(savedRoom.tracks, hasLength(1));
+    expect(savedRoom.tracks.first.id, equals('t1'));
+
+    // * Queued for resync (so the deletion is not lost on reconnect).
+    final capturedActions =
+        verify(() => cache.enqueueAction(captureAny())).captured;
+    final OfflineAction queued = capturedActions.first as OfflineAction;
+    expect(queued.type, equals('removePlaylistTrack'));
+    expect(queued.payload['trackId'], equals('t2'));
+
+    // * Must not hit the network while offline.
+    verifyNever(() => remote.removePlaylistTrack(any(), any()));
   });
 }

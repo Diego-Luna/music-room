@@ -7,17 +7,20 @@ class Track {
   final String artist;
   final int durationMs;
   final String? artworkUrl;
+  // * 30-second preview MP3 (Deezer `preview`) — what the in-app player plays
+  final String? previewUrl;
   final int score;
   final String? position;
 
   Track({
     required this.id,
     required this.providerId,
-    this.provider = 'spotify',
+    this.provider = 'deezer',
     required this.title,
     required this.artist,
     required this.durationMs,
     this.artworkUrl,
+    this.previewUrl,
     this.score = 0,
     this.position,
   });
@@ -35,11 +38,12 @@ class Track {
     return Track(
       id: json['id'] as String,
       providerId: json['providerId'] as String,
-      provider: json['provider'] as String? ?? 'spotify',
+      provider: json['provider'] as String? ?? 'deezer',
       title: json['title'] as String,
       artist: json['artist'] as String,
       durationMs: json['durationMs'] as int,
       artworkUrl: json['artworkUrl'] as String?,
+      previewUrl: json['previewUrl'] as String?,
       score: json['score'] as int? ?? 0,
       position: json['position'] as String?,
     );
@@ -53,6 +57,7 @@ class Track {
     'artist': artist,
     'durationMs': durationMs,
     if (artworkUrl != null) 'artworkUrl': artworkUrl,
+    if (previewUrl != null) 'previewUrl': previewUrl,
     'score': score,
     if (position != null) 'position': position,
   };
@@ -66,6 +71,7 @@ class Track {
 			artist: artist,
 			durationMs: durationMs,
 			artworkUrl: artworkUrl,
+			previewUrl: previewUrl,
 			score: score ?? this.score,
 			position: position ?? this.position,
 		);

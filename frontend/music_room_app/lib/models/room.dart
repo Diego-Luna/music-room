@@ -25,11 +25,13 @@ class Room {
   final bool isPublic;
   final DateTime createdAt;
 
+  // * Editable settings (V.2.3 / V.3.2). 'EVERYONE' | 'INVITED_ONLY'.
+  final String? description;
+  final String? editAccess;
+  final String? voteAccess;
+
   // * Tracks list is for used by VOTE and PLAYLIST rooms
   final List<Track> tracks;
-
-  // * DJ/admins/owners delegation is for DELEGATE rooms
-  final String? currentControllerId;
 
   Room({
     required this.id,
@@ -37,8 +39,10 @@ class Room {
     required this.ownerId,
     this.kind = RoomKind.vote,
     this.isPublic = true,
+    this.description,
+    this.editAccess,
+    this.voteAccess,
     this.tracks = const [],
-    this.currentControllerId,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -50,11 +54,12 @@ class Room {
       // * Backend sends 'PUBLIC' / 'PRIVATE' is a bool
       kind: RoomKind.fromString(json['kind'] as String?),
       isPublic: (json['visibility'] as String?) != 'PRIVATE',
+      description: json['description'] as String?,
+      editAccess: json['editAccess'] as String?,
+      voteAccess: json['voteAccess'] as String?,
       tracks: (json['tracks'] as List? ?? [])
           .map((t) => Track.fromJson(t))
           .toList(),
-      currentControllerId:
-          (json['currentControllerId'] ?? json['delegateUserId']) as String?,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
@@ -68,35 +73,41 @@ class Room {
     'kind': kind.toJson(),
     // * Frontend bool maps to backend enum string
     'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
+    if (description != null) 'description': description,
+    if (editAccess != null) 'editAccess': editAccess,
+    if (voteAccess != null) 'voteAccess': voteAccess,
     'tracks': tracks.map((t) => t.toJson()).toList(),
-    if (currentControllerId != null) 'currentControllerId': currentControllerId,
     'createdAt': createdAt.toIso8601String(),
   };
 
-	Room copyWith({
-		String? name,
-		RoomKind? kind,
-		bool? isPublic,
-		List<Track>? tracks,
-		String? currentControllerId,
-	}) {
-		return Room(
-			id: id,
-			name: name ?? this.name,
-			ownerId: ownerId,
-			kind: kind ?? this.kind,
-			isPublic: isPublic ?? this.isPublic,
-			tracks: tracks ?? this.tracks,
-			currentControllerId: currentControllerId ?? this.currentControllerId,
-			createdAt: createdAt,
-		);
-	}
+  Room copyWith({
+    String? name,
+    RoomKind? kind,
+    bool? isPublic,
+    String? description,
+    String? editAccess,
+    String? voteAccess,
+    List<Track>? tracks,
+  }) {
+    return Room(
+      id: id,
+      name: name ?? this.name,
+      ownerId: ownerId,
+      kind: kind ?? this.kind,
+      isPublic: isPublic ?? this.isPublic,
+      description: description ?? this.description,
+      editAccess: editAccess ?? this.editAccess,
+      voteAccess: voteAccess ?? this.voteAccess,
+      tracks: tracks ?? this.tracks,
+      createdAt: createdAt,
+    );
+  }
 
-	@override
-	bool operator ==(Object other) =>
-		identical(this, other) ||
-		other is Room && runtimeType == other.runtimeType && id == other.id;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Room && runtimeType == other.runtimeType && id == other.id;
 
-	@override
-	int get hashCode => id.hashCode;
+  @override
+  int get hashCode => id.hashCode;
 }

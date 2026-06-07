@@ -3,6 +3,8 @@ import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
+import 'package:music_room_app/models/invitation.dart';
+import 'package:music_room_app/models/room_member.dart';
 
 // * REST implementation NestJS backend API
 class RestApiRepository implements RoomRepository {
@@ -33,6 +35,7 @@ class RestApiRepository implements RoomRepository {
     required RoomKind kind,
     required bool isPublic,
     String? description,
+    String? editAccess,
     String? voteAccess,
     String? voteWindow,
     DateTime? voteStartsAt,
@@ -48,6 +51,7 @@ class RestApiRepository implements RoomRepository {
         'kind': kind.toJson(),
         'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
         'description': ?description,
+        'editAccess': ?editAccess,
         'voteAccess': ?voteAccess,
         'voteWindow': ?voteWindow,
         if (voteStartsAt != null)
@@ -56,6 +60,28 @@ class RestApiRepository implements RoomRepository {
         'voteLocationLat': ?voteLocationLat,
         'voteLocationLng': ?voteLocationLng,
         'voteLocationRadiusM': ?voteLocationRadiusM,
+      },
+    );
+    return Room.fromJson(response.data);
+  }
+
+  @override
+  Future<Room> updateRoom(
+    String id, {
+    String? name,
+    String? description,
+    bool? isPublic,
+    String? editAccess,
+    String? voteAccess,
+  }) async {
+    final response = await _client.patch(
+      '${ApiConfig.rooms}/$id',
+      data: {
+        'name': ?name,
+        'description': ?description,
+        if (isPublic != null) 'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
+        'editAccess': ?editAccess,
+        'voteAccess': ?voteAccess,
       },
     );
     return Room.fromJson(response.data);
@@ -95,6 +121,7 @@ class RestApiRepository implements RoomRepository {
         'artist': track.artist,
         'durationMs': track.durationMs,
         if (track.artworkUrl != null) 'artworkUrl': track.artworkUrl,
+        if (track.previewUrl != null) 'previewUrl': track.previewUrl,
       },
     );
     return Track.fromJson(response.data);
@@ -112,11 +139,6 @@ class RestApiRepository implements RoomRepository {
       '${ApiConfig.rooms}/$roomId/tracks/$trackId/vote',
       data: {'value': value, 'lat': ?lat, 'lng': ?lng},
     );
-  }
-
-  @override
-  Future<void> removeVoteTrack(String roomId, String trackId) async {
-    await _client.delete('${ApiConfig.rooms}/$roomId/tracks/$trackId');
   }
 
   // PLAYLIST room
@@ -138,6 +160,7 @@ class RestApiRepository implements RoomRepository {
         'artist': track.artist,
         'durationMs': track.durationMs,
         if (track.artworkUrl != null) 'artworkUrl': track.artworkUrl,
+        if (track.previewUrl != null) 'previewUrl': track.previewUrl,
       },
     );
     return Track.fromJson(response.data);
@@ -146,12 +169,13 @@ class RestApiRepository implements RoomRepository {
   @override
   Future<void> movePlaylistTrack(
     String roomId,
-    String trackId,
-    String newPosition,
-  ) async {
+    String trackId, {
+    String? afterTrackId,
+    String? beforeTrackId,
+  }) async {
     await _client.patch(
       '${ApiConfig.rooms}/$roomId/playlist/$trackId/move',
-      data: {'newPosition': newPosition},
+      data: {'afterTrackId': ?afterTrackId, 'beforeTrackId': ?beforeTrackId},
     );
   }
 
@@ -160,38 +184,97 @@ class RestApiRepository implements RoomRepository {
     await _client.delete('${ApiConfig.rooms}/$roomId/playlist/$trackId');
   }
 
-  // DELEGATE room
   @override
-  Future<void> delegateRoomControl(String roomId, String userId) async {
-    await _client.post(
-      '${ApiConfig.rooms}/$roomId/delegate',
-      data: {'userId': userId},
-    );
-  }
-
-  @override
-  Future<void> revokeRoomControl(String roomId) async {
-    await _client.delete('${ApiConfig.rooms}/$roomId/delegate');
-  }
-
-  @override
-  Future<List<Track>> searchSpotifyTracks(String query) async {
+  Future<List<Track>> searchTracks(String query) async {
     final response = await _client.get(
       ApiConfig.search,
       queryParameters: {'q': query},
     );
     final data = response.data as List;
     return data.map((json) {
-      final artistsList = json['artists'] as List;
+      // Back (Deezer) returns: providerId, title, artist, durationMs,
+      // artworkUrl, previewUrl. We key our local id on providerId.
+      final providerId = json['providerId'] as String;
       return Track(
-        id: json['id'] as String,
-        providerId: json['id'] as String,
-        provider: 'spotify',
-        title: json['name'] as String,
-        artist: artistsList.join(', '),
+        id: providerId,
+        providerId: providerId,
+        provider: 'deezer',
+        title: json['title'] as String,
+        artist: json['artist'] as String,
         durationMs: json['durationMs'] as int,
         artworkUrl: json['artworkUrl'] as String?,
+        previewUrl: json['previewUrl'] as String?,
       );
     }).toList();
+  }
+
+  @override
+  Future<void> inviteToRoom(String roomId, String userId) async {
+    await _client.post(
+      '${ApiConfig.rooms}/$roomId/invitations',
+      data: {'userId': userId},
+    );
+  }
+
+  @override
+  Future<List<RoomMember>> getMembers(String roomId) async {
+    final response = await _client.get('${ApiConfig.rooms}/$roomId/members');
+    final data = response.data as List;
+    return data.map((json) => RoomMember.fromJson(json)).toList();
+  }
+
+  @override
+  Future<RoomMember> updateMemberRole(
+    String roomId,
+    String userId,
+    RoomMemberRole role,
+  ) async {
+    final response = await _client.patch(
+      '${ApiConfig.rooms}/$roomId/members/$userId/role',
+      data: {'role': roomMemberRoleToApi(role)},
+    );
+    return RoomMember.fromJson(response.data);
+  }
+
+  @override
+  Future<void> removeMember(String roomId, String userId) async {
+    await _client.delete('${ApiConfig.rooms}/$roomId/members/$userId');
+  }
+
+  @override
+  Future<List<RoomInvitationDto>> getInvitations() async {
+    final response = await _client.get('/users/me/invitations');
+    final data = response.data as List;
+    return data.map((json) => RoomInvitationDto.fromJson(json)).toList();
+  }
+
+  @override
+  Future<AcceptInvitationResultDto> acceptInvitation(
+    String invitationId,
+  ) async {
+    final response = await _client.post(
+      '/users/me/invitations/$invitationId/accept',
+    );
+    return AcceptInvitationResultDto.fromJson(response.data);
+  }
+
+  @override
+  Future<RoomInvitationDto> declineInvitation(String invitationId) async {
+    final response = await _client.post(
+      '/users/me/invitations/$invitationId/decline',
+    );
+    return RoomInvitationDto.fromJson(response.data);
+  }
+
+  @override
+  Future<List<RoomInvitationDto>> getSentInvitations() async {
+    final response = await _client.get('/users/me/invitations/sent');
+    final data = response.data as List;
+    return data.map((json) => RoomInvitationDto.fromJson(json)).toList();
+  }
+
+  @override
+  Future<void> cancelInvitation(String invitationId) async {
+    await _client.delete('/users/me/invitations/$invitationId');
   }
 }

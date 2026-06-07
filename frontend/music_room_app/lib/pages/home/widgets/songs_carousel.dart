@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
+import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/models/track.dart';
 
 // ! Widget for rendering a horizontal list of personalized songs
@@ -31,6 +33,11 @@ class SongsCarousel extends StatelessWidget {
                 Expanded(
                   child: NeumorphicInteractiveContainer(
                     onTap: () {
+                      context.read<PlayerProvider>().playTrack(
+                        track,
+                        queue: songs,
+                        index: index,
+                      );
                       context.push(routePlayer);
                     },
                     margin: const EdgeInsets.all(AppDimens.sm),

@@ -5,8 +5,7 @@ enum SocialProvider { google, facebook }
 
 extension SocialProviderApi on SocialProvider {
   /// Value expected by the backend (`/auth/social` DTO: 'google' | 'facebook').
-  String get apiValue =>
-      this == SocialProvider.google ? 'google' : 'facebook';
+  String get apiValue => this == SocialProvider.google ? 'google' : 'facebook';
 
   String get label => this == SocialProvider.google ? 'Google' : 'Facebook';
 }
@@ -31,7 +30,15 @@ class DefaultSocialAuthService implements SocialAuthService {
   final FacebookAuth _facebook;
 
   DefaultSocialAuthService({GoogleSignIn? google, FacebookAuth? facebook})
-    : _google = google ?? GoogleSignIn(scopes: const ['email', 'profile']),
+    : _google =
+          google ??
+          GoogleSignIn(
+            scopes: const ['email', 'profile'],
+            clientId: const String.fromEnvironment(
+              'GOOGLE_CLIENT_ID',
+              defaultValue: 'dummy.apps.googleusercontent.com',
+            ),
+          ),
       _facebook = facebook ?? FacebookAuth.instance;
 
   @override
@@ -54,6 +61,7 @@ class DefaultSocialAuthService implements SocialAuthService {
   Future<String?> _signInFacebook() async {
     final result = await _facebook.login(
       permissions: const ['email', 'public_profile'],
+      loginTracking: LoginTracking.enabled,
     );
     switch (result.status) {
       case LoginStatus.success:

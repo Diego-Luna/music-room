@@ -6,7 +6,10 @@ import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
+import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
+import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
+import 'package:music_room_app/pages/playlists/widgets/create_playlist_dialog.dart';
 
 //* Playlists page skeleton with Staggered Animations and Background Floaters.
 class PlaylistsPage extends StatefulWidget {
@@ -25,9 +28,51 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
     });
   }
 
+  void _showCreatePlaylistDialog(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const CreatePlaylistDialog(),
+    );
+  }
+
+  Widget _buildEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.xl),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.queue_music,
+              size: 72,
+              color: theme.colorScheme.primary.withValues(alpha: 0.7),
+            ),
+            const SizedBox(height: AppDimens.md),
+            Text('No playlists yet', style: theme.textTheme.titleLarge),
+            const SizedBox(height: AppDimens.sm),
+            Text(
+              'Create a collaborative playlist and add tracks from Deezer.',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium,
+            ),
+            const SizedBox(height: AppDimens.lg),
+            PrimaryButton(
+              onPressed: () => _showCreatePlaylistDialog(context),
+              leading: const Icon(Icons.add),
+              label: 'Create Playlist',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final playlistsProvider = context.watch<PlaylistsProvider>();
+    final isEmpty = playlistsProvider.playlists.isEmpty;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -49,7 +94,21 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                   backgroundColor: Theme.of(
                     context,
                   ).scaffoldBackgroundColor.withValues(alpha: 0.8),
+                  actions: [
+                    Center(
+                      child: NeumorphicIconButton(
+                        icon: Icons.playlist_add,
+                        tooltip: 'New Playlist',
+                        onTap: () => _showCreatePlaylistDialog(context),
+                      ),
+                    ),
+                  ],
                 ),
+                if (isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildEmptyState(context),
+                  ),
                 SliverList(
                   delegate: SliverChildBuilderDelegate((context, index) {
                     if (index >= playlistsProvider.playlists.length) {

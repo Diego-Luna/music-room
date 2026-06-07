@@ -73,6 +73,12 @@ class EventsProvider extends ChangeNotifier {
     }
   }
 
+  // * Invite a friend to a (private) room — POST /rooms/:id/invitations.
+  // Throws on failure so the UI can surface the backend message.
+  Future<void> inviteFriend(String roomId, String userId) async {
+    await _repository.inviteToRoom(roomId, userId);
+  }
+
   Future<void> suggestTrack(String roomId, Track track) async {
     try {
       await _repository.addVoteTrack(roomId, track);
@@ -80,6 +86,52 @@ class EventsProvider extends ChangeNotifier {
     } catch (e) {
       _error = e.toString();
       notifyListeners();
+    }
+  }
+
+  // * Owner/admin edits a vote room's settings. Rethrows so the UI can surface
+  //   the reason. Keeps the selected event and its loaded tracks in sync.
+  Future<void> updateEvent(
+    String roomId, {
+    String? name,
+    String? description,
+    bool? isPublic,
+    String? voteAccess,
+  }) async {
+    try {
+      final updated = await _repository.updateRoom(
+        roomId,
+        name: name,
+        description: description,
+        isPublic: isPublic,
+        voteAccess: voteAccess,
+      );
+      final idx = _events.indexWhere((e) => e.id == roomId);
+      if (idx != -1) {
+        final merged = updated.copyWith(tracks: _events[idx].tracks);
+        _events[idx] = merged;
+        if (_selectedEvent?.id == roomId) _selectedEvent = merged;
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // * Owner-only: delete an event room. Rethrows so the UI can surface the
+  //   error; drops it from the local list on success.
+  Future<void> deleteEvent(String roomId) async {
+    try {
+      await _repository.deleteRoom(roomId);
+      _events = _events.where((e) => e.id != roomId).toList();
+      if (_selectedEvent?.id == roomId) _selectedEvent = null;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
     }
   }
 
@@ -150,22 +202,6 @@ class EventsProvider extends ChangeNotifier {
         final updatedTracks = List<Track>.from(room.tracks)
           ..[idx] = updatedTrack;
         updatedTracks.sort((a, b) => b.score.compareTo(a.score));
-        _events[i] = room.copyWith(tracks: updatedTracks);
-        if (_selectedEvent?.id == room.id) {
-          _selectedEvent = _events[i];
-        }
-      }
-    }
-    notifyListeners();
-  }
-
-  void handleTrackRemoved(String trackId) {
-    for (var i = 0; i < _events.length; i++) {
-      final room = _events[i];
-      if (room.tracks.any((t) => t.id == trackId)) {
-        final updatedTracks = room.tracks
-            .where((t) => t.id != trackId)
-            .toList();
         _events[i] = room.copyWith(tracks: updatedTracks);
         if (_selectedEvent?.id == room.id) {
           _selectedEvent = _events[i];

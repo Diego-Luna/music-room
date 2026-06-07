@@ -1,17 +1,19 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_room_app/config/api_client.dart';
-import 'package:music_room_app/config/api_config.dart';
-import 'package:music_room_app/core/repositories/mock_api_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_repository.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/core/repositories/friends_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_friends_repository.dart';
-import 'package:music_room_app/core/repositories/mock_friends_repository.dart';
+import 'package:music_room_app/core/repositories/offline_friends_repository.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
+import 'package:music_room_app/providers/notifications_provider.dart';
 import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
+import 'package:music_room_app/core/repositories/device_repository.dart';
+import 'package:music_room_app/core/repositories/rest_device_repository.dart';
+import 'package:music_room_app/core/services/push_token_service.dart';
 import 'package:music_room_app/pages/auth/pages/forgot_page.dart';
 import 'package:music_room_app/pages/auth/pages/reset_password_page.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
@@ -22,13 +24,20 @@ import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/rooms_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
+import 'package:music_room_app/core/audio/audio_player_service.dart';
 import 'package:music_room_app/pages/home/pages/home_page.dart';
 import 'package:music_room_app/pages/main/pages/main_screen.dart';
 import 'package:music_room_app/pages/playlists/pages/playlists_page.dart';
 import 'package:music_room_app/pages/playlists/pages/playlist_detail_page.dart';
 import 'package:music_room_app/pages/events/pages/events_page.dart';
+import 'package:music_room_app/pages/events/pages/event_detail_page.dart';
 import 'package:music_room_app/pages/settings/pages/settings_page.dart';
+import 'package:music_room_app/pages/settings/pages/devices_page.dart';
+import 'package:music_room_app/pages/settings/pages/remote_control_page.dart';
+import 'package:music_room_app/models/music_control_delegation.dart';
+import 'package:music_room_app/pages/subscription/pages/subscription_page.dart';
 import 'package:music_room_app/pages/profile/pages/profile_page.dart';
+import 'package:music_room_app/pages/profile/pages/user_profile_page.dart';
 import 'package:music_room_app/pages/auth/pages/login_page.dart';
 import 'package:music_room_app/pages/auth/pages/signup_page.dart';
 import 'package:music_room_app/pages/auth/pages/verify_email_page.dart';
@@ -45,6 +54,7 @@ FriendsRepository? _friendsRepository;
 ApiClient? _apiClient;
 OfflineCache? _offlineCache;
 ConnectivitySyncManager? _syncManager;
+PushTokenService? _pushTokenService;
 NavigationProvider? _navigationProvider;
 AuthProvider? _authProvider;
 ThemeProvider? _themeProvider;
@@ -52,8 +62,10 @@ EventsProvider? _eventsProvider;
 PlaylistsProvider? _playlistsProvider;
 RoomsProvider? _roomsProvider;
 FriendsProvider? _friendsProvider;
+NotificationsProvider? _notificationsProvider;
 PlayerProvider? _playerProvider;
 SocketProvider? _socketProvider;
+DeviceRepository? _deviceRepository;
 
 //* Initialize singletons. safe to call multiple times.
 void setupLocator() {
@@ -65,9 +77,15 @@ void setupLocator() {
   _playlistsProvider ??= PlaylistsProvider(repository: roomRepository);
   _roomsProvider ??= RoomsProvider(repository: roomRepository);
   _friendsProvider ??= FriendsProvider(repository: friendsRepository);
+  _notificationsProvider ??= NotificationsProvider(
+    roomRepository: roomRepository,
+    friendsRepository: friendsRepository,
+  );
   _playerProvider ??= PlayerProvider(
     authProvider: authProvider,
     roomsProvider: roomsProvider,
+    deviceRepository: deviceRepository,
+    audioService: JustAudioPlayerService(),
   );
   _socketProvider ??= SocketProvider(
     authProvider: authProvider,
@@ -75,6 +93,8 @@ void setupLocator() {
     playlistsProvider: playlistsProvider,
     roomsProvider: roomsProvider,
     playerProvider: playerProvider,
+    friendsProvider: friendsProvider,
+    notificationsProvider: notificationsProvider,
   );
 }
 
@@ -92,11 +112,10 @@ RoomRepository get remoteRepository =>
 
 FriendsRepository get friendsRepository {
   if (_friendsRepository != null) return _friendsRepository!;
-  if (ApiConfig.useMockData) {
-    _friendsRepository = MockFriendsRepository();
-  } else {
-    _friendsRepository = RestApiFriendsRepository(client: apiClient);
-  }
+  // * Offline decorator: friend lists are read from cache when offline.
+  _friendsRepository = OfflineFriendsRepository(
+    remoteRepository: RestApiFriendsRepository(client: apiClient),
+  );
   return _friendsRepository!;
 }
 
@@ -108,18 +127,17 @@ ConnectivitySyncManager get syncManager =>
       cache: offlineCache,
     );
 
+PushTokenService get pushTokenService =>
+    _pushTokenService ??= PushTokenService(client: apiClient);
+
 RoomRepository get roomRepository {
   if (_roomRepository != null) return _roomRepository!;
-  if (ApiConfig.useMockData) {
-    _roomRepository = MockApiRepository();
-  } else {
-    // * Offline decorator wraps remote — reads from cache on failure,
-    // * writes optimistically and queues mutations for sync on reconnect.
-    _roomRepository = OfflineRoomRepository(
-      remoteRepository: remoteRepository,
-      cache: offlineCache,
-    );
-  }
+  // * Offline decorator wraps remote — reads from cache on failure,
+  // * writes optimistically and queues mutations for sync on reconnect.
+  _roomRepository = OfflineRoomRepository(
+    remoteRepository: remoteRepository,
+    cache: offlineCache,
+  );
   return _roomRepository!;
 }
 
@@ -138,9 +156,24 @@ RoomsProvider get roomsProvider =>
     _roomsProvider ??= RoomsProvider(repository: roomRepository);
 FriendsProvider get friendsProvider =>
     _friendsProvider ??= FriendsProvider(repository: friendsRepository);
+
+NotificationsProvider get notificationsProvider =>
+    _notificationsProvider ??= NotificationsProvider(
+      roomRepository: roomRepository,
+      friendsRepository: friendsRepository,
+    );
+
+DeviceRepository get deviceRepository {
+  if (_deviceRepository != null) return _deviceRepository!;
+  _deviceRepository = RestDeviceRepository(client: apiClient);
+  return _deviceRepository!;
+}
+
 PlayerProvider get playerProvider => _playerProvider ??= PlayerProvider(
   authProvider: authProvider,
   roomsProvider: roomsProvider,
+  deviceRepository: deviceRepository,
+  audioService: JustAudioPlayerService(),
 );
 
 SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
@@ -149,6 +182,8 @@ SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
   playlistsProvider: playlistsProvider,
   roomsProvider: roomsProvider,
   playerProvider: playerProvider,
+  friendsProvider: friendsProvider,
+  notificationsProvider: notificationsProvider,
 );
 
 //* Helper for Apple-style transitions
@@ -257,6 +292,50 @@ class AppRouter {
         ),
       ),
       GoRoute(
+        path: routeDevices,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context: context,
+          state: state,
+          child: const DevicesPage(),
+        ),
+      ),
+      GoRoute(
+        path: routeRemotePlayer,
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final delegation = extra?['delegation'] as MusicControlDelegation?;
+          return _buildPageWithTransition(
+            context: context,
+            state: state,
+            child: delegation == null
+                ? const DevicesPage()
+                : RemoteControlPage(delegation: delegation),
+          );
+        },
+      ),
+      GoRoute(
+        path: routeUserProfile,
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final userId = extra?['userId'] as String?;
+          return _buildPageWithTransition(
+            context: context,
+            state: state,
+            child: userId == null
+                ? const NotFoundPage()
+                : UserProfilePage(userId: userId),
+          );
+        },
+      ),
+      GoRoute(
+        path: routeSubscription,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context: context,
+          state: state,
+          child: const SubscriptionPage(),
+        ),
+      ),
+      GoRoute(
         path: routePlayer,
         pageBuilder: (context, state) {
           return CustomTransitionPage<void>(
@@ -329,6 +408,16 @@ class AppRouter {
               state: state,
               child: const EventsPage(),
             ),
+            routes: [
+              GoRoute(
+                path: routeEventDetail,
+                pageBuilder: (context, state) => _buildPageWithTransition(
+                  context: context,
+                  state: state,
+                  child: const EventDetailPage(),
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: routeFriends,
