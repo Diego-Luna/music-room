@@ -36,6 +36,9 @@ void main() async {
 
   // * Register/refresh the device push token whenever the session changes.
   // Best-effort bonus feature — never blocks startup or auth.
+  // Unregistration runs via onBeforeLogout (below) while the bearer is still
+  // valid; the listener only needs to (re)register on sign-in.
+  authProvider.onBeforeLogout = pushTokenService.unregister;
   authProvider.addListener(() {
     if (authProvider.signedIn) {
       pushTokenService.registerIfNeeded();
