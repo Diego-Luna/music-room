@@ -1,13 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_room_app/config/api_client.dart';
-import 'package:music_room_app/config/api_config.dart';
-import 'package:music_room_app/core/repositories/mock_api_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_repository.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/core/repositories/friends_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_friends_repository.dart';
-import 'package:music_room_app/core/repositories/mock_friends_repository.dart';
 import 'package:music_room_app/core/repositories/offline_friends_repository.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/providers/notifications_provider.dart';
@@ -16,7 +13,6 @@ import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/core/repositories/device_repository.dart';
 import 'package:music_room_app/core/repositories/rest_device_repository.dart';
-import 'package:music_room_app/core/repositories/mock_device_repository.dart';
 import 'package:music_room_app/core/services/push_token_service.dart';
 import 'package:music_room_app/pages/auth/pages/forgot_page.dart';
 import 'package:music_room_app/pages/auth/pages/reset_password_page.dart';
@@ -116,14 +112,10 @@ RoomRepository get remoteRepository =>
 
 FriendsRepository get friendsRepository {
   if (_friendsRepository != null) return _friendsRepository!;
-  if (ApiConfig.useMockData) {
-    _friendsRepository = MockFriendsRepository();
-  } else {
-    // * Offline decorator: friend lists are read from cache when offline.
-    _friendsRepository = OfflineFriendsRepository(
-      remoteRepository: RestApiFriendsRepository(client: apiClient),
-    );
-  }
+  // * Offline decorator: friend lists are read from cache when offline.
+  _friendsRepository = OfflineFriendsRepository(
+    remoteRepository: RestApiFriendsRepository(client: apiClient),
+  );
   return _friendsRepository!;
 }
 
@@ -140,16 +132,12 @@ PushTokenService get pushTokenService =>
 
 RoomRepository get roomRepository {
   if (_roomRepository != null) return _roomRepository!;
-  if (ApiConfig.useMockData) {
-    _roomRepository = MockApiRepository();
-  } else {
-    // * Offline decorator wraps remote — reads from cache on failure,
-    // * writes optimistically and queues mutations for sync on reconnect.
-    _roomRepository = OfflineRoomRepository(
-      remoteRepository: remoteRepository,
-      cache: offlineCache,
-    );
-  }
+  // * Offline decorator wraps remote — reads from cache on failure,
+  // * writes optimistically and queues mutations for sync on reconnect.
+  _roomRepository = OfflineRoomRepository(
+    remoteRepository: remoteRepository,
+    cache: offlineCache,
+  );
   return _roomRepository!;
 }
 
@@ -177,11 +165,7 @@ NotificationsProvider get notificationsProvider =>
 
 DeviceRepository get deviceRepository {
   if (_deviceRepository != null) return _deviceRepository!;
-  if (ApiConfig.useMockData) {
-    _deviceRepository = MockDeviceRepository();
-  } else {
-    _deviceRepository = RestDeviceRepository(client: apiClient);
-  }
+  _deviceRepository = RestDeviceRepository(client: apiClient);
   return _deviceRepository!;
 }
 

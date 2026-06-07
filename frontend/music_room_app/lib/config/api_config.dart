@@ -39,8 +39,4 @@ class ApiConfig {
   // GET /subscription/plans (catalogue), GET/PUT /subscription/me (my tier).
   static const String subscriptionPlans = '/subscription/plans';
   static const String subscriptionMe = '/subscription/me';
-
-  // * Feature flag — toggle between mock and live API
-  // Use mock data while backend is auth-only
-  static bool useMockData = false;
 }

@@ -10,7 +10,6 @@ import 'package:music_room_app/widgets/interactive_3d/interactive_mpc.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/models/track.dart';
-import 'package:music_room_app/config/mock/mock_data.dart';
 
 String _formatDuration(Duration d) {
   final minutes = d.inMinutes;
@@ -115,9 +114,7 @@ class _PlayerPageState extends State<PlayerPage> {
     final playerProvider = context.watch<PlayerProvider>();
     final isVoteRoom = playerProvider.voteRoomId != null;
 
-    // * Fallback: get first available track from any room
-    final fallbackTrack = MockData.rooms.expand((r) => r.tracks).firstOrNull;
-    final track = playerProvider.currentTrack ?? fallbackTrack;
+    final track = playerProvider.currentTrack;
     if (track == null) {
       return const Scaffold(body: Center(child: Text('No track available')));
     }
