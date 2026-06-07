@@ -133,59 +133,73 @@ class ResponsiveNavbar extends StatelessWidget {
                 fontWeight: AppTypography.extraBold,
               ),
             ),
-            const Spacer(),
-            ...List.generate(nav.destinations.length, (index) {
-              final item = nav.destinations[index];
-              final isActive = index == nav.currentIndex;
+            const SizedBox(width: AppDimens.md),
+            // Items take the remaining space and scroll horizontally when they
+            // don't fit, keeping right-aligned (reverse) to mimic a Spacer.
+            // Prevents the RenderFlex overflow on narrow web windows.
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: List.generate(nav.destinations.length, (index) {
+                    final item = nav.destinations[index];
+                    final isActive = index == nav.currentIndex;
 
-              Widget iconWidget = Icon(
-                item.icon,
-                color: isActive
-                    ? theme.colorScheme.primary
-                    : theme.disabledColor,
-                size: AppDimens.iconMedium,
-              );
+                    Widget iconWidget = Icon(
+                      item.icon,
+                      color: isActive
+                          ? theme.colorScheme.primary
+                          : theme.disabledColor,
+                      size: AppDimens.iconMedium,
+                    );
 
-              if (item.label == 'Inbox' && pendingCount > 0) {
-                iconWidget = Badge(
-                  label: Text('$pendingCount'),
-                  child: iconWidget,
-                );
-              }
+                    if (item.label == 'Inbox' && pendingCount > 0) {
+                      iconWidget = Badge(
+                        label: Text('$pendingCount'),
+                        child: iconWidget,
+                      );
+                    }
 
-              return Padding(
-                padding: const EdgeInsets.only(left: AppDimens.md),
-                child: NeumorphicInteractiveContainer(
-                  onTap: () => nav.navigateToIndex(context, index),
-                  isForcedPressed: isActive,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimens.lg,
-                    vertical: AppDimens.sm,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      iconWidget,
-                      const SizedBox(width: AppDimens.sm),
-                      Text(
-                        item.label,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: isActive
-                              ? theme.colorScheme.primary
-                              : theme.disabledColor,
-                          fontWeight: isActive
-                              ? AppTypography.bold
-                              : AppTypography.normal,
+                    return Padding(
+                      padding: const EdgeInsets.only(left: AppDimens.md),
+                      child: NeumorphicInteractiveContainer(
+                        onTap: () => nav.navigateToIndex(context, index),
+                        isForcedPressed: isActive,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppDimens.lg,
+                          vertical: AppDimens.sm,
+                        ),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(
+                            AppDimens.radiusMedium,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            iconWidget,
+                            const SizedBox(width: AppDimens.sm),
+                            Text(
+                              item.label,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: isActive
+                                    ? theme.colorScheme.primary
+                                    : theme.disabledColor,
+                                fontWeight: isActive
+                                    ? AppTypography.bold
+                                    : AppTypography.normal,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    );
+                  }),
                 ),
-              );
-            }),
+              ),
+            ),
           ],
         ),
       ),
