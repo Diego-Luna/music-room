@@ -2,10 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
+import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
 import 'package:music_room_app/config/hive_config.dart';
 import 'package:music_room_app/core/globals.dart';
+
+// * Builds the offline-sync notification: actions the server rejected on
+// * reconnect, with their precise cause (vote session closed, item deleted…).
+void _notifyRejectedSync(List<SyncDiscard> rejected) {
+  if (rejected.isEmpty) return;
+  final messenger = rootScaffoldMessengerKey.currentState;
+  if (messenger == null) return;
+  final text = rejected.length == 1
+      ? '${rejected.first.label} not synced — ${rejected.first.reason}'
+      : '${rejected.length} changes not synced — e.g. ${rejected.first.label}: ${rejected.first.reason}';
+  messenger
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(content: Text(text), duration: const Duration(seconds: 4)),
+    );
+}
 
 void main() async {
   setUrlStrategy(HashUrlStrategy());
@@ -14,6 +31,7 @@ void main() async {
   setupLocator();
   await HiveConfig.initialize();
   syncManager.startMonitoring();
+  syncManager.discards.listen(_notifyRejectedSync);
   await authProvider.tryAutoLogin();
 
   // * Register/refresh the device push token whenever the session changes.

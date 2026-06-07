@@ -47,7 +47,6 @@ abstract class RoomRepository {
     double? lat,
     double? lng,
   });
-  Future<void> removeVoteTrack(String roomId, String trackId);
 
   // *PLAYLIST room
   Future<List<Track>> getPlaylistTracks(String roomId);

@@ -1,7 +1,6 @@
 import {
   Body,
   Controller,
-  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -19,7 +18,6 @@ import {
 import { TracksService } from './tracks.service';
 import { AddTrackDto, VoteTrackDto } from './dto/track.dto';
 import { TrackDto } from './dto/track-response.dto';
-import { MessageResponseDto } from '../common/dto/api-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
 
@@ -66,18 +64,5 @@ export class TracksController {
     @Body() dto: VoteTrackDto,
   ) {
     return this.tracks.vote(roomId, trackId, user.sub, dto);
-  }
-
-  @Delete(':trackId')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Remove a track (author, owner or admin)' })
-  @ApiOkResponse({ type: MessageResponseDto })
-  async remove(
-    @CurrentUser() user: JwtPayload,
-    @Param('id') roomId: string,
-    @Param('trackId') trackId: string,
-  ) {
-    await this.tracks.removeTrack(roomId, trackId, user.sub);
-    return { message: 'Track removed' };
   }
 }

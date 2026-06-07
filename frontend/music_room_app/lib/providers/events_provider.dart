@@ -164,20 +164,4 @@ class EventsProvider extends ChangeNotifier {
     }
     notifyListeners();
   }
-
-  void handleTrackRemoved(String trackId) {
-    for (var i = 0; i < _events.length; i++) {
-      final room = _events[i];
-      if (room.tracks.any((t) => t.id == trackId)) {
-        final updatedTracks = room.tracks
-            .where((t) => t.id != trackId)
-            .toList();
-        _events[i] = room.copyWith(tracks: updatedTracks);
-        if (_selectedEvent?.id == room.id) {
-          _selectedEvent = _events[i];
-        }
-      }
-    }
-    notifyListeners();
-  }
 }

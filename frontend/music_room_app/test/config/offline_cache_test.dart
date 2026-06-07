@@ -32,4 +32,16 @@ void main() {
     expect(list[0].id, 'r1');
     verify(() => mockRoomsBox.put('r1', any())).called(1);
   });
+
+  test('deleteRoomsExcept removes only the rooms absent from keepIds', () async {
+    when(() => mockRoomsBox.keys).thenReturn(['r1', 'r2', 'r3']);
+    when(() => mockRoomsBox.delete(any())).thenAnswer((_) async {});
+
+    await cache.deleteRoomsExcept({'r1', 'r3'});
+
+    // * r2 is a ghost (deleted server-side) -> dropped; r1/r3 kept.
+    verify(() => mockRoomsBox.delete('r2')).called(1);
+    verifyNever(() => mockRoomsBox.delete('r1'));
+    verifyNever(() => mockRoomsBox.delete('r3'));
+  });
 }

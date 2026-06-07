@@ -154,34 +154,5 @@ void main() {
       eventsProvider.handleTrackVoted('track-1', 5, 10);
       expect(eventsProvider.events.first.tracks.first.score, equals(5));
     });
-
-    test('handleTrackRemoved removes track from rooms', () async {
-      final track = Track(
-        id: 'track-1',
-        providerId: 'p-1',
-        provider: 'spotify',
-        title: 'Song',
-        artist: 'Artist',
-        durationMs: 180000,
-      );
-      final room = Room(
-        id: 'room-1',
-        name: 'Event Room',
-        ownerId: 'owner-1',
-        kind: RoomKind.vote,
-        tracks: [track],
-      );
-      when(
-        () => mockRepository.getRooms(kind: RoomKind.vote),
-      ).thenAnswer((_) async => [room]);
-      when(
-        () => mockRepository.getVoteTracks('room-1'),
-      ).thenAnswer((_) async => [track]);
-      await eventsProvider.fetchEvents();
-      expect(eventsProvider.events.first.tracks, isNotEmpty);
-
-      eventsProvider.handleTrackRemoved('track-1');
-      expect(eventsProvider.events.first.tracks, isEmpty);
-    });
   });
 }

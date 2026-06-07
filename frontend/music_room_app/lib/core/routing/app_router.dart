@@ -8,6 +8,7 @@ import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/core/repositories/friends_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_friends_repository.dart';
 import 'package:music_room_app/core/repositories/mock_friends_repository.dart';
+import 'package:music_room_app/core/repositories/offline_friends_repository.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/providers/notifications_provider.dart';
 import 'package:music_room_app/config/offline_cache.dart';
@@ -114,7 +115,10 @@ FriendsRepository get friendsRepository {
   if (ApiConfig.useMockData) {
     _friendsRepository = MockFriendsRepository();
   } else {
-    _friendsRepository = RestApiFriendsRepository(client: apiClient);
+    // * Offline decorator: friend lists are read from cache when offline.
+    _friendsRepository = OfflineFriendsRepository(
+      remoteRepository: RestApiFriendsRepository(client: apiClient),
+    );
   }
   return _friendsRepository!;
 }

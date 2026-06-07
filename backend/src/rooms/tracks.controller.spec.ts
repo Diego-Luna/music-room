@@ -15,7 +15,6 @@ describe('TracksController', () => {
       listRanked: vi.fn().mockResolvedValue([{ id: trackId, score: 5 }]),
       addTrack: vi.fn().mockResolvedValue({ id: trackId }),
       vote: vi.fn().mockResolvedValue({ id: trackId, score: 6 }),
-      removeTrack: vi.fn().mockResolvedValue(undefined),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -44,11 +43,5 @@ describe('TracksController', () => {
     const res = await controller.vote(user, roomId, trackId, dto);
     expect(res).toEqual({ id: trackId, score: 6 });
     expect(tracks.vote).toHaveBeenCalledWith(roomId, trackId, 'user-1', dto);
-  });
-
-  it('DELETE /rooms/:id/tracks/:trackId removes a track', async () => {
-    const res = await controller.remove(user, roomId, trackId);
-    expect(res).toEqual({ message: 'Track removed' });
-    expect(tracks.removeTrack).toHaveBeenCalledWith(roomId, trackId, 'user-1');
   });
 });

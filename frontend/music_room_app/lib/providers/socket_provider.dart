@@ -151,10 +151,6 @@ class SocketProvider extends ChangeNotifier {
       final votes = data['votesCount'] as int? ?? 0; // currently unused
       eventsProvider.handleTrackVoted(trackId, score, votes);
     });
-    _socket.on('track:removed', (data) {
-      final trackId = data['trackId'] as String? ?? '';
-      eventsProvider.handleTrackRemoved(trackId);
-    });
 
     // * Room membership events
     _socket.on('member:joined', (data) {
