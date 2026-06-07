@@ -12,7 +12,11 @@ import 'package:music_room_app/core/utils/api_error_handler.dart';
 class InviteFriendDialog extends StatefulWidget {
   final Room room;
 
-  const InviteFriendDialog({super.key, required this.room});
+  // * Optional invite action. When null, invites go through EventsProvider
+  // * (default for vote rooms). Playlists pass their own provider's invite.
+  final Future<void> Function(String userId)? onInvite;
+
+  const InviteFriendDialog({super.key, required this.room, this.onInvite});
 
   @override
   State<InviteFriendDialog> createState() => _InviteFriendDialogState();
@@ -32,11 +36,13 @@ class _InviteFriendDialogState extends State<InviteFriendDialog> {
   }
 
   Future<void> _invite(String userId) async {
-    final events = context.read<EventsProvider>();
+    final invite =
+        widget.onInvite ??
+        (uid) => context.read<EventsProvider>().inviteFriend(widget.room.id, uid);
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _invitingIds.add(userId));
     try {
-      await events.inviteFriend(widget.room.id, userId);
+      await invite(userId);
       if (!mounted) return;
       setState(() {
         _invitingIds.remove(userId);

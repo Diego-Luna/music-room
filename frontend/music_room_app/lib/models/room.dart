@@ -25,6 +25,11 @@ class Room {
   final bool isPublic;
   final DateTime createdAt;
 
+  // * Editable settings (V.2.3 / V.3.2). 'EVERYONE' | 'INVITED_ONLY'.
+  final String? description;
+  final String? editAccess;
+  final String? voteAccess;
+
   // * Tracks list is for used by VOTE and PLAYLIST rooms
   final List<Track> tracks;
 
@@ -34,6 +39,9 @@ class Room {
     required this.ownerId,
     this.kind = RoomKind.vote,
     this.isPublic = true,
+    this.description,
+    this.editAccess,
+    this.voteAccess,
     this.tracks = const [],
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
@@ -46,6 +54,9 @@ class Room {
       // * Backend sends 'PUBLIC' / 'PRIVATE' is a bool
       kind: RoomKind.fromString(json['kind'] as String?),
       isPublic: (json['visibility'] as String?) != 'PRIVATE',
+      description: json['description'] as String?,
+      editAccess: json['editAccess'] as String?,
+      voteAccess: json['voteAccess'] as String?,
       tracks: (json['tracks'] as List? ?? [])
           .map((t) => Track.fromJson(t))
           .toList(),
@@ -62,6 +73,9 @@ class Room {
     'kind': kind.toJson(),
     // * Frontend bool maps to backend enum string
     'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
+    if (description != null) 'description': description,
+    if (editAccess != null) 'editAccess': editAccess,
+    if (voteAccess != null) 'voteAccess': voteAccess,
     'tracks': tracks.map((t) => t.toJson()).toList(),
     'createdAt': createdAt.toIso8601String(),
   };
@@ -70,6 +84,9 @@ class Room {
     String? name,
     RoomKind? kind,
     bool? isPublic,
+    String? description,
+    String? editAccess,
+    String? voteAccess,
     List<Track>? tracks,
   }) {
     return Room(
@@ -78,6 +95,9 @@ class Room {
       ownerId: ownerId,
       kind: kind ?? this.kind,
       isPublic: isPublic ?? this.isPublic,
+      description: description ?? this.description,
+      editAccess: editAccess ?? this.editAccess,
+      voteAccess: voteAccess ?? this.voteAccess,
       tracks: tracks ?? this.tracks,
       createdAt: createdAt,
     );
