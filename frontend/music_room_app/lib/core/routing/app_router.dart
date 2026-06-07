@@ -34,10 +34,14 @@ import 'package:music_room_app/pages/main/pages/main_screen.dart';
 import 'package:music_room_app/pages/playlists/pages/playlists_page.dart';
 import 'package:music_room_app/pages/playlists/pages/playlist_detail_page.dart';
 import 'package:music_room_app/pages/events/pages/events_page.dart';
+import 'package:music_room_app/pages/events/pages/event_detail_page.dart';
 import 'package:music_room_app/pages/settings/pages/settings_page.dart';
 import 'package:music_room_app/pages/settings/pages/devices_page.dart';
+import 'package:music_room_app/pages/settings/pages/remote_control_page.dart';
+import 'package:music_room_app/models/music_control_delegation.dart';
 import 'package:music_room_app/pages/subscription/pages/subscription_page.dart';
 import 'package:music_room_app/pages/profile/pages/profile_page.dart';
+import 'package:music_room_app/pages/profile/pages/user_profile_page.dart';
 import 'package:music_room_app/pages/auth/pages/login_page.dart';
 import 'package:music_room_app/pages/auth/pages/signup_page.dart';
 import 'package:music_room_app/pages/auth/pages/verify_email_page.dart';
@@ -312,6 +316,34 @@ class AppRouter {
         ),
       ),
       GoRoute(
+        path: routeRemotePlayer,
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final delegation = extra?['delegation'] as MusicControlDelegation?;
+          return _buildPageWithTransition(
+            context: context,
+            state: state,
+            child: delegation == null
+                ? const DevicesPage()
+                : RemoteControlPage(delegation: delegation),
+          );
+        },
+      ),
+      GoRoute(
+        path: routeUserProfile,
+        pageBuilder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>?;
+          final userId = extra?['userId'] as String?;
+          return _buildPageWithTransition(
+            context: context,
+            state: state,
+            child: userId == null
+                ? const NotFoundPage()
+                : UserProfilePage(userId: userId),
+          );
+        },
+      ),
+      GoRoute(
         path: routeSubscription,
         pageBuilder: (context, state) => _buildPageWithTransition(
           context: context,
@@ -392,6 +424,16 @@ class AppRouter {
               state: state,
               child: const EventsPage(),
             ),
+            routes: [
+              GoRoute(
+                path: routeEventDetail,
+                pageBuilder: (context, state) => _buildPageWithTransition(
+                  context: context,
+                  state: state,
+                  child: const EventDetailPage(),
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: routeFriends,
