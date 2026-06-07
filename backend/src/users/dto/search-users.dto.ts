@@ -1,4 +1,4 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsInt,
@@ -11,14 +11,17 @@ import {
 } from 'class-validator';
 
 export class SearchUsersDto {
-  @ApiProperty({
+  @ApiPropertyOptional({
     example: 'ali',
-    description: 'Case-insensitive substring matched against displayName',
+    description:
+      'Case-insensitive substring matched against displayName. Omit to ' +
+      'list all visible users (paginated).',
   })
+  @IsOptional()
   @IsString()
   @MinLength(1)
   @MaxLength(50)
-  q!: string;
+  q?: string;
 
   @ApiPropertyOptional({
     example: 20,
@@ -30,4 +33,14 @@ export class SearchUsersDto {
   @Min(1)
   @Max(50)
   limit?: number;
+
+  @ApiPropertyOptional({
+    example: 0,
+    description: 'Number of results to skip for pagination (default 0)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  offset?: number;
 }
