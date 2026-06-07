@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:music_room_app/models/track.dart';
@@ -19,6 +20,18 @@ class SocketProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
   final FriendsProvider _friendsProvider;
   final NotificationsProvider _notificationsProvider;
+
+  // * Id of the room whose detail page is currently open (set via
+  // * join/leaveRoom by the detail pages). Lets us pop the user out only when
+  // * they are kicked from the room they are actually looking at.
+  String? _currentRoomId;
+
+  // * Emits a roomId whenever that room's membership changes (a member is
+  // * removed or has their role changed). The open members sheet listens to
+  // * this to reload itself live, scoped to its own room.
+  final StreamController<String> _roomMembersChangedController =
+      StreamController<String>.broadcast();
+  Stream<String> get roomMembersChanged => _roomMembersChangedController.stream;
 
   bool get isConnected => _socket.connected;
 
@@ -163,6 +176,37 @@ class SocketProvider extends ChangeNotifier {
       final userId = data['userId'] as String? ?? '';
       roomsProvider.handleMemberLeft(roomId, userId);
     });
+    _socket.on('member:removed', (data) {
+      final roomId = data['roomId'] as String? ?? '';
+      final userId = data['userId'] as String? ?? '';
+      roomsProvider.handleMemberLeft(roomId, userId);
+      if (roomId.isNotEmpty) _roomMembersChangedController.add(roomId);
+    });
+    _socket.on('member:role-changed', (data) {
+      final roomId = data['roomId'] as String? ?? '';
+      if (roomId.isNotEmpty) _roomMembersChangedController.add(roomId);
+    });
+
+    // * We were removed from a room (kicked by an admin, or the room was
+    // * deleted by its owner). Drop it from both lists + the inbox, and if we
+    // * are currently inside that very room, leave the now-dead detail screen.
+    _socket.on('room:kicked', (data) {
+      String roomId = '';
+      String roomName = '';
+      if (data is Map) {
+        roomId = data['roomId'] as String? ?? '';
+        roomName = data['roomName'] as String? ?? '';
+      }
+      playlistsProvider.fetchPlaylists();
+      eventsProvider.fetchEvents();
+      _notificationsProvider.fetchNotifications();
+      if (roomId.isNotEmpty && _currentRoomId == roomId) {
+        _currentRoomId = null;
+        final router = AppRouter.router;
+        if (router.canPop()) router.pop();
+      }
+      _showRoomKickedSnackBar(roomName);
+    });
 
     // * Playback (vote queue progression). The back drives "now playing" via
     // * track:nowPlaying; delegated play/pause/next/volume arrive via
@@ -190,6 +234,16 @@ class SocketProvider extends ChangeNotifier {
       }
     });
 
+    _socket.on('device:delegation:revoked', (data) {
+      if (data is Map) {
+        final deviceId = data['deviceId'] as String?;
+        final ownerId = data['ownerId'] as String?;
+        if (deviceId != null && ownerId != null) {
+          playerProvider.handleDelegationRevoked(deviceId, ownerId);
+        }
+      }
+    });
+
     // * Finally, connect if signed in
     if (_authProvider.signedIn) {
       _connectSocket();
@@ -213,12 +267,14 @@ class SocketProvider extends ChangeNotifier {
 
   // * Room Presence Controls
   void joinRoom(String roomId) {
+    _currentRoomId = roomId;
     if (isConnected) {
       _socket.emit('room:join', {'roomId': roomId});
     }
   }
 
   void leaveRoom(String roomId) {
+    if (_currentRoomId == roomId) _currentRoomId = null;
     if (isConnected) {
       _socket.emit('room:leave', {'roomId': roomId});
     }
@@ -226,8 +282,35 @@ class SocketProvider extends ChangeNotifier {
 
   void disposeSocket() {
     _authProvider.removeListener(_onAuthChanged);
+    _roomMembersChangedController.close();
     _socket.disconnect();
     super.dispose();
+  }
+
+  // * Informational snackbar (no "View" action) shown when we are removed
+  // * from a room — the room no longer exists for us, so there is nowhere to
+  // * navigate to.
+  void _showRoomKickedSnackBar(String roomName) {
+    final context = rootScaffoldMessengerKey.currentContext;
+    if (context == null) return;
+    final theme = Theme.of(context);
+    final suffix = roomName.isNotEmpty ? ' "$roomName"' : '';
+    rootScaffoldMessengerKey.currentState?.hideCurrentSnackBar();
+    rootScaffoldMessengerKey.currentState?.showSnackBar(
+      SnackBar(
+        content: Text(
+          'You were removed from$suffix',
+          style: TextStyle(
+            color: theme.colorScheme.onSecondaryContainer,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        backgroundColor: theme.colorScheme.secondaryContainer,
+        duration: const Duration(seconds: 4),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   // * Helper to show in-app notification snackbars globally

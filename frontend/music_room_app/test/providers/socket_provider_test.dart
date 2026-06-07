@@ -177,6 +177,86 @@ void main() {
     );
   });
 
+  group('Membership & delegation realtime events', () {
+    SocketProvider build() => SocketProvider(
+      authProvider: auth,
+      eventsProvider: events,
+      playlistsProvider: playlists,
+      roomsProvider: rooms,
+      playerProvider: player,
+      friendsProvider: friends,
+      notificationsProvider: notifications,
+      socket: socket,
+    );
+
+    test(
+      'member:removed routes to roomsProvider and notifies the members stream',
+      () {
+        final provider = build();
+        expect(socketListeners.containsKey('member:removed'), isTrue);
+
+        expectLater(provider.roomMembersChanged, emits('room_1'));
+        socketListeners['member:removed']?.call({
+          'roomId': 'room_1',
+          'userId': 'u9',
+        });
+
+        verify(() => rooms.handleMemberLeft('room_1', 'u9')).called(1);
+      },
+    );
+
+    test('member:role-changed notifies the members stream', () {
+      final provider = build();
+      expect(socketListeners.containsKey('member:role-changed'), isTrue);
+
+      expectLater(provider.roomMembersChanged, emits('room_1'));
+      socketListeners['member:role-changed']?.call({
+        'roomId': 'room_1',
+        'userId': 'u9',
+        'role': 'ADMIN',
+      });
+    });
+
+    test(
+      'device:delegation:revoked calls playerProvider.handleDelegationRevoked',
+      () {
+        build();
+        expect(
+          socketListeners.containsKey('device:delegation:revoked'),
+          isTrue,
+        );
+
+        socketListeners['device:delegation:revoked']?.call({
+          'deviceId': 'dev_1',
+          'ownerId': 'owner_1',
+        });
+
+        verify(
+          () => player.handleDelegationRevoked('dev_1', 'owner_1'),
+        ).called(1);
+      },
+    );
+
+    test('room:kicked refreshes both room lists and the inbox', () {
+      when(() => playlists.fetchPlaylists()).thenAnswer((_) async {});
+      when(() => events.fetchEvents()).thenAnswer((_) async {});
+      when(() => notifications.fetchNotifications()).thenAnswer((_) async {});
+
+      build();
+      expect(socketListeners.containsKey('room:kicked'), isTrue);
+
+      // Not currently inside the room → no navigation, just refreshes.
+      socketListeners['room:kicked']?.call({
+        'roomId': 'room_1',
+        'roomName': 'Gone',
+      });
+
+      verify(() => playlists.fetchPlaylists()).called(1);
+      verify(() => events.fetchEvents()).called(1);
+      verify(() => notifications.fetchNotifications()).called(1);
+    });
+  });
+
   group('Realtime Notification Events', () {
     testWidgets(
       'friend:request:new event shows snackbar when scaffold messenger is in tree',
