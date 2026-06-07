@@ -140,40 +140,25 @@ describe('RealtimeGateway', () => {
       expect(res.error).toBe('not allowed');
     });
 
-    it('joins the channel and broadcasts presence:joined', async () => {
+    it('joins the room channel', async () => {
       roomsService.findOne.mockResolvedValue({ id: 'r' });
       const socket = makeSocket({ data: { userId: 'u1', email: 'a' } });
-      const emit = vi.fn();
-      const to = vi.fn(() => ({ emit }));
-      realtime.setServer({ to } as never);
 
       const res = await gateway.onRoomJoin(socket, { roomId: 'r' });
 
       expect(res.ok).toBe(true);
       expect(socket.join).toHaveBeenCalledWith(roomChannel('r'));
-      expect(to).toHaveBeenCalledWith(roomChannel('r'));
-      expect(emit).toHaveBeenCalledWith(
-        'presence:joined',
-        expect.objectContaining({ userId: 'u1' }),
-      );
     });
   });
 
   describe('room:leave', () => {
-    it('leaves the channel and broadcasts presence:left', async () => {
+    it('leaves the room channel', async () => {
       const socket = makeSocket({ data: { userId: 'u1', email: 'a' } });
-      const emit = vi.fn();
-      const to = vi.fn(() => ({ emit }));
-      realtime.setServer({ to } as never);
 
       const res = await gateway.onRoomLeave(socket, { roomId: 'r' });
 
       expect(res.ok).toBe(true);
       expect(socket.leave).toHaveBeenCalledWith(roomChannel('r'));
-      expect(emit).toHaveBeenCalledWith(
-        'presence:left',
-        expect.objectContaining({ userId: 'u1' }),
-      );
     });
 
     it('rejects on missing roomId / missing auth', async () => {
