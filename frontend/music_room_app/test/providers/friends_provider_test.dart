@@ -19,8 +19,6 @@ void main() {
   group('FriendsProvider Tests', () {
     test('initial state', () {
       expect(provider.friends, isEmpty);
-      expect(provider.incomingRequests, isEmpty);
-      expect(provider.outgoingRequests, isEmpty);
       expect(provider.isLoading, false);
       expect(provider.error, isNull);
       expect(provider.currentView, FriendsView.friends);
@@ -28,32 +26,8 @@ void main() {
 
     test('fetchFriendsData sets lists on success', () async {
       final mockFriends = [FriendDto(friendshipId: 'f-1', friendId: 'user-2')];
-      final mockIncoming = [
-        FriendshipDto(
-          id: 'f-2',
-          requesterId: 'user-3',
-          addresseeId: 'user-1',
-          status: 'PENDING',
-          createdAt: DateTime.now(),
-        ),
-      ];
-      final mockOutgoing = [
-        FriendshipDto(
-          id: 'f-3',
-          requesterId: 'user-1',
-          addresseeId: 'user-4',
-          status: 'PENDING',
-          createdAt: DateTime.now(),
-        ),
-      ];
 
       when(() => repository.getFriends()).thenAnswer((_) async => mockFriends);
-      when(
-        () => repository.getIncomingRequests(),
-      ).thenAnswer((_) async => mockIncoming);
-      when(
-        () => repository.getOutgoingRequests(),
-      ).thenAnswer((_) async => mockOutgoing);
       when(() => repository.getUserProfile(any())).thenAnswer(
         (inv) async => User(
           id: inv.positionalArguments[0] as String,
@@ -65,8 +39,6 @@ void main() {
       await provider.fetchFriendsData();
 
       expect(provider.friends, equals(mockFriends));
-      expect(provider.incomingRequests, equals(mockIncoming));
-      expect(provider.outgoingRequests, equals(mockOutgoing));
       expect(provider.isLoading, false);
     });
 
@@ -88,7 +60,6 @@ void main() {
       await provider.sendRequest('user-2');
 
       verify(() => repository.sendFriendRequest('user-2')).called(1);
-      expect(provider.outgoingRequests.length, 1);
     });
   });
 }

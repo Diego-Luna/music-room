@@ -11,6 +11,7 @@ import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/widgets/track_search_sheet.dart';
+import 'package:music_room_app/pages/events/widgets/invite_friend_dialog.dart';
 
 class PlaylistDetailPage extends StatefulWidget {
   const PlaylistDetailPage({super.key});
@@ -61,6 +62,14 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     );
   }
 
+  void _showInviteFriendDialog(BuildContext context, Room room) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => InviteFriendDialog(room: room),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -91,12 +100,13 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
             ),
             actions: [
               IconButton(
+                icon: const Icon(Icons.person_add_alt_1, color: Colors.white),
+                onPressed: () => _showInviteFriendDialog(context, playlist),
+              ),
+              IconButton(
                 icon: const Icon(Icons.add, color: Colors.white),
-                onPressed: () => _showAddTrackDialog(
-                  context,
-                  playlist,
-                  playlistsProvider,
-                ),
+                onPressed: () =>
+                    _showAddTrackDialog(context, playlist, playlistsProvider),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(

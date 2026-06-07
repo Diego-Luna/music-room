@@ -9,6 +9,7 @@ import 'package:music_room_app/core/repositories/friends_repository.dart';
 import 'package:music_room_app/core/repositories/rest_api_friends_repository.dart';
 import 'package:music_room_app/core/repositories/mock_friends_repository.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
+import 'package:music_room_app/providers/notifications_provider.dart';
 import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
@@ -60,6 +61,7 @@ EventsProvider? _eventsProvider;
 PlaylistsProvider? _playlistsProvider;
 RoomsProvider? _roomsProvider;
 FriendsProvider? _friendsProvider;
+NotificationsProvider? _notificationsProvider;
 PlayerProvider? _playerProvider;
 SocketProvider? _socketProvider;
 DeviceRepository? _deviceRepository;
@@ -74,6 +76,10 @@ void setupLocator() {
   _playlistsProvider ??= PlaylistsProvider(repository: roomRepository);
   _roomsProvider ??= RoomsProvider(repository: roomRepository);
   _friendsProvider ??= FriendsProvider(repository: friendsRepository);
+  _notificationsProvider ??= NotificationsProvider(
+    roomRepository: roomRepository,
+    friendsRepository: friendsRepository,
+  );
   _playerProvider ??= PlayerProvider(
     authProvider: authProvider,
     roomsProvider: roomsProvider,
@@ -86,6 +92,8 @@ void setupLocator() {
     playlistsProvider: playlistsProvider,
     roomsProvider: roomsProvider,
     playerProvider: playerProvider,
+    friendsProvider: friendsProvider,
+    notificationsProvider: notificationsProvider,
   );
 }
 
@@ -153,6 +161,12 @@ RoomsProvider get roomsProvider =>
 FriendsProvider get friendsProvider =>
     _friendsProvider ??= FriendsProvider(repository: friendsRepository);
 
+NotificationsProvider get notificationsProvider =>
+    _notificationsProvider ??= NotificationsProvider(
+      roomRepository: roomRepository,
+      friendsRepository: friendsRepository,
+    );
+
 DeviceRepository get deviceRepository {
   if (_deviceRepository != null) return _deviceRepository!;
   if (ApiConfig.useMockData) {
@@ -176,6 +190,8 @@ SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
   playlistsProvider: playlistsProvider,
   roomsProvider: roomsProvider,
   playerProvider: playerProvider,
+  friendsProvider: friendsProvider,
+  notificationsProvider: notificationsProvider,
 );
 
 //* Helper for Apple-style transitions

@@ -5,6 +5,7 @@ import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
 import 'package:music_room_app/config/hive_config.dart';
+import 'package:music_room_app/core/globals.dart';
 
 void main() async {
   setUrlStrategy(HashUrlStrategy());
@@ -54,12 +55,14 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: playlistsProvider),
         ChangeNotifierProvider.value(value: roomsProvider),
         ChangeNotifierProvider.value(value: friendsProvider),
+        ChangeNotifierProvider.value(value: notificationsProvider),
         ChangeNotifierProvider.value(value: playerProvider),
         ChangeNotifierProvider.value(value: socketProvider),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProv, _) {
           return MaterialApp.router(
+            scaffoldMessengerKey: rootScaffoldMessengerKey,
             debugShowCheckedModeBanner: false,
             title: 'Music Room',
             routerConfig: AppRouter.router,

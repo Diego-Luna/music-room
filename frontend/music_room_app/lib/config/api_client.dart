@@ -87,9 +87,6 @@ class ApiClient {
           options.headers['x-device'] = deviceId;
           options.headers['x-platform'] = _platform;
           options.headers['x-app-version'] = await _getAppVersion();
-          // Browsers forbid scripts from setting "User-Agent" (it triggers
-          // "Refused to set unsafe header"). On web the browser sends its own
-          // real UA anyway, so we only set ours on native platforms.
           if (!kIsWeb) {
             options.headers['user-agent'] = await _getUserAgent();
           }
