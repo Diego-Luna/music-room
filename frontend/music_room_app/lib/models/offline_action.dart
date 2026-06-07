@@ -2,7 +2,7 @@
 class OfflineAction {
   final String id;
   final String roomId;
-  final String type; // * 'vote' or 'addTrack'
+  final String type; // * 'vote' | 'addPlaylistTrack' (legacy 'addTrack') | 'addVoteTrack' | 'removePlaylistTrack' | 'move'
   final Map<String, dynamic> payload;
   final DateTime createdAt;
 

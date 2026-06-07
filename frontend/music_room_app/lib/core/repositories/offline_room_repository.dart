@@ -250,7 +250,7 @@ class OfflineRoomRepository implements RoomRepository {
       final action = OfflineAction(
         id: 'addVote-$roomId-${track.providerId}-${DateTime.now().millisecondsSinceEpoch}',
         roomId: roomId,
-        type: 'addTrack',
+        type: 'addVoteTrack',
         payload: track.toJson(),
         createdAt: DateTime.now(),
       );
@@ -271,7 +271,7 @@ class OfflineRoomRepository implements RoomRepository {
       final action = OfflineAction(
         id: 'addVote-$roomId-${track.providerId}-${DateTime.now().millisecondsSinceEpoch}',
         roomId: roomId,
-        type: 'addTrack',
+        type: 'addVoteTrack',
         payload: track.toJson(),
         createdAt: DateTime.now(),
       );
@@ -279,10 +279,6 @@ class OfflineRoomRepository implements RoomRepository {
       return track;
     }
   }
-
-  @override
-  Future<void> removeVoteTrack(String roomId, String trackId) =>
-      _remote.removeVoteTrack(roomId, trackId);
 
   @override
   Future<List<Track>> getPlaylistTracks(String roomId) async {
@@ -331,8 +327,52 @@ class OfflineRoomRepository implements RoomRepository {
   }
 
   @override
-  Future<void> removePlaylistTrack(String roomId, String trackId) =>
-      _remote.removePlaylistTrack(roomId, trackId);
+  Future<void> removePlaylistTrack(String roomId, String trackId) async {
+    if (!await _isOnline()) {
+      // * Optimistic removal locally
+      final room = _cache.getRoomById(roomId);
+      if (room != null) {
+        final updatedTracks = room.tracks
+            .where((t) => t.id != trackId)
+            .toList();
+        await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
+      }
+
+      // * Queue action
+      final action = OfflineAction(
+        id: 'removePlaylist-$roomId-$trackId-${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        type: 'removePlaylistTrack',
+        payload: {'trackId': trackId},
+        createdAt: DateTime.now(),
+      );
+      await _cache.enqueueAction(action);
+      return;
+    }
+
+    try {
+      await _remote.removePlaylistTrack(roomId, trackId);
+    } catch (_) {
+      // * Optimistic removal locally
+      final room = _cache.getRoomById(roomId);
+      if (room != null) {
+        final updatedTracks = room.tracks
+            .where((t) => t.id != trackId)
+            .toList();
+        await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
+      }
+
+      // * Queue action
+      final action = OfflineAction(
+        id: 'removePlaylist-$roomId-$trackId-${DateTime.now().millisecondsSinceEpoch}',
+        roomId: roomId,
+        type: 'removePlaylistTrack',
+        payload: {'trackId': trackId},
+        createdAt: DateTime.now(),
+      );
+      await _cache.enqueueAction(action);
+    }
+  }
 
   @override
   Future<List<Track>> searchTracks(String query) async {

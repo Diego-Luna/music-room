@@ -44,6 +44,18 @@ class OfflineCache {
     return Room.fromJson(Map<String, dynamic>.from(data));
   }
 
+  // * Drop cached rooms that are absent from [keepIds], so rooms deleted
+  // * server-side don't linger as ghosts offline. Caller MUST pass the full,
+  // * unfiltered set of the user's rooms (never a kind-filtered subset).
+  Future<void> deleteRoomsExcept(Set<String> keepIds) async {
+    final stale = _roomsBox.keys
+        .where((key) => !keepIds.contains(key))
+        .toList();
+    for (final key in stale) {
+      await _roomsBox.delete(key);
+    }
+  }
+
   // * Queue management
   Future<void> enqueueAction(OfflineAction action) async {
     await _actionsBox.put(action.id, action.toJson());

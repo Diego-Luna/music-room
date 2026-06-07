@@ -8,5 +8,6 @@ class HiveConfig {
     // ! Open general cache boxes
     await Hive.openBox<Map>('cached_rooms');
     await Hive.openBox<Map>('pending_actions');
+    await Hive.openBox<Map>('cached_friends');
   }
 }
