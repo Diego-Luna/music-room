@@ -107,7 +107,7 @@ class _EventsPageState extends State<EventsPage> {
                   ),
                   centerTitle: true,
                   floating: true,
-                  toolbarHeight: 76.0,
+                  toolbarHeight: 90.0,
                   pinned: false,
                   backgroundColor: Theme.of(
                     context,
