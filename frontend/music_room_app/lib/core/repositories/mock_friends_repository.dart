@@ -1,6 +1,7 @@
 import 'package:music_room_app/core/repositories/friends_repository.dart';
 import 'package:music_room_app/models/friendship.dart';
 import 'package:music_room_app/models/user.dart';
+import 'package:music_room_app/models/user_search_page.dart';
 
 class MockFriendsRepository implements FriendsRepository {
   final List<User> _mockUsers = [
@@ -132,6 +133,26 @@ class MockFriendsRepository implements FriendsRepository {
         email: 'unknown@user.com',
         displayName: 'User $userId',
       ),
+    );
+  }
+
+  @override
+  Future<UserSearchPage> searchUsers({
+    String? query,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    await Future.delayed(const Duration(milliseconds: 50));
+    final q = (query ?? '').toLowerCase();
+    final matches = _mockUsers
+        .where((u) => q.isEmpty || u.displayName.toLowerCase().contains(q))
+        .toList();
+    final page = matches.skip(offset).take(limit).toList();
+    return UserSearchPage(
+      items: page,
+      total: matches.length,
+      limit: limit,
+      offset: offset,
     );
   }
 }

@@ -31,6 +31,9 @@ void main() {
     when(() => repository.getIncomingRequests()).thenAnswer((_) async => []);
     when(() => repository.getOutgoingRequests()).thenAnswer((_) async => []);
     when(() => roomRepository.getInvitations()).thenAnswer((_) async => []);
+    when(
+      () => roomRepository.getSentInvitations(),
+    ).thenAnswer((_) async => []);
   });
 
   testWidgets('FriendsPage renders correctly', (tester) async {

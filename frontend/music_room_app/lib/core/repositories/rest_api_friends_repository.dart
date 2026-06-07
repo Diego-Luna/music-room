@@ -2,6 +2,7 @@ import 'package:music_room_app/config/api_client.dart';
 import 'package:music_room_app/core/repositories/friends_repository.dart';
 import 'package:music_room_app/models/friendship.dart';
 import 'package:music_room_app/models/user.dart';
+import 'package:music_room_app/models/user_search_page.dart';
 
 class RestApiFriendsRepository implements FriendsRepository {
   final ApiClient _client;
@@ -63,5 +64,22 @@ class RestApiFriendsRepository implements FriendsRepository {
   Future<User> getUserProfile(String userId) async {
     final response = await _client.get('/users/$userId');
     return User.fromJson(response.data);
+  }
+
+  @override
+  Future<UserSearchPage> searchUsers({
+    String? query,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    final response = await _client.get(
+      '/users/search',
+      queryParameters: {
+        if (query != null && query.isNotEmpty) 'q': query,
+        'limit': limit,
+        'offset': offset,
+      },
+    );
+    return UserSearchPage.fromJson(response.data as Map<String, dynamic>);
   }
 }
