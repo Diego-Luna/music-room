@@ -153,28 +153,6 @@ export class TracksService {
     return updated;
   }
 
-  async removeTrack(roomId: string, trackId: string, userId: string) {
-    const room = await this.requireRoom(roomId);
-    const track = await this.prisma.track.findUnique({
-      where: { id: trackId },
-    });
-    if (!track || track.roomId !== roomId) {
-      throw new NotFoundException('Track not found');
-    }
-    const isOwner = room.ownerId === userId;
-    const isAuthor = track.addedById === userId;
-    if (!isOwner && !isAuthor) {
-      const member = await this.prisma.roomMember.findUnique({
-        where: { roomId_userId: { roomId, userId } },
-      });
-      if (member?.role !== 'ADMIN') {
-        throw new ForbiddenException('Not allowed to remove this track');
-      }
-    }
-    await this.prisma.track.delete({ where: { id: trackId } });
-    this.realtime?.emitToRoom(roomId, 'track:removed', { trackId });
-  }
-
   async listRanked(roomId: string, userId: string) {
     const room = await this.requireRoom(roomId);
     await this.requireRoomAccess(room, userId);

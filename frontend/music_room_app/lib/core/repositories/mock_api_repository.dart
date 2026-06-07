@@ -101,15 +101,6 @@ class MockApiRepository implements RoomRepository {
     _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
   }
 
-  @override
-  Future<void> removeVoteTrack(String roomId, String trackId) async {
-    await Future.delayed(const Duration(milliseconds: 50));
-    final idx = _rooms.indexWhere((r) => r.id == roomId);
-    if (idx == -1) return;
-    final updated = _rooms[idx].tracks.where((t) => t.id != trackId).toList();
-    _rooms[idx] = _rooms[idx].copyWith(tracks: updated);
-  }
-
   // PLAYLIST room
   @override
   Future<List<Track>> getPlaylistTracks(String roomId) async {

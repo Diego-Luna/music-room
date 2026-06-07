@@ -116,11 +116,6 @@ class RestApiRepository implements RoomRepository {
     );
   }
 
-  @override
-  Future<void> removeVoteTrack(String roomId, String trackId) async {
-    await _client.delete('${ApiConfig.rooms}/$roomId/tracks/$trackId');
-  }
-
   // PLAYLIST room
   @override
   Future<List<Track>> getPlaylistTracks(String roomId) async {
