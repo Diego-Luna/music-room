@@ -90,21 +90,6 @@ export class DelegationService {
     return { revoked: true };
   }
 
-  async getCurrent(ownerId: string, deviceId: string) {
-    return this.prisma.musicControlDelegation.findUnique({
-      where: { ownerId_deviceId: { ownerId, deviceId } },
-      include: { delegate: USER_PROJECTION },
-    });
-  }
-
-  async listMyDelegations(ownerId: string) {
-    return this.prisma.musicControlDelegation.findMany({
-      where: { ownerId },
-      orderBy: { grantedAt: 'desc' },
-      include: { delegate: USER_PROJECTION },
-    });
-  }
-
   async listControlledDevices(delegateUserId: string) {
     return this.prisma.musicControlDelegation.findMany({
       where: { delegateUserId },

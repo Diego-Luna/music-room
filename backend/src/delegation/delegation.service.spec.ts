@@ -157,14 +157,6 @@ describe('DelegationService', () => {
   });
 
   describe('listing', () => {
-    it('listMyDelegations filters by ownerId', async () => {
-      prisma.musicControlDelegation.findMany.mockResolvedValue([]);
-      await service.listMyDelegations('owner-1');
-      expect(prisma.musicControlDelegation.findMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { ownerId: 'owner-1' } }),
-      );
-    });
-
     it('listControlledDevices filters by delegateUserId', async () => {
       prisma.musicControlDelegation.findMany.mockResolvedValue([]);
       await service.listControlledDevices('friend-1');
