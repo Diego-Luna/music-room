@@ -5,6 +5,13 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val localProperties = java.util.Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
+
 android {
     namespace = "com.dluna_lo.music_room_app"
     compileSdk = flutter.compileSdkVersion
@@ -24,10 +31,12 @@ android {
         applicationId = "com.dluna_lo.music_room_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 21
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["facebookAppId"] = localProperties.getProperty("facebook.app.id") ?: ""
+        manifestPlaceholders["facebookClientToken"] = localProperties.getProperty("facebook.client.token") ?: ""
     }
 
     buildTypes {

@@ -146,3 +146,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Facebook Local Config (iOS)
+**/ios/Flutter/Facebook.xcconfig
