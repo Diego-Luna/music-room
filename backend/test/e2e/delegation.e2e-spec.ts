@@ -226,7 +226,7 @@ describe('Delegation (e2e)', () => {
   it('rejects unauthenticated requests (401)', async () => {
     const res = await app.inject({
       method: 'GET',
-      url: '/users/me/delegations',
+      url: '/users/me/devices',
     });
     expect(res.statusCode).toBe(401);
   });

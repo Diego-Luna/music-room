@@ -39,6 +39,13 @@ export interface UserSearchResult {
   visibility: Visibility;
 }
 
+export interface PaginatedUsers {
+  items: UserSearchResult[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -86,16 +93,24 @@ export class UsersService {
    */
   async searchByName(
     callerId: string,
-    query: string,
+    query?: string,
     limit = 20,
-  ): Promise<UserSearchResult[]> {
+    offset = 0,
+  ): Promise<PaginatedUsers> {
+    // An empty/absent query lists all visible users (paginated); a query
+    // narrows by displayName substring. Same visibility rules either way.
+    const where = {
+      id: { not: callerId },
+      visibility: { not: Visibility.PRIVATE },
+      ...(query
+        ? { displayName: { contains: query, mode: 'insensitive' as const } }
+        : {}),
+    };
+
     const users = await this.prisma.user.findMany({
-      where: {
-        id: { not: callerId },
-        visibility: { not: Visibility.PRIVATE },
-        displayName: { contains: query, mode: 'insensitive' },
-      },
+      where,
       orderBy: { displayName: 'asc' },
+      skip: offset,
       take: limit,
       select: {
         id: true,
@@ -104,12 +119,19 @@ export class UsersService {
         visibility: true,
       },
     });
-    return users.map((u) => ({
-      id: u.id,
-      displayName: u.displayName,
-      avatarUrl: u.avatarUrl ?? null,
-      visibility: u.visibility as Visibility,
-    }));
+    const total = await this.prisma.user.count({ where });
+
+    return {
+      items: users.map((u) => ({
+        id: u.id,
+        displayName: u.displayName,
+        avatarUrl: u.avatarUrl ?? null,
+        visibility: u.visibility as Visibility,
+      })),
+      total,
+      limit,
+      offset,
+    };
   }
 
   /**

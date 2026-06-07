@@ -8,7 +8,8 @@ import 'package:music_room_app/pages/events/widgets/swipeable_track_card.dart';
 import 'package:music_room_app/pages/player/widgets/audio_visualizer.dart';
 import 'package:music_room_app/widgets/interactive_3d/interactive_mpc.dart';
 import 'package:music_room_app/providers/player_provider.dart';
-import 'package:music_room_app/config/mock/mock_data.dart';
+import 'package:music_room_app/providers/events_provider.dart';
+import 'package:music_room_app/models/track.dart';
 
 String _formatDuration(Duration d) {
   final minutes = d.inMinutes;
@@ -76,16 +77,44 @@ class _PlayerPageState extends State<PlayerPage> {
     );
   }
 
+  // Cast a real vote for the current track (vote rooms only), then advance.
+  void _vote(
+    BuildContext context,
+    PlayerProvider player,
+    Track track,
+    SwipeAction action,
+  ) {
+    final roomId = player.voteRoomId;
+    if (roomId == null) return;
+    final value = action == SwipeAction.like
+        ? 1
+        : (action == SwipeAction.dislike ? -1 : 0);
+    if (value == 0) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    context.read<EventsProvider>().voteForTrack(roomId, track.id, value);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          value > 0
+              ? 'Voted UP for ${track.title}'
+              : 'Voted DOWN for ${track.title}',
+        ),
+        duration: const Duration(seconds: 1),
+      ),
+    );
+    player.playNext();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppDesignTokens>();
     final isMobile = MediaQuery.of(context).size.width < 700;
     final playerProvider = context.watch<PlayerProvider>();
+    final isVoteRoom = playerProvider.voteRoomId != null;
 
-    // * Fallback: get first available track from any room
-    final fallbackTrack = MockData.rooms.expand((r) => r.tracks).firstOrNull;
-    final track = playerProvider.currentTrack ?? fallbackTrack;
+    final track = playerProvider.currentTrack;
     if (track == null) {
       return const Scaffold(body: Center(child: Text('No track available')));
     }
@@ -130,7 +159,7 @@ class _PlayerPageState extends State<PlayerPage> {
                       ),
                       Expanded(
                         child: Text(
-                          'Live Voting Room',
+                          isVoteRoom ? 'Live Voting Room' : 'Now Playing',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontWeight: AppTypography.bold,
@@ -159,7 +188,9 @@ class _PlayerPageState extends State<PlayerPage> {
                 AudioVisualizer(isPlaying: playerProvider.isPlaying),
                 const SizedBox(height: AppDimens.md),
 
-                // 3. Swipeable Card for Voting (The Core mechanic)
+                // 3. Track card. In a vote room it's the swipe-to-vote card
+                //    (casts a real vote, then advances); elsewhere it's a
+                //    static now-playing card (no misleading vote affordance).
                 FadeIn(
                   duration: const Duration(milliseconds: 600),
                   child: SizedBox(
@@ -167,34 +198,20 @@ class _PlayerPageState extends State<PlayerPage> {
                         ? MediaQuery.of(context).size.height * 0.45
                         : 500,
                     width: isMobile ? double.infinity : 400,
-                    child: SwipeableTrackCard(
-                      key: ValueKey(track.id),
-                      trackTitle: track.title,
-                      artistName: track.artist,
-                      score: track.score,
-                      imageUrl: track.artworkUrl ?? "placeholder",
-                      onSwiped: (action) {
-                        if (action == SwipeAction.like) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Voted: LIKE'),
-                              backgroundColor: Colors.green.withValues(
-                                alpha: 0.8,
-                              ),
-                            ),
-                          );
-                        } else if (action == SwipeAction.dislike) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: const Text('Voted: DISLIKE'),
-                              backgroundColor: Colors.red.withValues(
-                                alpha: 0.8,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                    ),
+                    child: isVoteRoom
+                        ? SwipeableTrackCard(
+                            key: ValueKey(track.id),
+                            trackTitle: track.title,
+                            artistName: track.artist,
+                            score: track.score,
+                            imageUrl: track.artworkUrl ?? "placeholder",
+                            onSwiped: (action) =>
+                                _vote(context, playerProvider, track, action),
+                          )
+                        : _NowPlayingCard(
+                            key: ValueKey(track.id),
+                            track: track,
+                          ),
                   ),
                 ),
 
@@ -261,7 +278,7 @@ class _PlayerPageState extends State<PlayerPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
                           NeumorphicInteractiveContainer(
-                            onTap: () {},
+                            onTap: playerProvider.playPrevious,
                             margin: const EdgeInsets.symmetric(
                               horizontal: AppDimens.xs,
                             ),
@@ -272,7 +289,9 @@ class _PlayerPageState extends State<PlayerPage> {
                             child: Icon(
                               Icons.skip_previous_rounded,
                               size: 36,
-                              color: theme.colorScheme.primary,
+                              color: playerProvider.hasPrevious
+                                  ? theme.colorScheme.primary
+                                  : theme.disabledColor,
                             ),
                           ),
                           NeumorphicInteractiveContainer(
@@ -314,7 +333,7 @@ class _PlayerPageState extends State<PlayerPage> {
                             ),
                           ),
                           NeumorphicInteractiveContainer(
-                            onTap: () {},
+                            onTap: playerProvider.playNext,
                             margin: const EdgeInsets.symmetric(
                               horizontal: AppDimens.xs,
                             ),
@@ -325,7 +344,9 @@ class _PlayerPageState extends State<PlayerPage> {
                             child: Icon(
                               Icons.skip_next_rounded,
                               size: 36,
-                              color: theme.colorScheme.primary,
+                              color: playerProvider.hasNext
+                                  ? theme.colorScheme.primary
+                                  : theme.disabledColor,
                             ),
                           ),
                         ],
@@ -339,6 +360,77 @@ class _PlayerPageState extends State<PlayerPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// * Static "now playing" card used outside vote rooms (playlists, home), where
+// * a swipe-to-vote affordance would be misleading.
+class _NowPlayingCard extends StatelessWidget {
+  final Track track;
+
+  const _NowPlayingCard({super.key, required this.track});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tokens = theme.extension<AppDesignTokens>();
+
+    return Container(
+      margin: const EdgeInsets.all(AppDimens.lg),
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius:
+            tokens?.cardRadius ?? BorderRadius.circular(AppDimens.radiusLarge),
+        boxShadow: tokens?.neumorphicShadow,
+      ),
+      child: ClipRRect(
+        borderRadius:
+            tokens?.cardRadius ?? BorderRadius.circular(AppDimens.radiusLarge),
+        child: Column(
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                child: const Icon(
+                  Icons.music_note,
+                  size: 80,
+                  color: Colors.grey,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(AppDimens.lg),
+              width: double.infinity,
+              color: theme.colorScheme.surface,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    track.title,
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppDimens.xs),
+                  Text(
+                    track.artist,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: Colors.grey,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -7,9 +7,9 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import {
+  PaginatedUsers,
   PublicUserProfile,
   UserProfile,
-  UserSearchResult,
   UsersService,
 } from './users.service';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -17,7 +17,7 @@ import { SearchUsersDto } from './dto/search-users.dto';
 import {
   UserProfileDto,
   PublicUserProfileDto,
-  UserSearchResultDto,
+  PaginatedUsersDto,
 } from './dto/user-response.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtPayload } from '../auth/auth.service';
@@ -53,17 +53,18 @@ export class UsersController {
 
   @Get('search')
   @ApiOperation({
-    summary: 'Search users by displayName (to send friend requests)',
+    summary: 'Search users by displayName, or list all visible users',
     description:
-      'Case-insensitive substring match on displayName. Excludes the caller ' +
-      'and PRIVATE profiles. Returns identity fields only.',
+      'Case-insensitive substring match on displayName when `q` is given; ' +
+      'omit `q` to browse all visible users. Paginated via limit/offset. ' +
+      'Excludes the caller and PRIVATE profiles. Returns identity fields only.',
   })
-  @ApiOkResponse({ type: UserSearchResultDto, isArray: true })
+  @ApiOkResponse({ type: PaginatedUsersDto })
   async search(
     @CurrentUser() user: JwtPayload,
     @Query() dto: SearchUsersDto,
-  ): Promise<UserSearchResult[]> {
-    return this.users.searchByName(user.sub, dto.q, dto.limit);
+  ): Promise<PaginatedUsers> {
+    return this.users.searchByName(user.sub, dto.q, dto.limit, dto.offset);
   }
 
   @Get(':id')

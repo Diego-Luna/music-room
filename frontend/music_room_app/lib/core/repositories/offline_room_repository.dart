@@ -5,6 +5,7 @@ import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/models/offline_action.dart';
 import 'package:music_room_app/models/invitation.dart';
+import 'package:music_room_app/models/room_member.dart';
 
 class OfflineRoomRepository implements RoomRepository {
   final RoomRepository _remote;
@@ -187,6 +188,7 @@ class OfflineRoomRepository implements RoomRepository {
     required RoomKind kind,
     required bool isPublic,
     String? description,
+    String? editAccess,
     String? voteAccess,
     String? voteWindow,
     DateTime? voteStartsAt,
@@ -199,6 +201,7 @@ class OfflineRoomRepository implements RoomRepository {
     kind: kind,
     isPublic: isPublic,
     description: description,
+    editAccess: editAccess,
     voteAccess: voteAccess,
     voteWindow: voteWindow,
     voteStartsAt: voteStartsAt,
@@ -211,6 +214,31 @@ class OfflineRoomRepository implements RoomRepository {
   @override
   Future<void> deleteRoom(String id) => _remote.deleteRoom(id);
 
+  // * Settings edits are online-only (owner/admin-authoritative).
+  @override
+  Future<Room> updateRoom(
+    String id, {
+    String? name,
+    String? description,
+    bool? isPublic,
+    String? editAccess,
+    String? voteAccess,
+  }) async {
+    if (!await _isOnline()) {
+      throw Exception('Cannot edit room settings while offline.');
+    }
+    final room = await _remote.updateRoom(
+      id,
+      name: name,
+      description: description,
+      isPublic: isPublic,
+      editAccess: editAccess,
+      voteAccess: voteAccess,
+    );
+    await _cache.saveRoom(room);
+    return room;
+  }
+
   @override
   Future<void> joinRoom(String id) => _remote.joinRoom(id);
 
@@ -220,6 +248,36 @@ class OfflineRoomRepository implements RoomRepository {
   @override
   Future<void> inviteToRoom(String roomId, String userId) =>
       _remote.inviteToRoom(roomId, userId);
+
+  // * Membership management is online-only (like invitations/search): roles and
+  // * removals must hit the server to stay authoritative; we don't queue them.
+  @override
+  Future<List<RoomMember>> getMembers(String roomId) async {
+    if (!await _isOnline()) {
+      throw Exception('Cannot fetch members while offline.');
+    }
+    return _remote.getMembers(roomId);
+  }
+
+  @override
+  Future<RoomMember> updateMemberRole(
+    String roomId,
+    String userId,
+    RoomMemberRole role,
+  ) async {
+    if (!await _isOnline()) {
+      throw Exception('Cannot change roles while offline.');
+    }
+    return _remote.updateMemberRole(roomId, userId, role);
+  }
+
+  @override
+  Future<void> removeMember(String roomId, String userId) async {
+    if (!await _isOnline()) {
+      throw Exception('Cannot remove members while offline.');
+    }
+    return _remote.removeMember(roomId, userId);
+  }
 
   @override
   Future<List<Track>> getVoteTracks(String roomId) async {
@@ -295,35 +353,25 @@ class OfflineRoomRepository implements RoomRepository {
     }
   }
 
+  // * Reordering is online-only: it is gated behind Premium and uses
+  // * server-authoritative fractional indices, so we don't queue it offline
+  // * (replaying a move whose anchors may have shifted would corrupt order).
   @override
   Future<void> movePlaylistTrack(
     String roomId,
-    String trackId,
-    String newPosition,
-  ) async {
+    String trackId, {
+    String? afterTrackId,
+    String? beforeTrackId,
+  }) async {
     if (!await _isOnline()) {
-      final action = OfflineAction(
-        id: 'move-$roomId-$trackId-${DateTime.now().millisecondsSinceEpoch}',
-        roomId: roomId,
-        type: 'move',
-        payload: {'trackId': trackId, 'newPosition': newPosition},
-        createdAt: DateTime.now(),
-      );
-      await _cache.enqueueAction(action);
-      return;
+      throw Exception('Cannot reorder the playlist while offline.');
     }
-    try {
-      await _remote.movePlaylistTrack(roomId, trackId, newPosition);
-    } catch (_) {
-      final action = OfflineAction(
-        id: 'move-$roomId-$trackId-${DateTime.now().millisecondsSinceEpoch}',
-        roomId: roomId,
-        type: 'move',
-        payload: {'trackId': trackId, 'newPosition': newPosition},
-        createdAt: DateTime.now(),
-      );
-      await _cache.enqueueAction(action);
-    }
+    await _remote.movePlaylistTrack(
+      roomId,
+      trackId,
+      afterTrackId: afterTrackId,
+      beforeTrackId: beforeTrackId,
+    );
   }
 
   @override
@@ -406,5 +454,21 @@ class OfflineRoomRepository implements RoomRepository {
       throw Exception('Cannot decline invitations while offline.');
     }
     return _remote.declineInvitation(invitationId);
+  }
+
+  @override
+  Future<List<RoomInvitationDto>> getSentInvitations() async {
+    if (!await _isOnline()) {
+      throw Exception('Cannot fetch sent invitations while offline.');
+    }
+    return _remote.getSentInvitations();
+  }
+
+  @override
+  Future<void> cancelInvitation(String invitationId) async {
+    if (!await _isOnline()) {
+      throw Exception('Cannot cancel invitations while offline.');
+    }
+    return _remote.cancelInvitation(invitationId);
   }
 }

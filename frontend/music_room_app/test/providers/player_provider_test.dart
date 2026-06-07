@@ -203,6 +203,70 @@ void main() {
       },
     );
 
+    test(
+      'handleDelegationRevoked drops the device and clears active delegation '
+      'when we were driving it',
+      () {
+        playerProvider.controlledDevices = [
+          MusicControlDelegation(
+            id: 'del-1',
+            ownerId: 'owner-1',
+            deviceId: 'dev-1',
+            delegateUserId: 'delegate-1',
+            grantedAt: DateTime.now(),
+          ),
+          MusicControlDelegation(
+            id: 'del-2',
+            ownerId: 'owner-2',
+            deviceId: 'dev-2',
+            delegateUserId: 'delegate-1',
+            grantedAt: DateTime.now(),
+          ),
+        ];
+        playerProvider.setActiveDelegation('del-1');
+
+        playerProvider.handleDelegationRevoked('dev-1', 'owner-1');
+
+        expect(
+          playerProvider.controlledDevices.map((d) => d.id),
+          equals(['del-2']),
+        );
+        expect(playerProvider.activeDelegationId, isNull);
+      },
+    );
+
+    test(
+      'handleDelegationRevoked keeps active delegation when a different device '
+      'is revoked',
+      () {
+        playerProvider.controlledDevices = [
+          MusicControlDelegation(
+            id: 'del-1',
+            ownerId: 'owner-1',
+            deviceId: 'dev-1',
+            delegateUserId: 'delegate-1',
+            grantedAt: DateTime.now(),
+          ),
+          MusicControlDelegation(
+            id: 'del-2',
+            ownerId: 'owner-2',
+            deviceId: 'dev-2',
+            delegateUserId: 'delegate-1',
+            grantedAt: DateTime.now(),
+          ),
+        ];
+        playerProvider.setActiveDelegation('del-2');
+
+        playerProvider.handleDelegationRevoked('dev-1', 'owner-1');
+
+        expect(
+          playerProvider.controlledDevices.map((d) => d.id),
+          equals(['del-2']),
+        );
+        expect(playerProvider.activeDelegationId, equals('del-2'));
+      },
+    );
+
     test('playTrack() sets error when track has no preview url', () {
       final track = Track(
         id: 't-2',

@@ -88,15 +88,10 @@ class ConnectivitySyncManager {
           } else if (action.type == 'removePlaylistTrack') {
             final trackId = action.payload['trackId'] as String;
             await _remote.removePlaylistTrack(action.roomId, trackId);
-          } else if (action.type == 'move') {
-            final trackId = action.payload['trackId'] as String;
-            final newPosition = action.payload['newPosition'] as String;
-            await _remote.movePlaylistTrack(
-              action.roomId,
-              trackId,
-              newPosition,
-            );
           }
+          // * 'move' is intentionally absent: reordering is online-only, so it
+          // * is never queued. Any stale 'move' action falls through and is
+          // * simply removed from the queue below.
           // * Success -> Remove from queue
           await _cache.removeAction(action.id);
         } catch (e) {

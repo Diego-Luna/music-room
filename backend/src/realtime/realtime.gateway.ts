@@ -103,10 +103,6 @@ export class RealtimeGateway
     }
 
     await socket.join(roomChannel(roomId));
-    this.realtime.emitToRoom(roomId, 'presence:joined', {
-      userId: socket.data.userId,
-      at: new Date().toISOString(),
-    });
     this.logAction(socket, 'room:join', `room=${roomId}`);
     return { ok: true };
   }
@@ -121,10 +117,6 @@ export class RealtimeGateway
     if (!socket.data?.userId) return { ok: false, error: 'unauthorized' };
 
     await socket.leave(roomChannel(roomId));
-    this.realtime.emitToRoom(roomId, 'presence:left', {
-      userId: socket.data.userId,
-      at: new Date().toISOString(),
-    });
     this.logAction(socket, 'room:leave', `room=${roomId}`);
     return { ok: true };
   }

@@ -177,7 +177,7 @@ class ApiClient {
     return _dio.patch(path, data: data);
   }
 
-  Future<Response> delete(String path) async {
-    return _dio.delete(path);
+  Future<Response> delete(String path, {dynamic data}) async {
+    return _dio.delete(path, data: data);
   }
 }

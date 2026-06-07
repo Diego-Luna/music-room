@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
+import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/providers/notifications_provider.dart';
@@ -12,6 +14,7 @@ import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/pages/auth/widgets/auth_text_field.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
+import 'package:music_room_app/widgets/user_search_sheet.dart';
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
@@ -36,6 +39,38 @@ class _FriendsPageState extends State<FriendsPage> {
   void dispose() {
     _uuidController.dispose();
     super.dispose();
+  }
+
+  void _openUserSearch(FriendsProvider provider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => UserSearchSheet(
+        title: 'Find People',
+        onSelected: (user) async {
+          try {
+            await provider.sendRequest(user.id);
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Friend request sent to ${user.displayName}'),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
+            );
+            provider.fetchFriendsData();
+          } catch (e) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(provider.error ?? 'Failed to send request'),
+                backgroundColor: Theme.of(context).colorScheme.error,
+              ),
+            );
+          }
+        },
+      ),
+    );
   }
 
   void _handleAddFriend(FriendsProvider provider) async {
@@ -192,6 +227,10 @@ class _FriendsPageState extends State<FriendsPage> {
               subtitle: friendDto.since != null
                   ? 'Friends since: ${friendDto.since!.toLocal().toString().split(' ')[0]}'
                   : 'Connected',
+              onTap: () => context.push(
+                routeUserProfile,
+                extra: {'userId': friendDto.friendId},
+              ),
               leading: CircleAvatar(
                 backgroundImage: user.avatarUrl != null
                     ? NetworkImage(user.avatarUrl!)
@@ -233,8 +272,12 @@ class _FriendsPageState extends State<FriendsPage> {
     final hasFriendRequests = provider.incomingFriendRequests.isNotEmpty;
     final hasRoomInvitations = provider.roomInvitations.isNotEmpty;
     final hasOutgoing = provider.outgoingFriendRequests.isNotEmpty;
+    final hasSentInvites = provider.sentRoomInvitations.isNotEmpty;
 
-    if (!hasFriendRequests && !hasRoomInvitations && !hasOutgoing) {
+    if (!hasFriendRequests &&
+        !hasRoomInvitations &&
+        !hasOutgoing &&
+        !hasSentInvites) {
       return [
         const SliverFillRemaining(
           child: Center(child: Text('No pending requests.')),
@@ -295,7 +338,71 @@ class _FriendsPageState extends State<FriendsPage> {
       );
     }
 
+    if (hasSentInvites) {
+      slivers.add(
+        SliverToBoxAdapter(child: _buildHeaderSection('Sent Room Invitations')),
+      );
+      slivers.add(
+        SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (builderContext, index) => _buildSentRoomInvitationItem(
+              provider,
+              provider.sentRoomInvitations[index],
+            ),
+            childCount: provider.sentRoomInvitations.length,
+          ),
+        ),
+      );
+    }
+
     return slivers;
+  }
+
+  Widget _buildSentRoomInvitationItem(
+    NotificationsProvider provider,
+    RoomInvitationDto invite,
+  ) {
+    final theme = Theme.of(context);
+    final invitee = provider.userCache[invite.inviteeId];
+    final room = provider.roomCache[invite.roomId];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.sm / 2,
+      ),
+      child: PlaceholderCard(
+        title: invitee?.displayName ?? 'Someone',
+        subtitle: 'Invited to: ${room?.name ?? 'a private room'}',
+        leading: CircleAvatar(
+          backgroundImage: invitee?.avatarUrl != null
+              ? NetworkImage(invitee!.avatarUrl!)
+              : null,
+          child: invitee?.avatarUrl == null
+              ? const Icon(Icons.outgoing_mail)
+              : null,
+        ),
+        trailing: NeumorphicIconButton(
+          icon: Icons.delete_forever_rounded,
+          iconColor: theme.colorScheme.error,
+          tooltip: 'Cancel Invitation',
+          iconSize: 20,
+          onTap: () async {
+            try {
+              await provider.cancelRoomInvitation(invite.id);
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(provider.error ?? 'Could not cancel invitation'),
+                  backgroundColor: theme.colorScheme.error,
+                ),
+              );
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildHeaderSection(String title) {
@@ -527,10 +634,36 @@ class _FriendsPageState extends State<FriendsPage> {
             ),
             const SizedBox(height: AppDimens.sm),
             Text(
-              'Enter your friend\'s unique User ID (UUID) to send them a friendship request.',
+              'Search people by name, or paste a User ID (UUID) directly.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.disabledColor,
               ),
+            ),
+            const SizedBox(height: AppDimens.xl),
+            PrimaryButton(
+              label: 'Search by name',
+              leading: Icon(
+                Icons.search,
+                color: theme.colorScheme.primary,
+                size: AppDimens.iconMedium,
+              ),
+              onPressed: () => _openUserSearch(provider),
+            ),
+            const SizedBox(height: AppDimens.xl),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppDimens.md),
+                  child: Text(
+                    'or by ID',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.disabledColor,
+                    ),
+                  ),
+                ),
+                const Expanded(child: Divider()),
+              ],
             ),
             const SizedBox(height: AppDimens.xl),
             AuthTextField(

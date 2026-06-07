@@ -89,6 +89,52 @@ class EventsProvider extends ChangeNotifier {
     }
   }
 
+  // * Owner/admin edits a vote room's settings. Rethrows so the UI can surface
+  //   the reason. Keeps the selected event and its loaded tracks in sync.
+  Future<void> updateEvent(
+    String roomId, {
+    String? name,
+    String? description,
+    bool? isPublic,
+    String? voteAccess,
+  }) async {
+    try {
+      final updated = await _repository.updateRoom(
+        roomId,
+        name: name,
+        description: description,
+        isPublic: isPublic,
+        voteAccess: voteAccess,
+      );
+      final idx = _events.indexWhere((e) => e.id == roomId);
+      if (idx != -1) {
+        final merged = updated.copyWith(tracks: _events[idx].tracks);
+        _events[idx] = merged;
+        if (_selectedEvent?.id == roomId) _selectedEvent = merged;
+        notifyListeners();
+      }
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // * Owner-only: delete an event room. Rethrows so the UI can surface the
+  //   error; drops it from the local list on success.
+  Future<void> deleteEvent(String roomId) async {
+    try {
+      await _repository.deleteRoom(roomId);
+      _events = _events.where((e) => e.id != roomId).toList();
+      if (_selectedEvent?.id == roomId) _selectedEvent = null;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    }
+  }
+
   Future<Room> createEvent({
     required String name,
     required String description,

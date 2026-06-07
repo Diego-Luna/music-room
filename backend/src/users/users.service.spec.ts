@@ -12,6 +12,7 @@ describe('UsersService', () => {
       findUnique: ReturnType<typeof vi.fn>;
       update: ReturnType<typeof vi.fn>;
       findMany: ReturnType<typeof vi.fn>;
+      count: ReturnType<typeof vi.fn>;
     };
   };
   let friends: { areFriends: ReturnType<typeof vi.fn> };
@@ -38,6 +39,7 @@ describe('UsersService', () => {
         findUnique: vi.fn(),
         update: vi.fn(),
         findMany: vi.fn(),
+        count: vi.fn().mockResolvedValue(0),
       },
     };
     friends = { areFriends: vi.fn().mockResolvedValue(false) };
@@ -231,10 +233,11 @@ describe('UsersService', () => {
       visibility: 'PUBLIC',
     };
 
-    it('excludes the caller and PRIVATE profiles, matches displayName case-insensitively', async () => {
+    it('excludes the caller and PRIVATE profiles, matches displayName case-insensitively, paginates', async () => {
       prisma.user.findMany.mockResolvedValue([row]);
+      prisma.user.count.mockResolvedValue(1);
 
-      const results = await service.searchByName('user-1', 'bo', 10);
+      const result = await service.searchByName('user-1', 'bo', 10, 5);
 
       expect(prisma.user.findMany).toHaveBeenCalledWith({
         where: {
@@ -243,6 +246,7 @@ describe('UsersService', () => {
           displayName: { contains: 'bo', mode: 'insensitive' },
         },
         orderBy: { displayName: 'asc' },
+        skip: 5,
         take: 10,
         select: {
           id: true,
@@ -251,32 +255,52 @@ describe('UsersService', () => {
           visibility: true,
         },
       });
-      expect(results).toEqual([
-        {
-          id: 'user-2',
-          displayName: 'Bob',
-          avatarUrl: 'https://cdn/b.png',
-          visibility: 'PUBLIC',
-        },
-      ]);
+      expect(result).toEqual({
+        items: [
+          {
+            id: 'user-2',
+            displayName: 'Bob',
+            avatarUrl: 'https://cdn/b.png',
+            visibility: 'PUBLIC',
+          },
+        ],
+        total: 1,
+        limit: 10,
+        offset: 5,
+      });
     });
 
-    it('defaults the limit to 20 and never leaks info tiers', async () => {
+    it('omits the displayName filter when no query is given (list all)', async () => {
       prisma.user.findMany.mockResolvedValue([row]);
+      prisma.user.count.mockResolvedValue(1);
 
-      const results = await service.searchByName('user-1', 'b');
+      await service.searchByName('user-1');
+
+      expect(prisma.user.findMany.mock.calls[0][0].where).toEqual({
+        id: { not: 'user-1' },
+        visibility: { not: 'PRIVATE' },
+      });
+    });
+
+    it('defaults the limit to 20, offset to 0 and never leaks info tiers', async () => {
+      prisma.user.findMany.mockResolvedValue([row]);
+      prisma.user.count.mockResolvedValue(1);
+
+      const result = await service.searchByName('user-1', 'b');
 
       expect(prisma.user.findMany.mock.calls[0][0].take).toBe(20);
-      expect(results[0]).not.toHaveProperty('email');
-      expect(results[0]).not.toHaveProperty('publicInfo');
-      expect(results[0]).not.toHaveProperty('friendsInfo');
-      expect(results[0]).not.toHaveProperty('privateInfo');
+      expect(prisma.user.findMany.mock.calls[0][0].skip).toBe(0);
+      expect(result.items[0]).not.toHaveProperty('email');
+      expect(result.items[0]).not.toHaveProperty('publicInfo');
+      expect(result.items[0]).not.toHaveProperty('friendsInfo');
+      expect(result.items[0]).not.toHaveProperty('privateInfo');
     });
 
     it('normalises a missing avatarUrl to null', async () => {
       prisma.user.findMany.mockResolvedValue([{ ...row, avatarUrl: null }]);
-      const results = await service.searchByName('user-1', 'bob');
-      expect(results[0].avatarUrl).toBeNull();
+      prisma.user.count.mockResolvedValue(1);
+      const result = await service.searchByName('user-1', 'bob');
+      expect(result.items[0].avatarUrl).toBeNull();
     });
   });
 });

@@ -72,7 +72,53 @@ class PlayerProvider extends ChangeNotifier {
     return true;
   }
 
-  void playTrack(Track track) {
+  // * Playback queue so the full-screen player can skip ⏮/⏭ within the list it
+  //   was opened from. _voteRoomId is set only when the source is a vote room,
+  //   which is what lets the player's swipe cast a real vote (vs a dead screen).
+  List<Track> _queue = [];
+  int _queueIndex = -1;
+  String? _voteRoomId;
+
+  String? get voteRoomId => _voteRoomId;
+  bool get hasNext => _queueIndex >= 0 && _queueIndex < _queue.length - 1;
+  bool get hasPrevious => _queueIndex > 0;
+
+  // Play a track and optionally adopt the list it belongs to as the queue.
+  // Pass voteRoomId when the track comes from a vote room (enables real voting).
+  void playTrack(
+    Track track, {
+    List<Track>? queue,
+    int? index,
+    String? voteRoomId,
+  }) {
+    if (queue != null &&
+        index != null &&
+        index >= 0 &&
+        index < queue.length) {
+      _queue = List<Track>.from(queue);
+      _queueIndex = index;
+    } else {
+      _queue = [track];
+      _queueIndex = 0;
+    }
+    _voteRoomId = voteRoomId;
+    _loadAndPlay(track);
+  }
+
+  // Advance/rewind within the current queue (no-op at the bounds).
+  void playNext() {
+    if (!hasNext) return;
+    _queueIndex++;
+    _loadAndPlay(_queue[_queueIndex]);
+  }
+
+  void playPrevious() {
+    if (!hasPrevious) return;
+    _queueIndex--;
+    _loadAndPlay(_queue[_queueIndex]);
+  }
+
+  void _loadAndPlay(Track track) {
     _error = null;
     if (!hasControlPermission) {
       _error = 'You do not have permission to control the player in this room.';
@@ -163,6 +209,13 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // * Stops targeting a delegated device. Called when leaving the remote
+  //   control surface so the local player no longer relays commands.
+  void clearActiveDelegation() {
+    activeDelegationId = null;
+    notifyListeners();
+  }
+
   void handleDelegationGranted(String deviceId, String ownerId) {
     if (_delegationFetchDebounce?.isActive ?? false) {
       _delegationFetchDebounce!.cancel();
@@ -170,6 +223,23 @@ class PlayerProvider extends ChangeNotifier {
     _delegationFetchDebounce = Timer(const Duration(milliseconds: 1000), () {
       fetchControlledDevices();
     });
+  }
+
+  // * The owner revoked our control of one of their devices (symmetric with
+  //   handleDelegationGranted). If we were actively driving that delegation,
+  //   stop relaying, then drop it from the controlled list so it disappears.
+  void handleDelegationRevoked(String deviceId, String ownerId) {
+    final wasActive = controlledDevices.any(
+      (d) =>
+          d.deviceId == deviceId &&
+          d.ownerId == ownerId &&
+          d.id == activeDelegationId,
+    );
+    if (wasActive) activeDelegationId = null;
+    controlledDevices = controlledDevices
+        .where((d) => !(d.deviceId == deviceId && d.ownerId == ownerId))
+        .toList();
+    notifyListeners();
   }
 
   // * Delegate remote commands

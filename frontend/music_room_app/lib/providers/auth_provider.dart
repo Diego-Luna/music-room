@@ -24,6 +24,11 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
 
+  // * Hook run during logout while the access token is still valid (before
+  //   tokens are cleared). Used to unregister the device push token. Best-
+  //   effort: failures must never block logout.
+  Future<void> Function()? onBeforeLogout;
+
   User? get user => _user;
   bool get signedIn => _user != null;
   bool get isLoading => _isLoading;
@@ -214,6 +219,8 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> logout() async {
     try {
+      // Unregister the push token while the bearer is still valid.
+      await onBeforeLogout?.call();
       final refreshToken = await _tokenStorage.refreshToken;
       await _apiClient.post(
         ApiConfig.logout,

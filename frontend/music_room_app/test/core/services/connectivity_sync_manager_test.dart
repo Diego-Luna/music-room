@@ -116,7 +116,7 @@ void main() {
   );
 
   test(
-    'should process move actions instead of silently dropping them',
+    'discards stale move actions without replaying them (reorder is online-only)',
     () async {
       final action = OfflineAction(
         id: 'move-r1-t1-1',
@@ -128,9 +128,6 @@ void main() {
 
       when(() => mockCache.getPendingActions()).thenReturn([action]);
       when(
-        () => mockRemote.movePlaylistTrack('r1', 't1', '2'),
-      ).thenAnswer((_) async {});
-      when(
         () => mockCache.removeAction('move-r1-t1-1'),
       ).thenAnswer((_) async {});
       when(() => mockRemote.getRooms()).thenAnswer((_) async => []);
@@ -138,7 +135,16 @@ void main() {
 
       await syncManager.syncQueue();
 
-      verify(() => mockRemote.movePlaylistTrack('r1', 't1', '2')).called(1);
+      // Reordering is never queued/replayed anymore; the stale action is just
+      // dropped from the queue.
+      verifyNever(
+        () => mockRemote.movePlaylistTrack(
+          any(),
+          any(),
+          afterTrackId: any(named: 'afterTrackId'),
+          beforeTrackId: any(named: 'beforeTrackId'),
+        ),
+      );
       verify(() => mockCache.removeAction('move-r1-t1-1')).called(1);
     },
   );

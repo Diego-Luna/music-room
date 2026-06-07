@@ -15,6 +15,7 @@ class NotificationsProvider extends ChangeNotifier {
   List<FriendshipDto> incomingFriendRequests = [];
   List<RoomInvitationDto> roomInvitations = [];
   List<FriendshipDto> outgoingFriendRequests = [];
+  List<RoomInvitationDto> sentRoomInvitations = [];
 
   // * Cache for profiles and rooms to avoid multiple requests
   final Map<String, User> userCache = {};
@@ -38,11 +39,13 @@ class NotificationsProvider extends ChangeNotifier {
         friendsRepository.getIncomingRequests(),
         roomRepository.getInvitations(),
         friendsRepository.getOutgoingRequests(),
+        roomRepository.getSentInvitations(),
       ]);
 
       incomingFriendRequests = results[0] as List<FriendshipDto>;
       roomInvitations = results[1] as List<RoomInvitationDto>;
       outgoingFriendRequests = results[2] as List<FriendshipDto>;
+      sentRoomInvitations = results[3] as List<RoomInvitationDto>;
 
       // * Collect unique user and room IDs to fetch profiles/rooms
       final Set<String> userIdsToFetch = {};
@@ -56,6 +59,10 @@ class NotificationsProvider extends ChangeNotifier {
       }
       for (final invite in roomInvitations) {
         userIdsToFetch.add(invite.inviterId);
+        roomIdsToFetch.add(invite.roomId);
+      }
+      for (final invite in sentRoomInvitations) {
+        userIdsToFetch.add(invite.inviteeId);
         roomIdsToFetch.add(invite.roomId);
       }
 
@@ -171,6 +178,18 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> declineRoomInvitation(String id) async {
     try {
       await roomRepository.declineInvitation(id);
+      await fetchNotifications();
+    } catch (e) {
+      error = ApiErrorHandler.getMessage(e);
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  // * Revoke an invitation I sent that is still pending.
+  Future<void> cancelRoomInvitation(String id) async {
+    try {
+      await roomRepository.cancelInvitation(id);
       await fetchNotifications();
     } catch (e) {
       error = ApiErrorHandler.getMessage(e);

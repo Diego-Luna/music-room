@@ -90,6 +90,24 @@ class PushTokenService {
     }
   }
 
+  /// Unregister this device's token on logout so the backend stops pushing
+  /// to a signed-out device (`DELETE /notifications/register`). Best-effort:
+  /// failures are swallowed and must never block the logout flow.
+  Future<void> unregister() async {
+    try {
+      final token = await _storage.read(key: _tokenKey);
+      if (token == null) return;
+      await _client.delete(
+        ApiConfig.notificationsRegister,
+        data: {'token': token},
+      );
+    } catch (_) {
+      // Ignore — push unregistration must not impact the logout.
+    } finally {
+      _registered = false;
+    }
+  }
+
   /// Allow re-registration after a logout/login cycle.
   void reset() => _registered = false;
 }

@@ -102,18 +102,79 @@ void main() {
       verify(() => mockRepository.getRooms(kind: RoomKind.playlist)).called(1);
     });
 
-    test('moveTrack calls repository and reloads playlists', () async {
+    test('deletePlaylist removes the room from state on success', () async {
+      final room = Room(
+        id: 'room-pl-1',
+        name: 'My List',
+        ownerId: 'user-1',
+        kind: RoomKind.playlist,
+        tracks: [],
+      );
       when(
-        () => mockRepository.movePlaylistTrack(any(), any(), any()),
+        () => mockRepository.getRooms(kind: RoomKind.playlist),
+      ).thenAnswer((_) async => [room]);
+      when(() => mockRepository.deleteRoom(any())).thenAnswer((_) async {});
+
+      await playlistsProvider.fetchPlaylists();
+      expect(playlistsProvider.playlists, isNotEmpty);
+
+      await playlistsProvider.deletePlaylist('room-pl-1');
+
+      verify(() => mockRepository.deleteRoom('room-pl-1')).called(1);
+      expect(playlistsProvider.playlists, isEmpty);
+    });
+
+    test('deletePlaylist rethrows and keeps state on failure', () async {
+      final room = Room(
+        id: 'room-pl-1',
+        name: 'My List',
+        ownerId: 'user-1',
+        kind: RoomKind.playlist,
+        tracks: [],
+      );
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.playlist),
+      ).thenAnswer((_) async => [room]);
+      when(
+        () => mockRepository.deleteRoom(any()),
+      ).thenThrow(Exception('Forbidden'));
+
+      await playlistsProvider.fetchPlaylists();
+
+      await expectLater(
+        playlistsProvider.deletePlaylist('room-pl-1'),
+        throwsException,
+      );
+      expect(playlistsProvider.playlists, isNotEmpty);
+      expect(playlistsProvider.error, contains('Forbidden'));
+    });
+
+    test('moveTrack calls repository with anchor and reloads playlists', () async {
+      when(
+        () => mockRepository.movePlaylistTrack(
+          any(),
+          any(),
+          afterTrackId: any(named: 'afterTrackId'),
+          beforeTrackId: any(named: 'beforeTrackId'),
+        ),
       ).thenAnswer((_) async {});
       when(
         () => mockRepository.getRooms(kind: RoomKind.playlist),
       ).thenAnswer((_) async => []);
 
-      await playlistsProvider.moveTrack('room-pl-1', 'uuid-1', 'a1V');
+      await playlistsProvider.moveTrack(
+        'room-pl-1',
+        'uuid-1',
+        afterTrackId: 'uuid-0',
+      );
 
       verify(
-        () => mockRepository.movePlaylistTrack('room-pl-1', 'uuid-1', 'a1V'),
+        () => mockRepository.movePlaylistTrack(
+          'room-pl-1',
+          'uuid-1',
+          afterTrackId: 'uuid-0',
+          beforeTrackId: null,
+        ),
       ).called(1);
       verify(() => mockRepository.getRooms(kind: RoomKind.playlist)).called(1);
     });

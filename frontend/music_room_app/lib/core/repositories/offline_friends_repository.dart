@@ -3,6 +3,7 @@ import 'package:hive_ce/hive.dart';
 import 'package:music_room_app/core/repositories/friends_repository.dart';
 import 'package:music_room_app/models/friendship.dart';
 import 'package:music_room_app/models/user.dart';
+import 'package:music_room_app/models/user_search_page.dart';
 
 // * Offline decorator over the remote friends repository.
 // * Read lists (friends / incoming / outgoing) are cached in Hive and served
@@ -104,4 +105,17 @@ class OfflineFriendsRepository implements FriendsRepository {
   @override
   Future<User> getUserProfile(String userId) =>
       _remote.getUserProfile(userId);
+
+  // * Search needs the network (no meaningful offline cache for it).
+  @override
+  Future<UserSearchPage> searchUsers({
+    String? query,
+    int limit = 20,
+    int offset = 0,
+  }) async {
+    if (!await _isOnline()) {
+      throw Exception('Search needs an internet connection.');
+    }
+    return _remote.searchUsers(query: query, limit: limit, offset: offset);
+  }
 }
