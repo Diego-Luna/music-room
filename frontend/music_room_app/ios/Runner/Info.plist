@@ -74,6 +74,17 @@
 				<string>fb$(FACEBOOK_APP_ID)</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>Google Sign-In</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Reversed iOS OAuth client ID — NOT a secret, required by Google SDK -->
+				<string>com.googleusercontent.apps.310603183879-tjngh6coomklt7cngc2498nvbfrf8p6g</string>
+			</array>
+		</dict>
 	</array>
 	<key>FacebookAppID</key>
 	<string>$(FACEBOOK_APP_ID)</string>
@@ -88,5 +99,10 @@
 		<string>fbauth2</string>
 		<string>fbshareextension</string>
 	</array>
+	<!-- Google Sign-In: iOS client ID for GIDSignIn, server client ID for backend token verification -->
+	<key>GIDClientID</key>
+	<string>310603183879-tjngh6coomklt7cngc2498nvbfrf8p6g.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>310603183879-oqlt6va2m9alg5412fc4mdsaheen5j9j.apps.googleusercontent.com</string>
 </dict>
 </plist>

@@ -568,8 +568,21 @@ export class AuthService {
       throw new UnauthorizedException('Invalid google token');
     }
     const info = (await response.json()) as Record<string, unknown>;
-    if (info.aud !== expectedAud) {
-      this.logger.error(`Google token audience mismatch. Expected: ${expectedAud}, Got: ${info.aud}`);
+
+    // * Extract the project number prefix (e.g. "310603183879") from the expected client ID
+    const projectNumberMatch = expectedAud.match(/^(\d+)-/);
+    if (!projectNumberMatch) {
+      if (info.aud !== expectedAud) {
+        this.logger.error(`Google token audience mismatch. Expected: ${expectedAud}, Got: ${info.aud}`);
+        throw new UnauthorizedException('Google token audience mismatch');
+      }
+      return;
+    }
+
+    const projectNumber = projectNumberMatch[1];
+    const audStr = info.aud as string;
+    if (!audStr || !audStr.startsWith(`${projectNumber}-`) || !audStr.endsWith('.apps.googleusercontent.com')) {
+      this.logger.error(`Google token audience mismatch. Expected project prefix: ${projectNumber}-*, Got: ${info.aud}`);
       throw new UnauthorizedException('Google token audience mismatch');
     }
   }
@@ -654,6 +667,7 @@ export class AuthService {
     }
 
     if (payload.exp && payload.exp * 1000 < Date.now()) {
+      this.logger.error(`Facebook JWT expired. Exp time: ${payload.exp * 1000}, Current time: ${Date.now()}`);
       throw new UnauthorizedException('Facebook JWT expired');
     }
 
