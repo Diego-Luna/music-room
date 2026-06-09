@@ -2,13 +2,38 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Music Room App (Web 5173)",
+			"name": "Music Room (Chrome Web)",
 			"request": "launch",
 			"type": "dart",
 			"cwd": "frontend/music_room_app",
+			"deviceId": "chrome",
 			"args": [
 				"--web-port",
-				"5173"
+				"5173",
+				"--dart-define-from-file",
+				"${workspaceFolder}/frontend/music_room_app/secrets.json"
+			]
+		},
+		{
+			"name": "Music Room (iOS Simulator)",
+			"request": "launch",
+			"type": "dart",
+			"cwd": "frontend/music_room_app",
+			"deviceId": "5C964B82-75AE-44F2-BCED-30F02BBEDC21",
+			"args": [
+				"--dart-define-from-file",
+				"${workspaceFolder}/frontend/music_room_app/secrets.json"
+			]
+		},
+		{
+			"name": "Music Room (Android Emulator)",
+			"request": "launch",
+			"type": "dart",
+			"cwd": "frontend/music_room_app",
+			"deviceId": "emulator-5554",
+			"args": [
+				"--dart-define-from-file",
+				"${workspaceFolder}/frontend/music_room_app/secrets.json"
 			]
 		}
 	]
