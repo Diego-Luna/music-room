@@ -125,7 +125,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       final providerToken = await _socialAuth.signIn(provider);
       if (providerToken == null) {
-        // User cancelled the native flow — not an error.
+        // * User cancelled the native flow — not an error.
         return false;
       }
 
