@@ -24,7 +24,7 @@ class RecentEventsList extends StatelessWidget {
         return NeumorphicInteractiveContainer(
           onTap: () {
             context.read<EventsProvider>().selectEvent(event);
-            context.go(routeEvents);
+            context.go(routeSocial);
           },
           margin: const EdgeInsets.symmetric(
             horizontal: AppDimens.sm,

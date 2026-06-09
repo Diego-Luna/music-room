@@ -27,9 +27,8 @@ import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/core/audio/audio_player_service.dart';
 import 'package:music_room_app/pages/home/pages/home_page.dart';
 import 'package:music_room_app/pages/main/pages/main_screen.dart';
-import 'package:music_room_app/pages/playlists/pages/playlists_page.dart';
+import 'package:music_room_app/pages/social/pages/social_page.dart';
 import 'package:music_room_app/pages/playlists/pages/playlist_detail_page.dart';
-import 'package:music_room_app/pages/events/pages/events_page.dart';
 import 'package:music_room_app/pages/events/pages/event_detail_page.dart';
 import 'package:music_room_app/pages/settings/pages/settings_page.dart';
 import 'package:music_room_app/pages/settings/pages/devices_page.dart';
@@ -384,11 +383,11 @@ class AppRouter {
             ),
           ),
           GoRoute(
-            path: routePlaylists,
+            path: routeSocial,
             pageBuilder: (context, state) => _buildPageWithTransition(
               context: context,
               state: state,
-              child: const PlaylistsPage(),
+              child: const SocialPage(),
             ),
             routes: [
               GoRoute(
@@ -399,16 +398,6 @@ class AppRouter {
                   child: const PlaylistDetailPage(),
                 ),
               ),
-            ],
-          ),
-          GoRoute(
-            path: routeEvents,
-            pageBuilder: (context, state) => _buildPageWithTransition(
-              context: context,
-              state: state,
-              child: const EventsPage(),
-            ),
-            routes: [
               GoRoute(
                 path: routeEventDetail,
                 pageBuilder: (context, state) => _buildPageWithTransition(

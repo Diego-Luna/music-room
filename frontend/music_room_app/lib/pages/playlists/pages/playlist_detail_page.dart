@@ -131,7 +131,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
       builder: (context) => RoomMembersSheet(room: room),
     );
     if (result == membersSheetLeftResult) {
-      router.go(routePlaylists);
+      router.go(routeSocial);
     }
   }
 
@@ -214,7 +214,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
           duration: const Duration(seconds: 1),
         ),
       );
-      router.go(routePlaylists);
+      router.go(routeSocial);
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(

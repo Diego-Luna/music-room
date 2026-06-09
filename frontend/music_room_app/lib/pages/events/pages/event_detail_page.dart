@@ -67,7 +67,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
       builder: (context) => RoomMembersSheet(room: room),
     );
     if (result == membersSheetLeftResult) {
-      router.go(routeEvents);
+      router.go(routeSocial);
     }
   }
 
@@ -135,7 +135,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
           duration: const Duration(seconds: 1),
         ),
       );
-      router.go(routeEvents);
+      router.go(routeSocial);
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(
@@ -202,7 +202,10 @@ class _EventDetailPageState extends State<EventDetailPage> {
             ),
             actions: [
               IconButton(
-                icon: const Icon(Icons.people_alt_outlined, color: Colors.white),
+                icon: const Icon(
+                  Icons.people_alt_outlined,
+                  color: Colors.white,
+                ),
                 tooltip: 'Members',
                 onPressed: () => _showMembersSheet(context, event),
               ),
@@ -247,7 +250,11 @@ class _EventDetailPageState extends State<EventDetailPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(height: AppDimens.xl),
-                      const Icon(Icons.how_to_vote, size: 72, color: Colors.white),
+                      const Icon(
+                        Icons.how_to_vote,
+                        size: 72,
+                        color: Colors.white,
+                      ),
                       const SizedBox(height: AppDimens.sm),
                       Padding(
                         padding: const EdgeInsets.symmetric(
@@ -296,10 +303,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                   padding: const EdgeInsets.symmetric(horizontal: AppDimens.xl),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Up Next',
-                      style: theme.textTheme.titleLarge,
-                    ),
+                    child: Text('Up Next', style: theme.textTheme.titleLarge),
                   ),
                 ),
                 const SizedBox(height: AppDimens.md),
@@ -370,10 +374,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       .extension<AppDesignTokens>()
                       ?.neumorphicPressedShadow,
                 ),
-                child: Icon(
-                  Icons.music_note,
-                  color: theme.colorScheme.primary,
-                ),
+                child: Icon(Icons.music_note, color: theme.colorScheme.primary),
               ),
               onTap: () {
                 context.read<PlayerProvider>().playTrack(

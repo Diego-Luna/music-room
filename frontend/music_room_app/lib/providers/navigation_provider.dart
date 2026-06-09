@@ -22,11 +22,10 @@ class NavigationProvider extends ChangeNotifier {
   static const List<NavDestination> _defaultDestinations = [
     NavDestination(label: 'Home', icon: Icons.home, route: routeHome),
     NavDestination(
-      label: 'Playlists',
-      icon: Icons.queue_music,
-      route: routePlaylists,
+      label: 'Social',
+      icon: Icons.people_outline_rounded,
+      route: routeSocial,
     ),
-    NavDestination(label: 'Events', icon: Icons.event, route: routeEvents),
     NavDestination(
       label: 'Inbox',
       icon: Icons.notifications_none_rounded,

@@ -30,7 +30,7 @@ class QuickPicksCarousel extends StatelessWidget {
                 Expanded(
                   child: NeumorphicInteractiveContainer(
                     onTap: () {
-                      context.go(routePlaylists);
+                      context.go(routeSocial);
                     },
                     margin: const EdgeInsets.all(AppDimens.sm),
                     decoration: BoxDecoration(
