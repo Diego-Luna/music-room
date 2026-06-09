@@ -28,9 +28,9 @@
             </intent-filter>
         </activity>
         
-        <!-- Facebook Configuration -->
-        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="${facebookAppId}"/>
-        <meta-data android:name="com.facebook.sdk.ClientToken" android:value="${facebookClientToken}"/>
+		<!-- Facebook Configuration -->
+		<meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
+		<meta-data android:name="com.facebook.sdk.ClientToken" android:value="@string/facebook_client_token"/>
 
         <activity android:name="com.facebook.FacebookActivity"
             android:configChanges="keyboard|keyboardHidden|screenLayout|screenSize|orientation"
@@ -57,11 +57,13 @@
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
-    <queries>
-        <provider android:authorities="com.facebook.katana.provider.PlatformProvider" />
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
-    </queries>
+	<queries>
+		<provider android:authorities="com.facebook.katana.provider.PlatformProvider" />
+		<package android:name="com.facebook.katana" />
+		<package android:name="com.facebook.orca" />
+		<intent>
+			<action android:name="android.intent.action.PROCESS_TEXT"/>
+			<data android:mimeType="text/plain"/>
+		</intent>
+	</queries>
 </manifest>

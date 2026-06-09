@@ -1,10 +1,32 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+
 // * Trigger production deploy
 class ApiConfig {
   // * Base URL for the NestJS API
   // * Defaults to localhost for local development
-  static const String baseUrl = String.fromEnvironment('BACKEND_API_URL') != ''
-      ? String.fromEnvironment('BACKEND_API_URL')
-      : 'http://localhost:3000';
+  // * Dynamically maps localhost to 10.0.2.2 on Android Emulators
+  static String get baseUrl {
+    const rawUrl = String.fromEnvironment('BACKEND_API_URL') != ''
+        ? String.fromEnvironment('BACKEND_API_URL')
+        : 'http://localhost:3000';
+
+    // * Redirect localhost to the host machine IP when running on Android emulator.
+    // * Exclude tests because defaultTargetPlatform defaults to android in widget tests.
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.android &&
+        !Platform.environment.containsKey('FLUTTER_TEST')) {
+      if (rawUrl.contains('localhost')) {
+        return rawUrl.replaceAll('localhost', '10.0.2.2');
+      }
+      if (rawUrl.contains('127.0.0.1')) {
+        return rawUrl.replaceAll('127.0.0.1', '10.0.2.2');
+      }
+    }
+
+    return rawUrl;
+  }
 
   // * WebSocket base URL
   static String get wsUrl => baseUrl;
