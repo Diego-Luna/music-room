@@ -1,3 +1,6 @@
+
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -5,10 +8,11 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-val localProperties = java.util.Properties().apply {
-    val localPropertiesFile = rootProject.file("local.properties")
-    if (localPropertiesFile.exists()) {
-        localPropertiesFile.inputStream().use { load(it) }
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { stream ->
+        localProperties.load(stream)
     }
 }
 
@@ -31,13 +35,15 @@ android {
         applicationId = "com.dluna_lo.music_room_app"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 21
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
-        manifestPlaceholders["facebookAppId"] = localProperties.getProperty("facebook.app.id") ?: ""
-        manifestPlaceholders["facebookClientToken"] = localProperties.getProperty("facebook.client.token") ?: ""
-    }
+		manifestPlaceholders["facebookAppId"] = localProperties.getProperty("facebook.app.id") ?: ""
+		manifestPlaceholders["facebookClientToken"] = localProperties.getProperty("facebook.client.token") ?: ""
+		resValue("string", "facebook_app_id", localProperties.getProperty("facebook.app.id") ?: "")
+		resValue("string", "facebook_client_token", localProperties.getProperty("facebook.client.token") ?: "")
+	}
 
     buildTypes {
         release {

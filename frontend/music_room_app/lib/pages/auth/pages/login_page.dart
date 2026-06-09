@@ -11,6 +11,7 @@ import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
+import 'package:music_room_app/widgets/google_sign_in_button.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -153,29 +154,27 @@ class _LoginPageState extends State<LoginPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: NeumorphicInteractiveContainer(
-                          onTap: () => _handleSocial(SocialProvider.google),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              AppDimens.radiusMedium,
-                            ),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: AppDimens.md,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.g_mobiledata, size: 30),
-                              const SizedBox(width: AppDimens.sm),
-                              Text(
-                                'Google',
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: AppTypography.semibold,
+                        child: GoogleSignInButton(
+                          onPressed: () => _handleSocial(SocialProvider.google),
+                          onTokenReceived: (token) async {
+                            // * Capture before async gap to avoid BuildContext
+                            // * access across an await boundary.
+                            final auth = context.read<AuthProvider>();
+                            final router = GoRouter.of(context);
+                            final messenger = ScaffoldMessenger.of(context);
+                            final ok = await auth.socialLoginWithToken('google', token);
+                            if (!mounted) return;
+                            if (ok && auth.signedIn) {
+                              router.go(routeHome);
+                            } else if (auth.error != null) {
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(auth.error!),
+                                  backgroundColor: Colors.redAccent,
                                 ),
-                              ),
-                            ],
-                          ),
+                              );
+                            }
+                          },
                         ),
                       ),
                       const SizedBox(width: AppDimens.lg),

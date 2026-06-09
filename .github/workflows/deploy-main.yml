@@ -43,7 +43,8 @@ jobs:
         run: |
           flutter build web --release --base-href=/ \
             --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }} \
-            --dart-define=FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID || '1028619539827089' }}
+            --dart-define=FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }} \
+            --dart-define=GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
@@ -87,7 +88,12 @@ jobs:
 
   #     - name: Build APK
   #       working-directory: frontend/music_room_app
-  #       run: flutter build apk --release --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }}
+  #       run: |
+  #         flutter build apk --release \
+  #           --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }} \
+  #           --dart-define=FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }} \
+  #           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID }} \
+  #           --dart-define=GOOGLE_ANDROID_CLIENT_ID=${{ secrets.GOOGLE_ANDROID_CLIENT_ID || vars.GOOGLE_ANDROID_CLIENT_ID }}
 
   #     - name: Upload Android APK
   #       uses: actions/upload-artifact@v4
@@ -117,9 +123,22 @@ jobs:
   #       working-directory: frontend/music_room_app
   #       run: flutter pub get
 
+  #     - name: Create Secrets.xcconfig
+  #       working-directory: frontend/music_room_app
+  #       run: |
+  #         mkdir -p ios/Flutter
+  #         echo "GOOGLE_REVERSED_CLIENT_ID=${{ secrets.GOOGLE_REVERSED_CLIENT_ID || vars.GOOGLE_REVERSED_CLIENT_ID }}" > ios/Flutter/Secrets.xcconfig
+  #         echo "FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }}" >> ios/Flutter/Secrets.xcconfig
+  #         echo "FACEBOOK_CLIENT_TOKEN=${{ secrets.FACEBOOK_CLIENT_TOKEN || vars.FACEBOOK_CLIENT_TOKEN }}" >> ios/Flutter/Secrets.xcconfig
+
   #     - name: Build iOS (No Codesign)
   #       working-directory: frontend/music_room_app
-  #       run: flutter build ios --release --no-codesign --dart-define=BACKEND_API_URL=${{env.BACKEND_API_URL}}
+  #       run: |
+  #         flutter build ios --release --no-codesign \
+  #           --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }} \
+  #           --dart-define=FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }} \
+  #           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID }} \
+  #           --dart-define=GOOGLE_IOS_CLIENT_ID=${{ secrets.GOOGLE_IOS_CLIENT_ID || vars.GOOGLE_IOS_CLIENT_ID }}
 
   #     - name: Compress iOS build
   #       working-directory: frontend/music_room_app/build/ios

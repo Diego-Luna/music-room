@@ -123,33 +123,83 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
 
     try {
+      // * Start native OAuth flow via social auth service
+      debugPrint('[SocialSignIn] socialLogin started for: ${provider.name}');
       final providerToken = await _socialAuth.signIn(provider);
       if (providerToken == null) {
-        // User cancelled the native flow — not an error.
+        // * User cancelled the native flow — not an error.
+        debugPrint('[SocialSignIn] socialLogin: User cancelled flow.');
         return false;
       }
 
-      final response = await _apiClient.post(
-        ApiConfig.socialLogin,
-        data: {'provider': provider.apiValue, 'accessToken': providerToken},
+      debugPrint(
+        '[SocialSignIn] socialLogin: Token obtained, exchanging with backend...',
       );
-
-      final accessToken = response.data['accessToken'] as String;
-      final refreshToken = response.data['refreshToken'] as String;
-
-      await _tokenStorage.saveTokens(accessToken, refreshToken);
-      _user = User.decodeFromToken(accessToken);
-      notifyListeners();
-      return true;
+      return await _exchangeProviderToken(provider.apiValue, providerToken);
     } on DioException catch (e) {
+      // ! Handle API communication or status errors
       _error = e.response?.data['message']?.toString() ?? 'Social login failed';
+      debugPrint(
+        '[SocialSignIn] DioException: $_error (Status: ${e.response?.statusCode})',
+      );
       return false;
     } catch (e) {
+      // ! Handle unexpected native or logic exceptions
       _error = 'An unexpected error occurred';
+      debugPrint('[SocialSignIn] Unexpected Exception: $e');
       return false;
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Exchanges an already-obtained OAuth access [token] for app session tokens.
+  /// Used by the web Google Sign-In flow (renderButton), where the token
+  /// arrives via a stream event rather than through [socialLogin].
+  Future<bool> socialLoginWithToken(String providerName, String token) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      debugPrint(
+        '[SocialSignIn] socialLoginWithToken started for: $providerName',
+      );
+      return await _exchangeProviderToken(providerName, token);
+    } on DioException catch (e) {
+      // ! Handle API communication or status errors
+      _error = e.response?.data['message']?.toString() ?? 'Social login failed';
+      debugPrint(
+        '[SocialSignIn] DioException: $_error (Status: ${e.response?.statusCode})',
+      );
+      return false;
+    } catch (e) {
+      // ! Handle unexpected exceptions
+      _error = 'An unexpected error occurred';
+      debugPrint('[SocialSignIn] Unexpected Exception: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> _exchangeProviderToken(String provider, String token) async {
+    debugPrint(
+      '[SocialSignIn] Requesting POST /auth/social for provider: $provider',
+    );
+    final response = await _apiClient.post(
+      ApiConfig.socialLogin,
+      data: {'provider': provider, 'accessToken': token},
+    );
+
+    debugPrint('[SocialSignIn] Response status: ${response.statusCode}');
+    final accessToken = response.data['accessToken'] as String;
+    final refreshToken = response.data['refreshToken'] as String;
+
+    debugPrint('[SocialSignIn] Saving session tokens to secure storage...');
+    await _tokenStorage.saveTokens(accessToken, refreshToken);
+    _user = User.decodeFromToken(accessToken);
+    debugPrint('[SocialSignIn] Session established for user: ${_user?.email}');
+    notifyListeners();
+    return true;
   }
 
   /// Link a social provider to the currently signed-in account via
