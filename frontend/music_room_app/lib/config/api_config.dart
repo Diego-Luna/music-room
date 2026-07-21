@@ -1,19 +1,92 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+    show defaultTargetPlatform, kIsWeb, TargetPlatform, visibleForTesting;
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 
 // * Trigger production deploy
 class ApiConfig {
-  // * Base URL for the NestJS API
-  // * Defaults to localhost for local development
-  // * Dynamically maps localhost to 10.0.2.2 on Android Emulators
-  static String get baseUrl {
-    const rawUrl = String.fromEnvironment('BACKEND_API_URL') != ''
-        ? String.fromEnvironment('BACKEND_API_URL')
-        : 'http://localhost:3000';
+  static const _settingsBoxName = 'app_settings';
+  static const _backendUrlKey = 'backend_api_url';
 
-    // * Redirect localhost to the host machine IP when running on Android emulator.
-    // * Exclude tests because defaultTargetPlatform defaults to android in widget tests.
+  /// Runtime override persisted in Hive (V.5 — configurable on the app).
+  static String? _overrideUrl;
+
+  /// Compile-time / default URL before any runtime override.
+  static String get defaultBaseUrl {
+    const fromEnv = String.fromEnvironment('BACKEND_API_URL');
+    return fromEnv.isNotEmpty ? fromEnv : 'http://localhost:3000';
+  }
+
+  /// Effective URL used by REST + WebSocket (override → dart-define → localhost).
+  static String get baseUrl {
+    final raw = (_overrideUrl != null && _overrideUrl!.isNotEmpty)
+        ? _overrideUrl!
+        : defaultBaseUrl;
+    return _rewriteForAndroidEmulator(raw);
+  }
+
+  /// WebSocket base URL
+  static String get wsUrl => baseUrl;
+
+  /// True when the user (or tests) set a runtime override.
+  static bool get hasOverride =>
+      _overrideUrl != null && _overrideUrl!.isNotEmpty;
+
+  /// Load persisted override. Call after [HiveConfig.initialize].
+  static Future<void> load() async {
+    final box = Hive.box(_settingsBoxName);
+    final stored = box.get(_backendUrlKey);
+    if (stored is String && stored.trim().isNotEmpty) {
+      _overrideUrl = _stripTrailingSlash(stored.trim());
+    }
+  }
+
+  /// Persist and apply a new backend URL (http/https). Throws [FormatException]
+  /// if invalid.
+  static Future<void> setBackendUrl(String url) async {
+    final normalized = _normalizeAndValidate(url);
+    _overrideUrl = normalized;
+    await Hive.box(_settingsBoxName).put(_backendUrlKey, normalized);
+  }
+
+  /// Clear override and fall back to [defaultBaseUrl].
+  static Future<void> clearBackendUrlOverride() async {
+    _overrideUrl = null;
+    await Hive.box(_settingsBoxName).delete(_backendUrlKey);
+  }
+
+  @visibleForTesting
+  static void resetForTest() {
+    _overrideUrl = null;
+  }
+
+  static String _normalizeAndValidate(String url) {
+    final trimmed = _stripTrailingSlash(url.trim());
+    if (trimmed.isEmpty) {
+      throw const FormatException('Backend URL cannot be empty.');
+    }
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null ||
+        !uri.hasScheme ||
+        (uri.scheme != 'http' && uri.scheme != 'https') ||
+        uri.host.isEmpty) {
+      throw const FormatException(
+        'Enter a valid http(s) URL, e.g. http://localhost:3000',
+      );
+    }
+    return trimmed;
+  }
+
+  static String _stripTrailingSlash(String url) {
+    if (url.length > 1 && url.endsWith('/')) {
+      return url.substring(0, url.length - 1);
+    }
+    return url;
+  }
+
+  /// Redirect localhost to the host machine IP when running on Android emulator.
+  /// Exclude tests because defaultTargetPlatform defaults to android in widget tests.
+  static String _rewriteForAndroidEmulator(String rawUrl) {
     if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.android &&
         !Platform.environment.containsKey('FLUTTER_TEST')) {
@@ -24,12 +97,8 @@ class ApiConfig {
         return rawUrl.replaceAll('127.0.0.1', '10.0.2.2');
       }
     }
-
     return rawUrl;
   }
-
-  // * WebSocket base URL
-  static String get wsUrl => baseUrl;
 
   // * Auth endpoints
   static const String register = '/auth/register';

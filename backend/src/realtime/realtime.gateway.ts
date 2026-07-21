@@ -67,9 +67,11 @@ export class RealtimeGateway
       (socket as AuthedSocket).data = {
         userId: payload.sub,
         email: payload.email,
-        platform: this.header(socket, 'x-platform'),
-        device: this.header(socket, 'x-device'),
-        appVersion: this.header(socket, 'x-app-version'),
+        // * Prefer HTTP headers (native); fall back to handshake.auth (web —
+        //   browsers block custom WebSocket headers).
+        platform: this.clientTag(socket, 'x-platform', 'platform'),
+        device: this.clientTag(socket, 'x-device', 'device'),
+        appVersion: this.clientTag(socket, 'x-app-version', 'appVersion'),
       };
       await socket.join(userChannel(payload.sub));
       this.logAction(socket as AuthedSocket, 'connect', `socket=${socket.id}`);
@@ -143,6 +145,19 @@ export class RealtimeGateway
     const value = socket.handshake.headers[name];
     if (Array.isArray(value)) return value[0];
     return value;
+  }
+
+  /** V.6 tag from header or Socket.IO auth map (web-safe). */
+  private clientTag(
+    socket: Socket,
+    headerName: string,
+    authKey: string,
+  ): string | undefined {
+    const fromHeader = this.header(socket, headerName);
+    if (fromHeader) return fromHeader;
+    const auth = socket.handshake.auth as Record<string, unknown> | undefined;
+    const value = auth?.[authKey];
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
   private extractToken(socket: Socket): string | null {

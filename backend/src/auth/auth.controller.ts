@@ -52,8 +52,11 @@ export class AuthController {
       const v = req.headers[k];
       return Array.isArray(v) ? v[0] : v;
     };
+    // * Prefer x-device-id (stable UUID). Fall back to x-device for older
+    //   clients that still sent the id in that header. The human-readable
+    //   model (V.6 "Device") now lives in x-device and is for logs only.
     return {
-      deviceId: header('x-device'),
+      deviceId: header('x-device-id') ?? header('x-device'),
       userAgent: header('user-agent'),
       ip: header('x-forwarded-for') ?? req.ip,
     };

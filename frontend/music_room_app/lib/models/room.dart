@@ -30,6 +30,11 @@ class Room {
   final String? editAccess;
   final String? voteAccess;
 
+  // * V.2.1 location licence — when all three are set, votes need lat/lng.
+  final double? voteLocationLat;
+  final double? voteLocationLng;
+  final double? voteLocationRadiusM;
+
   // * Tracks list is for used by VOTE and PLAYLIST rooms
   final List<Track> tracks;
 
@@ -42,9 +47,17 @@ class Room {
     this.description,
     this.editAccess,
     this.voteAccess,
+    this.voteLocationLat,
+    this.voteLocationLng,
+    this.voteLocationRadiusM,
     this.tracks = const [],
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
+
+  bool get isGeoGated =>
+      voteLocationLat != null &&
+      voteLocationLng != null &&
+      voteLocationRadiusM != null;
 
   factory Room.fromJson(Map<String, dynamic> json) {
     return Room(
@@ -57,6 +70,9 @@ class Room {
       description: json['description'] as String?,
       editAccess: json['editAccess'] as String?,
       voteAccess: json['voteAccess'] as String?,
+      voteLocationLat: (json['voteLocationLat'] as num?)?.toDouble(),
+      voteLocationLng: (json['voteLocationLng'] as num?)?.toDouble(),
+      voteLocationRadiusM: (json['voteLocationRadiusM'] as num?)?.toDouble(),
       tracks: (json['tracks'] as List? ?? [])
           .map((t) => Track.fromJson(t))
           .toList(),
@@ -76,6 +92,9 @@ class Room {
     if (description != null) 'description': description,
     if (editAccess != null) 'editAccess': editAccess,
     if (voteAccess != null) 'voteAccess': voteAccess,
+    if (voteLocationLat != null) 'voteLocationLat': voteLocationLat,
+    if (voteLocationLng != null) 'voteLocationLng': voteLocationLng,
+    if (voteLocationRadiusM != null) 'voteLocationRadiusM': voteLocationRadiusM,
     'tracks': tracks.map((t) => t.toJson()).toList(),
     'createdAt': createdAt.toIso8601String(),
   };
@@ -87,6 +106,9 @@ class Room {
     String? description,
     String? editAccess,
     String? voteAccess,
+    double? voteLocationLat,
+    double? voteLocationLng,
+    double? voteLocationRadiusM,
     List<Track>? tracks,
   }) {
     return Room(
@@ -98,6 +120,9 @@ class Room {
       description: description ?? this.description,
       editAccess: editAccess ?? this.editAccess,
       voteAccess: voteAccess ?? this.voteAccess,
+      voteLocationLat: voteLocationLat ?? this.voteLocationLat,
+      voteLocationLng: voteLocationLng ?? this.voteLocationLng,
+      voteLocationRadiusM: voteLocationRadiusM ?? this.voteLocationRadiusM,
       tracks: tracks ?? this.tracks,
       createdAt: createdAt,
     );

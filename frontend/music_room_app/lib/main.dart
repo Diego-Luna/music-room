@@ -8,6 +8,8 @@ import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
 import 'package:music_room_app/config/hive_config.dart';
+import 'package:music_room_app/config/api_config.dart';
+import 'package:music_room_app/config/location_config.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:music_room_app/core/globals.dart';
 
@@ -80,8 +82,11 @@ void main() async {
     );
   }
 
-  setupLocator();
+  // * Persist settings + load backend URL / vote location BEFORE wiring clients.
   await HiveConfig.initialize();
+  await ApiConfig.load();
+  await LocationConfig.load();
+  setupLocator();
   syncManager.startMonitoring();
   syncManager.discards.listen(_notifyRejectedSync);
   await authProvider.tryAutoLogin();

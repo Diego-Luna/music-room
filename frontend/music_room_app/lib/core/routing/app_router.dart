@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_room_app/config/api_client.dart';
+import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/core/repositories/rest_api_repository.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/core/repositories/friends_repository.dart';
@@ -71,7 +72,14 @@ DeviceRepository? _deviceRepository;
 void setupLocator() {
   // * Providers
   _navigationProvider ??= NavigationProvider();
-  _authProvider ??= AuthProvider();
+  // * Shared HTTP client first so AuthProvider does not create a second Dio
+  //   with a stale baseUrl (V.5 runtime backend URL must apply everywhere).
+  _apiClient ??= ApiClient(
+    onUnauthorized: () {
+      authProvider.forceLogout();
+    },
+  );
+  _authProvider ??= AuthProvider(apiClient: _apiClient);
   _themeProvider ??= ThemeProvider();
   _eventsProvider ??= EventsProvider(repository: roomRepository);
   _playlistsProvider ??= PlaylistsProvider(repository: roomRepository);
@@ -185,6 +193,20 @@ SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
   friendsProvider: friendsProvider,
   notificationsProvider: notificationsProvider,
 );
+
+/// V.5 — persist a new backend URL and retarget Dio + Socket.IO.
+Future<void> applyBackendUrlChange(String url) async {
+  await ApiConfig.setBackendUrl(url);
+  apiClient.updateBaseUrl(ApiConfig.baseUrl);
+  await socketProvider.reconnectToBackend();
+}
+
+/// V.5 — drop the override and fall back to dart-define / localhost.
+Future<void> resetBackendUrlToDefault() async {
+  await ApiConfig.clearBackendUrlOverride();
+  apiClient.updateBaseUrl(ApiConfig.baseUrl);
+  await socketProvider.reconnectToBackend();
+}
 
 //* Helper for Apple-style transitions
 //* This ensures that when we navigate (push), the new page slides in from the right

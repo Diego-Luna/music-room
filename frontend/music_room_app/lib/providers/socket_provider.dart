@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/config/api_config.dart';
+import 'package:music_room_app/config/client_device_info.dart';
+import 'package:music_room_app/config/token_storage.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
@@ -16,10 +18,16 @@ import 'package:music_room_app/core/routing/route_names.dart';
 
 // * Central provider for managing WebSocket connection and forwarding events
 class SocketProvider extends ChangeNotifier {
-  late final io.Socket _socket;
+  late io.Socket _socket;
+  final bool _ownsSocket;
   final AuthProvider _authProvider;
   final FriendsProvider _friendsProvider;
   final NotificationsProvider _notificationsProvider;
+  late final EventsProvider _eventsProvider;
+  late final PlaylistsProvider _playlistsProvider;
+  late final RoomsProvider _roomsProvider;
+  late final PlayerProvider _playerProvider;
+  final TokenStorage _tokenStorage = TokenStorage();
 
   // * Id of the room whose detail page is currently open (set via
   // * join/leaveRoom by the detail pages). Lets us pop the user out only when
@@ -46,24 +54,43 @@ class SocketProvider extends ChangeNotifier {
     io.Socket? socket,
   }) : _authProvider = authProvider,
        _friendsProvider = friendsProvider,
-       _notificationsProvider = notificationsProvider {
+       _notificationsProvider = notificationsProvider,
+       _ownsSocket = socket == null {
+    _eventsProvider = eventsProvider;
+    _playlistsProvider = playlistsProvider;
+    _roomsProvider = roomsProvider;
+    _playerProvider = playerProvider;
     _authProvider.addListener(_onAuthChanged);
-    _initializeSocket(
-      eventsProvider,
-      playlistsProvider,
-      roomsProvider,
-      playerProvider,
-      socket,
-    );
+    _initializeSocket(socket);
   }
 
-  // * Retrieve token and inject it into Socket.IO handshake before connecting.
+  /// Rebuild the Socket.IO client against [ApiConfig.wsUrl] (V.5 URL change).
+  Future<void> reconnectToBackend() async {
+    if (!_ownsSocket) return;
+    _socket.disconnect();
+    _socket.dispose();
+    _initializeSocket(null);
+    notifyListeners();
+  }
+
+  // * Retrieve token + V.6 device tags, inject into Socket.IO handshake, connect.
   Future<void> _connectSocket() async {
     final token = await _authProvider.accessToken;
-    if (token != null) {
-      // * auth handshake map — preferred over header / query string.
-      _socket.io.options?['auth'] = {'token': token};
+    final auth = <String, dynamic>{};
+    if (token != null) auth['token'] = token;
+
+    // * V.6 tags: extraHeaders work on mobile; auth map is required on web
+    //   (browsers block custom WebSocket handshake headers).
+    try {
+      final deviceId = await _tokenStorage.getOrCreateDeviceId();
+      final info = await ClientDeviceInfo.resolve(deviceId: deviceId);
+      auth.addAll(info.asSocketAuth());
+      _socket.io.options?['extraHeaders'] = info.asHttpHeaders();
+    } catch (_) {
+      // Best-effort — connection must not fail because of device info.
     }
+
+    _socket.io.options?['auth'] = auth;
     _socket.connect();
     // * Fetch notifications on connection/login to populate the badge count immediately.
     _notificationsProvider.fetchNotifications();
@@ -77,13 +104,7 @@ class SocketProvider extends ChangeNotifier {
     }
   }
 
-  void _initializeSocket(
-    EventsProvider eventsProvider,
-    PlaylistsProvider playlistsProvider,
-    RoomsProvider roomsProvider,
-    PlayerProvider playerProvider,
-    io.Socket? injectedSocket,
-  ) {
+  void _initializeSocket(io.Socket? injectedSocket) {
     // ! Connect to backend WebSocket endpoint defined in ApiConfig
     _socket =
         injectedSocket ??
@@ -140,46 +161,46 @@ class SocketProvider extends ChangeNotifier {
     // * Playlist events
     _socket.on('playlist:item-added', (data) {
       final track = _trackFromJson(data);
-      playlistsProvider.handleTrackAdded(track);
+      _playlistsProvider.handleTrackAdded(track);
     });
     _socket.on('playlist:item-moved', (data) {
       final roomId = data['roomId'] as String? ?? '';
       final trackId = data['trackId'] as String? ?? '';
       final position = data['position'] as String? ?? '';
-      playlistsProvider.handleTrackMoved(roomId, trackId, position);
+      _playlistsProvider.handleTrackMoved(roomId, trackId, position);
     });
     _socket.on('playlist:item-removed', (data) {
       final trackId = data['trackId'] as String? ?? '';
-      playlistsProvider.handleTrackRemoved(trackId);
+      _playlistsProvider.handleTrackRemoved(trackId);
     });
 
     // * Vote room events (forward to EventsProvider)
     _socket.on('track:added', (data) {
       final track = _trackFromJson(data);
-      eventsProvider.handleTrackAdded(track);
+      _eventsProvider.handleTrackAdded(track);
     });
     _socket.on('track:voted', (data) {
       final trackId = data['trackId'] as String? ?? '';
       final score = data['score'] as int? ?? 0;
       final votes = data['votesCount'] as int? ?? 0; // currently unused
-      eventsProvider.handleTrackVoted(trackId, score, votes);
+      _eventsProvider.handleTrackVoted(trackId, score, votes);
     });
 
     // * Room membership events
     _socket.on('member:joined', (data) {
       final roomId = data['roomId'] as String? ?? '';
       final userId = data['userId'] as String? ?? '';
-      roomsProvider.handleMemberJoined(roomId, userId);
+      _roomsProvider.handleMemberJoined(roomId, userId);
     });
     _socket.on('member:left', (data) {
       final roomId = data['roomId'] as String? ?? '';
       final userId = data['userId'] as String? ?? '';
-      roomsProvider.handleMemberLeft(roomId, userId);
+      _roomsProvider.handleMemberLeft(roomId, userId);
     });
     _socket.on('member:removed', (data) {
       final roomId = data['roomId'] as String? ?? '';
       final userId = data['userId'] as String? ?? '';
-      roomsProvider.handleMemberLeft(roomId, userId);
+      _roomsProvider.handleMemberLeft(roomId, userId);
       if (roomId.isNotEmpty) _roomMembersChangedController.add(roomId);
     });
     _socket.on('member:role-changed', (data) {
@@ -197,8 +218,8 @@ class SocketProvider extends ChangeNotifier {
         roomId = data['roomId'] as String? ?? '';
         roomName = data['roomName'] as String? ?? '';
       }
-      playlistsProvider.fetchPlaylists();
-      eventsProvider.fetchEvents();
+      _playlistsProvider.fetchPlaylists();
+      _eventsProvider.fetchEvents();
       _notificationsProvider.fetchNotifications();
       if (roomId.isNotEmpty && _currentRoomId == roomId) {
         _currentRoomId = null;
@@ -215,12 +236,12 @@ class SocketProvider extends ChangeNotifier {
     // * Deezer/relay back never emits them.
     _socket.on('track:nowPlaying', (data) {
       final track = _trackFromJson(data['track']);
-      playerProvider.handlePlaybackPlayed(track);
+      _playerProvider.handlePlaybackPlayed(track);
     });
 
     _socket.on('playback:command', (data) {
       if (data is Map) {
-        playerProvider.handlePlaybackCommand(Map<String, dynamic>.from(data));
+        _playerProvider.handlePlaybackCommand(Map<String, dynamic>.from(data));
       }
     });
 
@@ -229,7 +250,7 @@ class SocketProvider extends ChangeNotifier {
         final deviceId = data['deviceId'] as String?;
         final ownerId = data['ownerId'] as String?;
         if (deviceId != null && ownerId != null) {
-          playerProvider.handleDelegationGranted(deviceId, ownerId);
+          _playerProvider.handleDelegationGranted(deviceId, ownerId);
         }
       }
     });
@@ -239,7 +260,7 @@ class SocketProvider extends ChangeNotifier {
         final deviceId = data['deviceId'] as String?;
         final ownerId = data['ownerId'] as String?;
         if (deviceId != null && ownerId != null) {
-          playerProvider.handleDelegationRevoked(deviceId, ownerId);
+          _playerProvider.handleDelegationRevoked(deviceId, ownerId);
         }
       }
     });

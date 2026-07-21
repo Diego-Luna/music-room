@@ -63,7 +63,13 @@ void main() {
 
     test('voteForTrack calls repository and reloads events', () async {
       when(
-        () => mockRepository.voteForTrack(any(), any(), any()),
+        () => mockRepository.voteForTrack(
+          any(),
+          any(),
+          any(),
+          lat: any(named: 'lat'),
+          lng: any(named: 'lng'),
+        ),
       ).thenAnswer((_) async {});
       when(
         () => mockRepository.getRooms(kind: RoomKind.vote),
@@ -72,9 +78,48 @@ void main() {
       await eventsProvider.voteForTrack('room-1', 'track-1', 1);
 
       verify(
-        () => mockRepository.voteForTrack('room-1', 'track-1', 1),
+        () => mockRepository.voteForTrack(
+          'room-1',
+          'track-1',
+          1,
+          lat: any(named: 'lat'),
+          lng: any(named: 'lng'),
+        ),
       ).called(1);
       verify(() => mockRepository.getRooms(kind: RoomKind.vote)).called(1);
+    });
+
+    test('voteForTrack forwards explicit lat/lng', () async {
+      when(
+        () => mockRepository.voteForTrack(
+          any(),
+          any(),
+          any(),
+          lat: any(named: 'lat'),
+          lng: any(named: 'lng'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.vote),
+      ).thenAnswer((_) async => []);
+
+      await eventsProvider.voteForTrack(
+        'room-1',
+        'track-1',
+        1,
+        lat: 48.85,
+        lng: 2.35,
+      );
+
+      verify(
+        () => mockRepository.voteForTrack(
+          'room-1',
+          'track-1',
+          1,
+          lat: 48.85,
+          lng: 2.35,
+        ),
+      ).called(1);
     });
 
     test('suggestTrack calls repository and reloads events', () async {

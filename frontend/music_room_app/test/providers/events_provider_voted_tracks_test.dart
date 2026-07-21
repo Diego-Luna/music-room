@@ -8,7 +8,15 @@ class MockRoomRepository extends Mock implements RoomRepository {}
 void main() {
   test('EventsProvider tracks voted track IDs', () async {
     final repo = MockRoomRepository();
-    when(() => repo.voteForTrack(any(), any(), any())).thenAnswer((_) async {});
+    when(
+      () => repo.voteForTrack(
+        any(),
+        any(),
+        any(),
+        lat: any(named: 'lat'),
+        lng: any(named: 'lng'),
+      ),
+    ).thenAnswer((_) async {});
     when(
       () => repo.getRooms(kind: any(named: 'kind')),
     ).thenAnswer((_) async => []);

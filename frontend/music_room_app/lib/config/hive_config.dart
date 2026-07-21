@@ -9,5 +9,7 @@ class HiveConfig {
     await Hive.openBox<Map>('cached_rooms');
     await Hive.openBox<Map>('pending_actions');
     await Hive.openBox<Map>('cached_friends');
+    // * App settings (V.5 backend URL override, etc.)
+    await Hive.openBox('app_settings');
   }
 }

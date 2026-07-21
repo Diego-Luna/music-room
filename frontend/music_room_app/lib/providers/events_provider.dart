@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room_app/config/location_config.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
@@ -61,11 +62,27 @@ class EventsProvider extends ChangeNotifier {
   }
 
   // * value 1 = upvote, 0 = remove vote
-  Future<void> voteForTrack(String roomId, String trackId, int value) async {
+  // * V.2.1: attach lat/lng from LocationConfig (Settings) for geo-gated rooms.
+  Future<void> voteForTrack(
+    String roomId,
+    String trackId,
+    int value, {
+    double? lat,
+    double? lng,
+  }) async {
     _votedTrackIds.add(trackId);
     notifyListeners();
     try {
-      await _repository.voteForTrack(roomId, trackId, value);
+      final position = (lat != null && lng != null)
+          ? GeoPoint(lat: lat, lng: lng)
+          : await LocationConfig.resolve();
+      await _repository.voteForTrack(
+        roomId,
+        trackId,
+        value,
+        lat: position?.lat,
+        lng: position?.lng,
+      );
       await fetchEvents();
     } catch (e) {
       _error = e.toString();

@@ -12,6 +12,7 @@ import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/widgets/google_sign_in_button.dart';
+import 'package:music_room_app/widgets/backend_url_section.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -223,6 +224,11 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                     ],
                   ),
+
+                  const SizedBox(height: AppDimens.xxl),
+                  // * V.5: backend address configurable on the app for tests
+                  //   (also available before login).
+                  const BackendUrlSection(),
                 ],
               ),
             ),

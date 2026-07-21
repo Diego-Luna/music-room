@@ -52,16 +52,26 @@ export default function () {
   const token = auth();
   if (!token) return;
 
+  // * VI.3 gate: Music Playlist Editor is Premium-only. Upgrade before create
+  //   so room creation is not counted as an HTTP failure under load.
+  const upgrade = http.put(
+    `${BASE_URL}/subscription/me`,
+    JSON.stringify({ tier: 'PREMIUM' }),
+    { headers: h(token) },
+  );
+  check(upgrade, { 'premium 200': (r) => r.status === 200 });
+
   const create = http.post(
     `${BASE_URL}/rooms`,
     JSON.stringify({
       name: `playlist-${__VU}-${setup[0].ts}`,
       kind: 'PLAYLIST',
       visibility: 'PUBLIC',
-      allowMembersEdit: true,
+      editAccess: 'EVERYONE',
     }),
     { headers: h(token) },
   );
+  check(create, { 'create playlist 201': (r) => r.status === 201 });
   const roomId = create.json('id');
   if (!roomId) return;
 

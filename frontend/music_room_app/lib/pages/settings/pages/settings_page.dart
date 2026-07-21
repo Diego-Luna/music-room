@@ -5,6 +5,8 @@ import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/pages/settings/widgets/active_sessions_section.dart';
+import 'package:music_room_app/widgets/backend_url_section.dart';
+import 'package:music_room_app/widgets/vote_location_section.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
@@ -51,6 +53,11 @@ class SettingsPage extends StatelessWidget {
           ListView(
             padding: const EdgeInsets.all(AppDimens.xl),
             children: [
+              const BackendUrlSection(),
+              const SizedBox(height: AppDimens.xxl),
+              const VoteLocationSection(),
+              const SizedBox(height: AppDimens.xxl),
+
               Text(
                 'Subscription',
                 style: theme.textTheme.titleLarge?.copyWith(

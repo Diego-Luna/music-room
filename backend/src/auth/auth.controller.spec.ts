@@ -50,7 +50,8 @@ describe('AuthController', () => {
 
   const fakeReq = {
     headers: {
-      'x-device': 'iPhone-15',
+      'x-device': 'iPhone 15',
+      'x-device-id': 'dev_stable_uuid',
       'user-agent': 'TestAgent/1.0',
       'x-forwarded-for': '1.2.3.4',
     },
@@ -84,7 +85,28 @@ describe('AuthController', () => {
       expect(authService.login).toHaveBeenCalledWith(
         'user@example.com',
         'MyP@ssw0rd',
-        expect.objectContaining({ deviceId: 'iPhone-15' }),
+        expect.objectContaining({ deviceId: 'dev_stable_uuid' }),
+      );
+    });
+
+    it('falls back to x-device when x-device-id is absent (legacy clients)', async () => {
+      const legacyReq = {
+        headers: {
+          'x-device': 'legacy-device-id',
+          'user-agent': 'TestAgent/1.0',
+        },
+        ip: '127.0.0.1',
+      } as never;
+
+      await controller.login(legacyReq, {
+        email: 'user@example.com',
+        password: 'MyP@ssw0rd',
+      });
+
+      expect(authService.login).toHaveBeenCalledWith(
+        'user@example.com',
+        'MyP@ssw0rd',
+        expect.objectContaining({ deviceId: 'legacy-device-id' }),
       );
     });
   });

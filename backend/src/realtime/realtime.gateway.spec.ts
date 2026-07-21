@@ -117,6 +117,31 @@ describe('RealtimeGateway', () => {
         expect.any(Object),
       );
     });
+
+    it('reads V.6 tags from handshake.auth when headers are missing (web)', async () => {
+      jwtService.verify.mockReturnValue({ sub: 'u1', email: 'a@b.c' });
+      const socket = makeSocket({
+        handshake: {
+          auth: {
+            token: 't',
+            platform: 'WEB',
+            device: 'Chrome (Google Inc.)',
+            appVersion: '1.0.0+1',
+          },
+          headers: {},
+          query: {},
+        },
+      });
+      await gateway.handleConnection(socket);
+      expect(socket.data).toEqual(
+        expect.objectContaining({
+          userId: 'u1',
+          platform: 'WEB',
+          device: 'Chrome (Google Inc.)',
+          appVersion: '1.0.0+1',
+        }),
+      );
+    });
   });
 
   describe('room:join', () => {

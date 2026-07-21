@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_room_app/config/location_config.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/core/services/proximity_service.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
+import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/pages/events/widgets/create_event_dialog.dart';
+import 'package:music_room_app/pages/events/widgets/proximity_approach_sheet.dart';
 import 'package:music_room_app/widgets/neumorphic_search_bar.dart';
 
 //* Events list page — symmetric to PlaylistsPage. Tapping an event opens its
@@ -24,11 +28,16 @@ class EventsPage extends StatefulWidget {
 class _EventsPageState extends State<EventsPage> {
   String _searchQuery = '';
 
+  /// VI.2 — avoid re-showing the same approach sheet in one session.
+  final Set<String> _announcedProximityIds = {};
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<EventsProvider>().fetchEvents();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await context.read<EventsProvider>().fetchEvents();
+      if (!mounted) return;
+      await _scanProximity();
     });
   }
 
@@ -38,6 +47,75 @@ class _EventsPageState extends State<EventsPage> {
       isScrollControlled: true,
       builder: (_) => const CreateEventDialog(),
     );
+  }
+
+  void _openEvent(Room event) {
+    final eventsProvider = context.read<EventsProvider>();
+    eventsProvider.selectEvent(event);
+    context.go('$routeEvents/$routeEventDetail', extra: {'event': event});
+  }
+
+  /// VI.2 — if current position is inside a public geo event, show its info.
+  Future<void> _scanProximity({bool force = false}) async {
+    final position = LocationConfig.current;
+    if (position == null) return;
+
+    final events = context.read<EventsProvider>().events;
+    final nearby = ProximityService.findNearbyPublicEvents(
+      position: position,
+      events: events,
+    );
+    if (nearby.isEmpty) return;
+
+    for (final hit in nearby) {
+      if (!force && _announcedProximityIds.contains(hit.room.id)) continue;
+      _announcedProximityIds.add(hit.room.id);
+      if (!mounted) return;
+
+      await ProximityApproachSheet.show(
+        context,
+        nearby: hit,
+        onOpen: () => _openEvent(hit.room),
+      );
+      // * One sheet at a time for the demo.
+      break;
+    }
+  }
+
+  /// Desktop / school demo: teleport into the first public geo event's venue.
+  Future<void> _enterProximityZoneDemo() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final events = context.read<EventsProvider>().events;
+    final geoPublic = events
+        .where((e) => e.isPublic && e.isGeoGated)
+        .toList();
+
+    if (geoPublic.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No public geo event yet. Create one with a location licence first.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final target = geoPublic.first;
+    await LocationConfig.setOverride(
+      lat: target.voteLocationLat!,
+      lng: target.voteLocationLng!,
+    );
+    if (!mounted) return;
+
+    _announcedProximityIds.remove(target.id);
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Entered zone for "${target.name}"'),
+        backgroundColor: Colors.green,
+      ),
+    );
+    await _scanProximity(force: true);
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -140,6 +218,13 @@ class _EventsPageState extends State<EventsPage> {
                   actions: [
                     Center(
                       child: NeumorphicIconButton(
+                        icon: Icons.sensors,
+                        tooltip: 'Enter proximity zone (demo)',
+                        onTap: _enterProximityZoneDemo,
+                      ),
+                    ),
+                    Center(
+                      child: NeumorphicIconButton(
                         icon: Icons.add_box_outlined,
                         tooltip: 'New Event',
                         onTap: () => _showCreateEventDialog(context),
@@ -186,8 +271,9 @@ class _EventsPageState extends State<EventsPage> {
                           index: index,
                           child: PlaceholderCard(
                             title: event.name,
-                            subtitle:
-                                'Vote Session • ${event.tracks.length} tracks',
+                            subtitle: event.isGeoGated
+                                ? 'Vote Session • geo • ${event.tracks.length} tracks'
+                                : 'Vote Session • ${event.tracks.length} tracks',
                             leading: Hero(
                               tag: 'event_cover_${event.id}',
                               child: Container(
@@ -201,18 +287,14 @@ class _EventsPageState extends State<EventsPage> {
                                       ?.neumorphicPressedShadow,
                                 ),
                                 child: Icon(
-                                  Icons.how_to_vote,
+                                  event.isGeoGated
+                                      ? Icons.location_on
+                                      : Icons.how_to_vote,
                                   color: Theme.of(context).colorScheme.primary,
                                 ),
                               ),
                             ),
-                            onTap: () {
-                              eventsProvider.selectEvent(event);
-                              context.go(
-                                '$routeEvents/$routeEventDetail',
-                                extra: {'event': event},
-                              );
-                            },
+                            onTap: () => _openEvent(event),
                           ),
                         ),
                       );
