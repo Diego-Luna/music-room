@@ -20,7 +20,7 @@ Phrases courtes si un évaluateur chipote. Le code mandatory est OK ; ceci évit
 
 ## Offline (bonus)
 
-Hive = file + cache. Conflit → le **serveur** gagne (409 discard, snapshot `/sync`). Les votes offline ne sont pas une vérité locale.
+Hive = file + cache, pas une 2ᵉ vérité. Conflit → le **serveur** gagne (409 discard). Ghosts : `GET /rooms` + `deleteRoomsExcept`. `GET /sync` rafraîchit les **amis** (pas le cache rooms : pas de tracks, pas le catalogue public).
 
 ## Mail / OAuth / iOS
 

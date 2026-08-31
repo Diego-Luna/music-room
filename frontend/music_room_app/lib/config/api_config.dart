@@ -130,4 +130,7 @@ class ApiConfig {
   // GET /subscription/plans (catalogue), GET/PUT /subscription/me (my tier).
   static const String subscriptionPlans = '/subscription/plans';
   static const String subscriptionMe = '/subscription/me';
+
+  // * Offline snapshot (VI.4) — GET /sync after replaying the action queue.
+  static const String sync = '/sync';
 }

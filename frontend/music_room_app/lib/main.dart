@@ -13,6 +13,7 @@ import 'package:music_room_app/config/location_config.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:music_room_app/core/globals.dart';
 import 'package:music_room_app/widgets/proximity_host.dart';
+import 'package:music_room_app/widgets/offline_host.dart';
 
 // * Builds the offline-sync notification: actions the server rejected on
 // * reconnect, with their precise cause (vote session closed, item deleted…).
@@ -107,6 +108,7 @@ void main() async {
     if (authProvider.signedIn) {
       pushTokenService.registerIfNeeded();
       subscriptionProvider.refreshTier();
+      syncManager.syncQueue();
     } else {
       pushTokenService.reset();
       subscriptionProvider.clear();
@@ -115,6 +117,7 @@ void main() async {
   if (authProvider.signedIn) {
     pushTokenService.registerIfNeeded();
     subscriptionProvider.refreshTier();
+    syncManager.syncQueue();
   }
 
   runApp(const AppState());
@@ -159,9 +162,11 @@ class MyApp extends StatelessWidget {
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProv.themeMode,
             builder: (context, child) {
-              return ProximityHost(
-                events: eventsProvider,
-                child: child ?? const SizedBox.shrink(),
+              return OfflineHost(
+                child: ProximityHost(
+                  events: eventsProvider,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               );
             },
           );

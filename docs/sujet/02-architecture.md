@@ -1,6 +1,6 @@
 # V.3 / V.4 — Architecture (back = vérité)
 
-Toutes les données métier vivent sur le backend (Nest + Prisma + PostgreSQL). L’app Flutter est un client REST + Socket.IO. Hive n’est **pas** une seconde vérité : cache + file d’actions (bonus offline) ; au reconnect `GET /sync` **écrase** le cache.
+Toutes les données métier vivent sur le backend (Nest + Prisma + PostgreSQL). L’app Flutter est un client REST + Socket.IO. Hive n’est **pas** une seconde vérité : cache + file d’actions (bonus offline). Au reconnect : replay FIFO, `GET /rooms` purge les ghosts, `GET /sync` rafraîchit les amis — le **serveur** gagne.
 
 ## Deux kinds de rooms
 

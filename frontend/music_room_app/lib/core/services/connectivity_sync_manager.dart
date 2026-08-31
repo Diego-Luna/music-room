@@ -1,10 +1,14 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:music_room_app/config/api_client.dart';
+import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/core/repositories/offline_friends_repository.dart';
 import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/models/offline_action.dart';
 import 'package:music_room_app/models/track.dart';
+import 'package:music_room_app/models/friendship.dart';
 
 // * One queued action that the server permanently rejected during sync,
 // * carrying a human-readable cause so the UI can tell the user why.
@@ -18,6 +22,8 @@ class ConnectivitySyncManager {
   final RoomRepository _remote;
   final OfflineCache _cache;
   final Connectivity _connectivity;
+  final ApiClient? _apiClient;
+  final OfflineFriendsRepository? _friends;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _isSyncing = false;
 
@@ -32,20 +38,32 @@ class ConnectivitySyncManager {
     required RoomRepository remoteRepository,
     required OfflineCache cache,
     Connectivity? connectivity,
+    ApiClient? apiClient,
+    OfflineFriendsRepository? friendsCache,
   }) : _remote = remoteRepository,
        _cache = cache,
-       _connectivity = connectivity ?? Connectivity();
+       _connectivity = connectivity ?? Connectivity(),
+       _apiClient = apiClient,
+       _friends = friendsCache;
 
-  // * Start listening to connectivity events in foreground
+  // * Listen for reconnects, and drain immediately if we are already online
+  // * (cold start with a leftover queue — a connectivity *change* never fires).
   void startMonitoring() {
     _subscription?.cancel();
     _subscription = _connectivity.onConnectivityChanged.listen((results) {
-      // * React if transition leads to internet connectivity options
-      final isOnline = results.any((r) => r != ConnectivityResult.none);
-      if (isOnline && !_isSyncing) {
-        syncQueue();
-      }
+      if (_isOnline(results)) syncQueue();
     });
+    _drainIfOnline();
+  }
+
+  bool _isOnline(List<ConnectivityResult> results) =>
+      results.any((r) => r != ConnectivityResult.none);
+
+  Future<void> _drainIfOnline() async {
+    try {
+      final results = await _connectivity.checkConnectivity();
+      if (_isOnline(results)) await syncQueue();
+    } catch (_) {}
   }
 
   void stopMonitoring() {
@@ -137,10 +155,36 @@ class ConnectivitySyncManager {
         return cached != null ? room.copyWith(tracks: cached.tracks) : room;
       }).toList();
       await _cache.saveRooms(merged);
+      await _refreshFriendsFromSnapshot();
     } catch (_) {
       // * Silent fallback on errors
     } finally {
       _isSyncing = false;
+    }
+  }
+
+  // * GET /sync is the "my data" snapshot (profile, owned/member rooms,
+  // * invitations, friendships). Room metadata + ghost purge stay on
+  // * GET /rooms: that list includes public rooms the user hasn't joined,
+  // * and the snapshot rooms have no tracks. We only apply friendships.
+  Future<void> _refreshFriendsFromSnapshot() async {
+    final api = _apiClient;
+    final friends = _friends;
+    if (api == null || friends == null) return;
+    try {
+      final response = await api.get(ApiConfig.sync);
+      final data = response.data as Map<String, dynamic>;
+      final meId = (data['me'] as Map?)?['id'] as String?;
+      if (meId == null) return;
+      final raw = (data['friendships'] as List?) ?? const [];
+      final list = raw
+          .map(
+            (e) => FriendshipDto.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
+          .toList();
+      await friends.applySnapshot(meId, list);
+    } catch (_) {
+      // Friends stay on the last Hive list; rooms already refreshed.
     }
   }
 

@@ -30,6 +30,12 @@ class OfflineRoomRepository implements RoomRepository {
     }
   }
 
+  Future<void> _requireOnline(String message) async {
+    if (!await _isOnline()) {
+      throw Exception(message);
+    }
+  }
+
   @override
   Future<List<Room>> getRooms({RoomKind? kind}) async {
     if (!await _isOnline()) {
@@ -181,7 +187,8 @@ class OfflineRoomRepository implements RoomRepository {
     }
   }
 
-  // * Fallbacks for Room creation / manipulation (usually disabled offline, but kept for signature)
+  // * Creating / joining / leaving / inviting need the server (membership is
+  // * authoritative). Offline we refuse instead of letting Dio hang.
   @override
   Future<Room> createRoom({
     required String name,
@@ -196,23 +203,29 @@ class OfflineRoomRepository implements RoomRepository {
     double? voteLocationLat,
     double? voteLocationLng,
     double? voteLocationRadiusM,
-  }) => _remote.createRoom(
-    name: name,
-    kind: kind,
-    isPublic: isPublic,
-    description: description,
-    editAccess: editAccess,
-    voteAccess: voteAccess,
-    voteWindow: voteWindow,
-    voteStartsAt: voteStartsAt,
-    voteEndsAt: voteEndsAt,
-    voteLocationLat: voteLocationLat,
-    voteLocationLng: voteLocationLng,
-    voteLocationRadiusM: voteLocationRadiusM,
-  );
+  }) async {
+    await _requireOnline('Cannot create a room while offline.');
+    return _remote.createRoom(
+      name: name,
+      kind: kind,
+      isPublic: isPublic,
+      description: description,
+      editAccess: editAccess,
+      voteAccess: voteAccess,
+      voteWindow: voteWindow,
+      voteStartsAt: voteStartsAt,
+      voteEndsAt: voteEndsAt,
+      voteLocationLat: voteLocationLat,
+      voteLocationLng: voteLocationLng,
+      voteLocationRadiusM: voteLocationRadiusM,
+    );
+  }
 
   @override
-  Future<void> deleteRoom(String id) => _remote.deleteRoom(id);
+  Future<void> deleteRoom(String id) async {
+    await _requireOnline('Cannot delete a room while offline.');
+    return _remote.deleteRoom(id);
+  }
 
   // * Settings edits are online-only (owner/admin-authoritative).
   @override
@@ -240,14 +253,22 @@ class OfflineRoomRepository implements RoomRepository {
   }
 
   @override
-  Future<void> joinRoom(String id) => _remote.joinRoom(id);
+  Future<void> joinRoom(String id) async {
+    await _requireOnline('Cannot join a room while offline.');
+    return _remote.joinRoom(id);
+  }
 
   @override
-  Future<void> leaveRoom(String id) => _remote.leaveRoom(id);
+  Future<void> leaveRoom(String id) async {
+    await _requireOnline('Cannot leave a room while offline.');
+    return _remote.leaveRoom(id);
+  }
 
   @override
-  Future<void> inviteToRoom(String roomId, String userId) =>
-      _remote.inviteToRoom(roomId, userId);
+  Future<void> inviteToRoom(String roomId, String userId) async {
+    await _requireOnline('Cannot invite while offline.');
+    return _remote.inviteToRoom(roomId, userId);
+  }
 
   // * Membership management is online-only (like invitations/search): roles and
   // * removals must hit the server to stay authoritative; we don't queue them.

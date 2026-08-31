@@ -136,6 +136,8 @@ ConnectivitySyncManager get syncManager =>
     _syncManager ??= ConnectivitySyncManager(
       remoteRepository: remoteRepository,
       cache: offlineCache,
+      apiClient: apiClient,
+      friendsCache: friendsRepository as OfflineFriendsRepository,
     );
 
 PushTokenService get pushTokenService =>

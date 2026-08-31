@@ -1,16 +1,27 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/core/repositories/offline_friends_repository.dart';
 import 'package:music_room_app/config/offline_cache.dart';
+import 'package:music_room_app/config/api_client.dart';
+import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/offline_action.dart';
 import 'package:music_room_app/models/track.dart';
+import 'package:music_room_app/models/friendship.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 
 class MockRoomRepository extends Mock implements RoomRepository {}
 
 class MockOfflineCache extends Mock implements OfflineCache {}
+
+class MockApiClient extends Mock implements ApiClient {}
+
+class MockFriendsCache extends Mock implements OfflineFriendsRepository {}
+
+class MockConnectivity extends Mock implements Connectivity {}
 
 void main() {
   late ConnectivitySyncManager syncManager;
@@ -48,9 +59,7 @@ void main() {
       cache: mockCache,
     );
     // * Called after every successful drain; harmless default for all tests.
-    when(
-      () => mockCache.deleteRoomsExcept(any()),
-    ).thenAnswer((_) async {});
+    when(() => mockCache.deleteRoomsExcept(any())).thenAnswer((_) async {});
   });
 
   test(
@@ -262,36 +271,33 @@ void main() {
     },
   );
 
-  test(
-    'should pause (not discard) on a transient 500 server error',
-    () async {
-      final a1 = OfflineAction(
-        id: 'vote-r1-t1-1',
-        roomId: 'r1',
-        type: 'vote',
-        payload: {'trackId': 't1', 'value': 1},
-        createdAt: DateTime.now(),
-      );
+  test('should pause (not discard) on a transient 500 server error', () async {
+    final a1 = OfflineAction(
+      id: 'vote-r1-t1-1',
+      roomId: 'r1',
+      type: 'vote',
+      payload: {'trackId': 't1', 'value': 1},
+      createdAt: DateTime.now(),
+    );
 
-      when(() => mockCache.getPendingActions()).thenReturn([a1]);
-      when(() => mockRemote.voteForTrack('r1', 't1', 1)).thenThrow(
-        DioException(
+    when(() => mockCache.getPendingActions()).thenReturn([a1]);
+    when(() => mockRemote.voteForTrack('r1', 't1', 1)).thenThrow(
+      DioException(
+        requestOptions: RequestOptions(path: '/rooms/r1/tracks/t1/vote'),
+        response: Response(
           requestOptions: RequestOptions(path: '/rooms/r1/tracks/t1/vote'),
-          response: Response(
-            requestOptions: RequestOptions(path: '/rooms/r1/tracks/t1/vote'),
-            statusCode: 500,
-          ),
+          statusCode: 500,
         ),
-      );
-      when(() => mockRemote.getRooms()).thenAnswer((_) async => []);
-      when(() => mockCache.saveRooms(any())).thenAnswer((_) async {});
+      ),
+    );
+    when(() => mockRemote.getRooms()).thenAnswer((_) async => []);
+    when(() => mockCache.saveRooms(any())).thenAnswer((_) async {});
 
-      await syncManager.syncQueue();
+    await syncManager.syncQueue();
 
-      // * 500 is transient: keep the action queued for a later retry.
-      verifyNever(() => mockCache.removeAction('vote-r1-t1-1'));
-    },
-  );
+    // * 500 is transient: keep the action queued for a later retry.
+    verifyNever(() => mockCache.removeAction('vote-r1-t1-1'));
+  });
 
   test(
     'snapshot must preserve cached tracks when the list endpoint returns none',
@@ -415,8 +421,87 @@ void main() {
 
     await syncManager.syncQueue();
 
-    final captured =
-        verify(() => mockCache.deleteRoomsExcept(captureAny())).captured;
+    final captured = verify(
+      () => mockCache.deleteRoomsExcept(captureAny()),
+    ).captured;
     expect(captured.single, equals(<String>{'r1'}));
+  });
+
+  test('GET /sync after drain refreshes the friends cache', () async {
+    final api = MockApiClient();
+    final friends = MockFriendsCache();
+    registerFallbackValue(<FriendshipDto>[]);
+    when(() => mockCache.getPendingActions()).thenReturn([]);
+    when(() => mockRemote.getRooms()).thenAnswer((_) async => []);
+    when(() => mockCache.saveRooms(any())).thenAnswer((_) async {});
+    when(() => friends.applySnapshot(any(), any())).thenAnswer((_) async {});
+    when(() => api.get(ApiConfig.sync)).thenAnswer(
+      (_) async => Response(
+        data: {
+          'me': {'id': 'me1'},
+          'friendships': [
+            {
+              'id': 'fs1',
+              'requesterId': 'me1',
+              'addresseeId': 'u2',
+              'status': 'ACCEPTED',
+              'createdAt': '2026-01-01T00:00:00.000Z',
+            },
+          ],
+        },
+        requestOptions: RequestOptions(path: ApiConfig.sync),
+        statusCode: 200,
+      ),
+    );
+
+    final wired = ConnectivitySyncManager(
+      remoteRepository: mockRemote,
+      cache: mockCache,
+      apiClient: api,
+      friendsCache: friends,
+    );
+    await wired.syncQueue();
+
+    verify(() => api.get(ApiConfig.sync)).called(1);
+    final captured = verify(
+      () => friends.applySnapshot(captureAny(), captureAny()),
+    ).captured;
+    expect(captured[0], 'me1');
+    expect((captured[1] as List<FriendshipDto>).single.addresseeId, 'u2');
+  });
+
+  test('startMonitoring drains the queue when already online (cold start)',
+      () async {
+    final connectivity = MockConnectivity();
+    when(
+      () => connectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+    when(
+      () => connectivity.onConnectivityChanged,
+    ).thenAnswer((_) => const Stream.empty());
+
+    final action = OfflineAction(
+      id: 'a1',
+      roomId: 'r1',
+      type: 'vote',
+      payload: {'trackId': 't1', 'value': 1},
+      createdAt: DateTime.now(),
+    );
+    when(() => mockCache.getPendingActions()).thenReturn([action]);
+    when(() => mockRemote.voteForTrack('r1', 't1', 1)).thenAnswer((_) async {});
+    when(() => mockCache.removeAction('a1')).thenAnswer((_) async {});
+    when(() => mockRemote.getRooms()).thenAnswer((_) async => []);
+    when(() => mockCache.saveRooms(any())).thenAnswer((_) async {});
+
+    final manager = ConnectivitySyncManager(
+      remoteRepository: mockRemote,
+      cache: mockCache,
+      connectivity: connectivity,
+    );
+    manager.startMonitoring();
+    await pumpEventQueue();
+
+    verify(() => mockRemote.voteForTrack('r1', 't1', 1)).called(1);
+    manager.stopMonitoring();
   });
 }

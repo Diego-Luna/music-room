@@ -49,10 +49,7 @@ void main() {
       () => connectivity.checkConnectivity(),
     ).thenAnswer((_) async => [ConnectivityResult.none]);
     when(() => box.get('friends')).thenReturn({
-      'list': [
-        _friend('u1').toJson(),
-        _friend('u2').toJson(),
-      ],
+      'list': [_friend('u1').toJson(), _friend('u2').toJson()],
     });
 
     final result = await repo.getFriends();
@@ -75,4 +72,50 @@ void main() {
 
     expect(result.single.friendId, equals('u9'));
   });
+
+  test(
+    'applySnapshot splits friendships into friends / incoming / outgoing',
+    () async {
+      when(() => box.put(any(), any())).thenAnswer((_) async {});
+      final now = DateTime.parse('2026-01-01T00:00:00.000Z');
+
+      await repo.applySnapshot('me', [
+        FriendshipDto(
+          id: 'fs-acc',
+          requesterId: 'me',
+          addresseeId: 'u2',
+          status: 'ACCEPTED',
+          createdAt: now,
+        ),
+        FriendshipDto(
+          id: 'fs-in',
+          requesterId: 'u3',
+          addresseeId: 'me',
+          status: 'PENDING',
+          createdAt: now,
+        ),
+        FriendshipDto(
+          id: 'fs-out',
+          requesterId: 'me',
+          addresseeId: 'u4',
+          status: 'PENDING',
+          createdAt: now,
+        ),
+      ]);
+
+      final friendsPut =
+          verify(() => box.put('friends', captureAny())).captured.single as Map;
+      expect((friendsPut['list'] as List).single['friendId'], 'u2');
+
+      final incomingPut =
+          verify(() => box.put('incoming', captureAny())).captured.single
+              as Map;
+      expect((incomingPut['list'] as List).single['id'], 'fs-in');
+
+      final outgoingPut =
+          verify(() => box.put('outgoing', captureAny())).captured.single
+              as Map;
+      expect((outgoingPut['list'] as List).single['id'], 'fs-out');
+    },
+  );
 }

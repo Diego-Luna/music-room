@@ -85,6 +85,37 @@ class OfflineFriendsRepository implements FriendsRepository {
     }
   }
 
+  /// Replaces Hive friend lists from a GET /sync friendships payload.
+  Future<void> applySnapshot(
+    String myId,
+    List<FriendshipDto> friendships,
+  ) async {
+    final accepted = <FriendDto>[];
+    final incoming = <FriendshipDto>[];
+    final outgoing = <FriendshipDto>[];
+    for (final f in friendships) {
+      if (f.status.toUpperCase() == 'ACCEPTED') {
+        final friendId = f.requesterId == myId ? f.addresseeId : f.requesterId;
+        accepted.add(
+          FriendDto(
+            friendshipId: f.id,
+            friendId: friendId,
+            since: f.respondedAt ?? f.createdAt,
+          ),
+        );
+      } else if (f.status.toUpperCase() == 'PENDING') {
+        if (f.addresseeId == myId) {
+          incoming.add(f);
+        } else if (f.requesterId == myId) {
+          outgoing.add(f);
+        }
+      }
+    }
+    await _saveList('friends', accepted.map((f) => f.toJson()).toList());
+    await _saveList('incoming', incoming.map((f) => f.toJson()).toList());
+    await _saveList('outgoing', outgoing.map((f) => f.toJson()).toList());
+  }
+
   // * Mutations and single-profile lookups stay online-only.
   @override
   Future<FriendshipDto> sendFriendRequest(String userId) =>
@@ -103,8 +134,7 @@ class OfflineFriendsRepository implements FriendsRepository {
       _remote.cancelOrUnfriend(friendshipId);
 
   @override
-  Future<User> getUserProfile(String userId) =>
-      _remote.getUserProfile(userId);
+  Future<User> getUserProfile(String userId) => _remote.getUserProfile(userId);
 
   // * Search needs the network (no meaningful offline cache for it).
   @override
