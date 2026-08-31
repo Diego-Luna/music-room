@@ -1,29 +1,30 @@
-#  Music Room - Project Overview
+# Music Room
 
-Un resumen del projecto de 42, un mapa de ruta para el desarrollo de la aplicación móvil, web y backend.
+App collaborative 42 : comptes, vote live, playlists temps réel, délégation du player par device. Backend NestJS + PostgreSQL ; client Flutter (iOS / Android / web).
 
-## 📝 Resumen del Proyecto (Project Summary)
-The main objective of the "Music Room" project is the creation of a complete mobile solution focused on music and user experience. It aims to tackle all the concepts necessary to the creation of a mobile, connected, and collaborative application taking into account the constraints of a real product.
+**Doc soutenance** : [`docs/sujet/`](docs/sujet/) — stack, API, sécu, charge, CI, mobile.  
+**Doc interne / bonus** : [`docs/extra/`](docs/extra/).  
+**Contrat API** : `http://localhost:3000/api/docs` (Swagger).
 
-### Mandatory Features (Requisitos Obligatorios)
-- **User Accounts:** Users must create an account when running the application for the first time. Registration options must include mail/password or a social network account (Facebook or Google).
-- **Core Services:** The application must provide access to at least 2 out of the following 3 functions:
-  1. **Music Track Vote:** Live music chain with vote. Users can suggest or vote for tracks, and if a track gets many votes, it goes up in the list and is played earlier.
-  2. **Music Control Delegation:** Music control delegation. Users can choose to give the music control to different friends. A license management specific to each device attached to the account must be integrated.
-  3. **Music Playlist Editor:** Real-time multi-user playlist edition. It allows users to collaborate with friends to create playlists in real-time.
-- **Backend & API:** All the service data will be stored on the back-end side, which is the reference. We will use a REST API and JSON as the exchange format.
-- **Security:** Authenticated users must only have access to their own data, not to other users' data. We must implement mechanisms to protect users, and any action on the mobile application must generate logs on the back-end.
+## Quick start
 
-### Bonus Features (Para después del MVP)
-*Solo se evaluarán si la parte obligatoria es perfecta.*
-- **Multi-platform support:** Support various platforms and make the service web "responsive" to adapt to any screen size.
-- **IoT Reflection:** Implement a mechanism such as IBeacon for physical events.
-- **Subscriptions:** Offer users the choice between a free limited subscription and unlimited paid ones, allowing them to switch between the two.
-- **Offline Mode:** Implement a mechanism that allows users to enjoy the application offline when there is no mobile service. This requires a synchronization plan to handle conflicts and obsolete data.
+Prérequis : Node 24, Flutter stable, Docker (Colima / Docker Desktop), optionnel `k6`.
 
-## Reglas
+```sh
+cp backend/.env.example backend/.env   # JWT secrets au minimum
+make install
+make up                                # Postgres, Redis, Mailpit, backend :3000
+```
 
-- **Estructura de carpetas:** Todo estará dividido por carpetas: `frontend/`, `backend/` y `Doc/` (documentación).
-- **Ramas (branches):** Tendremos la rama principal `main`, una rama de desarrollo (por ejemplo `develop`) y ramas enfocadas en cada sección o feature.
-- **Gestión de trabajo:** Se usarán los issues del repositorio para organizar tareas y se vincularán a los Projects de GitHub para seguimiento.
+App : `cd frontend/music_room_app && flutter run`  
+URL du back configurable dans Login / Settings (émulateur Android : `http://10.0.2.2:3000`).
 
+Mails de vérif / reset : Mailpit `http://localhost:8025`.
+
+```sh
+make test          # unit back + flutter test
+make loadtest      # k6 (stack déjà up)
+make down
+```
+
+Détail back : [`backend/README.md`](backend/README.md). Front : [`frontend/README.md`](frontend/README.md). Charge : [`docs/sujet/05-loadtest.md`](docs/sujet/05-loadtest.md).

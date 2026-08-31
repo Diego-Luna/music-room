@@ -1,10 +1,8 @@
 # Music Room — Load Tests (k6)
 
-Load tests covering the V.7 ramp-up requirement of the 42 subject. Five
-scenarios stress the hot paths of the platform — auth, vote, playlist
-reorder, realtime fan-out, delegation — and assert latency / error
-budgets via k6 thresholds. They cover the 3 mandatory services (Vote,
-Playlist, Delegation) plus the auth and realtime layers underneath.
+Load tests for V.7. Five **separate** scenarios (auth, vote, playlist
+reorder, realtime fan-out, delegation). Defense write-up (baselines,
+server specs, honest limits): [`docs/sujet/05-loadtest.md`](../../docs/sujet/05-loadtest.md).
 
 ## Server specifications used for the baseline runs
 
@@ -105,7 +103,7 @@ violates them exits with a non-zero status, useful for CI gating.
 | Shape  | `ramping-vus` 5 → 40 → 40 over 100 s |
 | Asserts | `http_req_failed < 1%`, `p(95) < 800 ms`, delegation-checks `> 98%` |
 | Scope  | Each VU registers an owner + a friend, befriends them, then loops `PUT`/`DELETE /users/me/devices/:deviceId/delegate` plus the two list endpoints |
-| Why    | V.2.2 is one of the 3 mandatory services and must be measured for V.7. Delegation is friendship-gated and keyed `(ownerId, deviceId)` — this proves the `upsert` + access checks hold under load. Playback endpoints are excluded: they proxy to the real Spotify API. |
+| Why    | V.2.2 is one of the 3 mandatory services and must be measured for V.7. Delegation is friendship-gated and keyed `(ownerId, deviceId)` — this proves the `upsert` + access checks hold under load. Playback is excluded: remote commands drive `just_audio` on the owner's device. |
 
 ## Running
 
@@ -148,11 +146,10 @@ magnitude on the 2 vCPU / 1.9 GiB Colima VM described above is:
 
 ### Recording your own baseline
 
-Before the soutenance, run the 4 scripts and **paste the k6 summary
-output** for each into a file named `loadtest/results.<date>.md`. The
-k6 summary already prints the full env, the threshold pass/fail, and
-the per-metric percentiles — that's the defensible artifact for V.7,
-not a hand-typed table.
+Before the soutenance, run the **5** scripts and keep the k6 summary
+output under `loadtest/results/` (already committed as `0*.txt`). The
+k6 summary prints env, threshold pass/fail, and percentiles — that's
+the V.7 artifact, not a hand-typed table.
 
 ```sh
 mkdir -p loadtest/results
@@ -168,13 +165,14 @@ script.
 
 ## What this proves for the V.7 requirement
 
-- **Number of simultaneous users** the platform can sustain on a
-  2 vCPU / 1.9 GiB container, p95 < 600 ms:
-  - **Auth flow**: ~50 RPS with throttling per IP
-  - **Vote (3 services together)**: ~50 concurrent voters writing
-    every 0.5 s = ~100 RPS
-  - **Realtime delivery**: 100 WebSocket clients receiving 500
-    events/min/room without backpressure
+- **Number of simultaneous users** on a 2 vCPU / 1.9 GiB container
+  (p95 under the per-script thresholds):
+  - **Auth**: ~50 RPS peak (`01`) — capacity is optimistic if run via
+    `measure.sh` (relaxed throttle / bcrypt)
+  - **Vote**: ~50 concurrent VUs (`02`), **one room per VU**
+  - **Playlist**: 20 editors (`03`), one playlist per VU
+  - **Delegation**: 40 owner/friend pairs (`05`)
+  - **Realtime**: ~100 WebSocket clients (`04`)
 - **Server characteristics**: documented above (CPU, RAM, host OS,
   container OS, runtime versions).
 - **Scaling path**: vertical (more vCPU on Colima or cloud VM) yields
