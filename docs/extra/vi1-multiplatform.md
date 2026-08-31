@@ -14,7 +14,7 @@ Hash URLs (`HashUrlStrategy`) pour Pages (`/#/auth/verify-email?token=`).
 
 ## Responsive
 
-- Viewport : `width=device-width` dans `web/index.html` (sans ça un téléphone zoome un layout 980 px).
+- Viewport : `width=device-width` dans `web/index.html` (model-viewer / 3D en a besoin **avant** le boot Flutter). Flutter le remplace ensuite → warning debug « tag will be replaced », inoffensif.
 - PWA : `orientation: any` (plus `portrait-primary`).
 - `AppBreakpoints.compact` (700) : bottom nav vs barre haute (`ResponsiveNavbar` / `MainPage`).
 - `ResponsiveBody` : contenu plafonné à 960 px (shell) / 480 px (auth) sur un écran large.

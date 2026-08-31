@@ -20,7 +20,7 @@ Un Free ne voit pas l’éditeur playlist (VI.3) même online.
 
 ## Synchro au reconnect
 
-`ConnectivitySyncManager` écoute `connectivity_plus`. Drain aussi **au lancement** et **au login** s’il y a déjà du réseau (sinon une file restante ne partirait que sur un *changement* de connectivité). Retour réseau → `syncQueue()` :
+`ConnectivitySyncManager` écoute `connectivity_plus`. Drain aussi **au lancement** et **au login** s’il y a déjà du réseau (sinon une file restante ne partirait que sur un *changement* de connectivité). **Pas de JWT** (Start / Login) → pas d’appel `/rooms` (sinon 401). Retour réseau → `syncQueue()` :
 
 1. **File FIFO** (`pending_actions`) : vote, add playlist/vote track, remove playlist track.
 2. Succès → pop. **409** / **404** sur un remove = déjà appliqué, pop silencieux.

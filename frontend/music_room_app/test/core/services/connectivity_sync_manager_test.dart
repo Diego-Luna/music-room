@@ -504,4 +504,19 @@ void main() {
     verify(() => mockRemote.voteForTrack('r1', 't1', 1)).called(1);
     manager.stopMonitoring();
   });
+
+  test('syncQueue is a no-op when there is no session (Start / Login)',
+      () async {
+    when(() => mockCache.getPendingActions()).thenReturn([]);
+
+    final manager = ConnectivitySyncManager(
+      remoteRepository: mockRemote,
+      cache: mockCache,
+      hasSession: () async => false,
+    );
+    await manager.syncQueue();
+
+    verifyNever(() => mockRemote.getRooms());
+    verifyNever(() => mockCache.getPendingActions());
+  });
 }

@@ -24,6 +24,7 @@ class ConnectivitySyncManager {
   final Connectivity _connectivity;
   final ApiClient? _apiClient;
   final OfflineFriendsRepository? _friends;
+  final Future<bool> Function()? _hasSession;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
   bool _isSyncing = false;
 
@@ -40,11 +41,13 @@ class ConnectivitySyncManager {
     Connectivity? connectivity,
     ApiClient? apiClient,
     OfflineFriendsRepository? friendsCache,
+    Future<bool> Function()? hasSession,
   }) : _remote = remoteRepository,
        _cache = cache,
        _connectivity = connectivity ?? Connectivity(),
        _apiClient = apiClient,
-       _friends = friendsCache;
+       _friends = friendsCache,
+       _hasSession = hasSession;
 
   // * Listen for reconnects, and drain immediately if we are already online
   // * (cold start with a leftover queue — a connectivity *change* never fires).
@@ -70,8 +73,16 @@ class ConnectivitySyncManager {
     _subscription?.cancel();
   }
 
+  Future<bool> _sessionReady() async {
+    if (_hasSession == null) return true;
+    return _hasSession!();
+  }
+
   Future<void> syncQueue() async {
     if (_isSyncing) return;
+    // * Start / Login have no JWT. GET /rooms (and queued mutations) would
+    // * 401 and paint a red console line — skip until a session exists.
+    if (!await _sessionReady()) return;
     _isSyncing = true;
 
     final List<SyncDiscard> rejected = [];

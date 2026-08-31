@@ -10,6 +10,7 @@ import 'package:music_room_app/core/repositories/offline_friends_repository.dart
 import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/providers/notifications_provider.dart';
 import 'package:music_room_app/config/offline_cache.dart';
+import 'package:music_room_app/config/token_storage.dart';
 import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/core/repositories/device_repository.dart';
@@ -138,6 +139,10 @@ ConnectivitySyncManager get syncManager =>
       cache: offlineCache,
       apiClient: apiClient,
       friendsCache: friendsRepository as OfflineFriendsRepository,
+      hasSession: () async {
+        final token = await TokenStorage().accessToken;
+        return token != null && token.isNotEmpty;
+      },
     );
 
 PushTokenService get pushTokenService =>
