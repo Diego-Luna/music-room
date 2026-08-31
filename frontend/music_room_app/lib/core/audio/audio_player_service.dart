@@ -24,6 +24,9 @@ abstract class AudioPlayerService {
   Future<void> pause();
   Future<void> resume();
   Future<void> stop();
+
+  /// Linear gain in `[0.0, 1.0]`.
+  Future<void> setVolume(double volume);
   Future<void> dispose();
 }
 
@@ -65,6 +68,10 @@ class JustAudioPlayerService implements AudioPlayerService {
 
   @override
   Future<void> stop() => _player.stop();
+
+  @override
+  Future<void> setVolume(double volume) =>
+      _player.setVolume(volume.clamp(0.0, 1.0));
 
   @override
   Future<void> dispose() => _player.dispose();

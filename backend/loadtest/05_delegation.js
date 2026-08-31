@@ -4,8 +4,8 @@ import { check, sleep } from 'k6';
 // V.2.2 Music Control Delegation — exercises the grant/list/revoke hot
 // path. Each VU registers an owner + a friend, befriends them (delegation
 // is friendship-gated), then repeatedly delegates and revokes devices.
-// Playback endpoints are intentionally out of scope here: they proxy to
-// the real Spotify API, which load-test users have no token for.
+// Playback endpoints are out of scope: they relay Socket.IO commands to
+// the owner's just_audio player, which k6 cannot drive.
 export const options = {
   scenarios: {
     delegators: {
@@ -103,7 +103,7 @@ export default function () {
       tag: 'delegation',
     });
 
-    const mine = http.get(`${BASE_URL}/users/me/delegations`, {
+    const mine = http.get(`${BASE_URL}/users/me/devices`, {
       headers: authHeaders(ownerToken),
     });
     check(mine, { 'list mine 200': (r) => r.status === 200 }, {

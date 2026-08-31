@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:music_room_app/config/token_storage.dart';
 import 'package:music_room_app/core/audio/audio_player_service.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/models/account_device.dart';
@@ -13,8 +13,8 @@ import 'package:music_room_app/providers/rooms_provider.dart';
 class PlayerProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
   final DeviceRepository _deviceRepository;
-  final AudioPlayer _audioPlayer;
   final AudioPlayerService _audio;
+  final Future<String> Function() _getLocalDeviceId;
 
   List<AccountDevice> devices = [];
   List<MusicControlDelegation> controlledDevices = [];
@@ -32,18 +32,13 @@ class PlayerProvider extends ChangeNotifier {
     required AuthProvider authProvider,
     required RoomsProvider roomsProvider,
     required DeviceRepository deviceRepository,
-    AudioPlayer? audioPlayer,
-    AudioPlayerService? audioService,
+    required AudioPlayerService audioService,
+    Future<String> Function()? getLocalDeviceId,
   }) : _authProvider = authProvider,
        _deviceRepository = deviceRepository,
-       _audioPlayer = audioPlayer ?? AudioPlayer(),
-       _audio =
-           audioService ?? (throw UnimplementedError('Provide audioService')) {
-    _audioPlayer.onPlayerStateChanged.listen((state) {
-      _isPlaying = state == PlayerState.playing;
-      notifyListeners();
-    });
-    // For just_audio:
+       _audio = audioService,
+       _getLocalDeviceId =
+           getLocalDeviceId ?? TokenStorage().getOrCreateDeviceId {
     _audio.positionStream.listen((p) {
       _position = p;
       notifyListeners();
@@ -242,11 +237,14 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // * Delegate remote commands
-  Future<void> sendPlayCommand({List<String>? uris}) async {
+  // * Delegate remote commands. Play with no trackId = resume on the owner.
+  Future<void> sendPlayCommand({String? trackId}) async {
     if (activeDelegationId != null) {
       try {
-        await _deviceRepository.playPlayback(activeDelegationId!, uris: uris);
+        await _deviceRepository.playPlayback(
+          activeDelegationId!,
+          trackId: trackId,
+        );
       } catch (e) {
         _error = 'Failed to send play command: $e';
         notifyListeners();
@@ -298,29 +296,55 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  // * Owner command receiver
-  void handlePlaybackCommand(Map<String, dynamic> data) async {
+  // * Owner command receiver. Relayed over `playback:command` for this
+  //   device only (`deviceId` matches local `x-device-id`). Play with no
+  //   trackId resumes the just_audio player — no Spotify URIs.
+  Future<void> handlePlaybackCommand(Map<String, dynamic> data) async {
+    final targetDeviceId = data['deviceId'] as String?;
+    if (targetDeviceId != null && targetDeviceId.isNotEmpty) {
+      final localId = await _getLocalDeviceId();
+      if (localId != targetDeviceId) return;
+    }
+
     final action = data['action'] as String?;
-    final trackUri = data['trackUri'] as String?;
 
     try {
       switch (action) {
         case 'play':
-          if (trackUri != null) {
-            await _audioPlayer.play(UrlSource(trackUri));
+          final trackId = data['trackId'] as String?;
+          if (trackId != null && trackId.isNotEmpty) {
+            final idx = _queue.indexWhere((t) => t.id == trackId);
+            if (idx >= 0) {
+              playTrack(
+                _queue[idx],
+                queue: _queue,
+                index: idx,
+                voteRoomId: _voteRoomId,
+              );
+            } else {
+              resume();
+            }
           } else {
-            await _audioPlayer.resume();
+            resume();
           }
           break;
         case 'pause':
-          await _audioPlayer.pause();
+          pause();
           break;
         case 'stop':
-          await _audioPlayer.stop();
+          _isPlaying = false;
+          notifyListeners();
+          await _audio.stop();
+          break;
+        case 'next':
+          playNext();
+          break;
+        case 'previous':
+          playPrevious();
           break;
         case 'volume':
           final vol = (data['percent'] as num?)?.toDouble() ?? 50.0;
-          await _audioPlayer.setVolume(vol / 100.0);
+          await _audio.setVolume((vol / 100.0).clamp(0.0, 1.0));
           break;
       }
     } catch (e) {
@@ -361,7 +385,6 @@ class PlayerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _delegationFetchDebounce?.cancel();
-    _audioPlayer.dispose();
     _audio.dispose();
     super.dispose();
   }

@@ -48,14 +48,10 @@ class RestDeviceRepository implements DeviceRepository {
   }
 
   @override
-  Future<void> playPlayback(
-    String delegationId, {
-    List<String>? uris,
-    String? contextUri,
-  }) async {
+  Future<void> playPlayback(String delegationId, {String? trackId}) async {
     await _client.post(
       '/delegations/$delegationId/playback/play',
-      data: {'uris': ?uris, 'contextUri': ?contextUri},
+      data: {if (trackId != null) 'trackId': trackId},
     );
   }
 

@@ -29,6 +29,10 @@ class MockNotificationsProvider extends Mock implements NotificationsProvider {}
 class MockSocket extends Mock implements io.Socket {}
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(<String, dynamic>{});
+  });
+
   late MockAuthProvider auth;
   late MockEventsProvider events;
   late MockPlaylistsProvider playlists;
@@ -51,6 +55,7 @@ void main() {
     socketListeners = {};
 
     when(() => auth.signedIn).thenReturn(false);
+    when(() => player.handlePlaybackCommand(any())).thenAnswer((_) async {});
     when(() => socket.on(any(), any())).thenAnswer((invocation) {
       final event = invocation.positionalArguments[0] as String;
       final callback = invocation.positionalArguments[1] as Function;

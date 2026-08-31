@@ -20,7 +20,7 @@ Légende : **OK** = respectée entièrement · **PARTIEL** · **KO** · _à vér
 
 | Consigne | Verdict | Notes |
 |----------|---------|-------|
-| Accès à au moins 2 services sur 3 (Vote, Delegation, Playlist Editor) | **OK** | Vote **OK**, Playlist Editor **OK**, Delegation **PARTIEL** (le cadre existe, le player remote est cassé). 2 services complets suffisent. |
+| Accès à au moins 2 services sur 3 (Vote, Delegation, Playlist Editor) | **OK** | Vote **OK**, Playlist Editor **OK**, Delegation **OK** (player remote branché sur just_audio). |
 
 ### V.2.1 Music Track Vote
 
@@ -42,7 +42,7 @@ Légende : **OK** = respectée entièrement · **PARTIEL** · **KO** · _à vér
 
 | Consigne | Verdict | Notes |
 |----------|---------|-------|
-| Délégation du contrôle musique | **PARTIEL** | Grant / revoke / liste / remote UI existent, **par device**. L’ami n’arrive pas à piloter le player réel du owner. **Corrigeable rapidement** (~1–2 h) : brancher les commandes sur `_audio` (just_audio) + next/prev + filtrer `deviceId`. Voir section « À perfectionner ». |
+| Délégation du contrôle musique | **OK** (modèle + player) | Grant / revoke / liste / remote UI **par device**. Les commandes remote pilotent `just_audio` (`pause` / `resume` / next / prev / volume), filtrées par `deviceId`. |
 | Licence spécifique à chaque device attaché au compte | **OK** (modèle) | Devices = sessions (`x-device-id` / RefreshToken). 1 délégation unique `(ownerId, deviceId)`. |
 | Donner le contrôle à **plusieurs amis** | **OK** | Un ami par device ; plusieurs devices → plusieurs amis. API : amis seulement. |
 
@@ -118,10 +118,10 @@ Légende : **OK** = respectée entièrement · **PARTIEL** · **KO** · _à vér
 |----------|---------|-------|
 | Agilité, équipe, remettre en question ses choix | **OK** | 2 auteurs (Diego + Jérémy). Branches `main` / `dev` / `frontend`. Makefile racine (`install` / `test` / `dev`). Pivot Spotify → Deezer / rooms DELEGATE → délégation par device visible dans le code. Doc CI : `Doc/github/github_actions.md`. |
 | Tests one-off **par couche** | **OK** | Back : ~45 `*.spec.ts` (controllers, services — **chaque** `*.service.ts` a un spec —, guards, filters, middleware, strategies) + e2e (auth, health, hardening, rate-limit, realtime, delegation). Front : models / providers / widgets / config / repos + `integration_test/offline_mode_test.dart`. Charge : k6 (V.7). `make test` lance les deux. |
-| Intégration continue | **PARTIEL** | GitHub Actions existent. **Back** `backend-ci.yml` : `npm ci` + Prisma migrate + unit + e2e, Postgres 18 + Redis 7. **Front** `validate-pr.yml` : `flutter test` + `build web` sur PR `frontend/**` vers `dev`/`main`. CD : `deploy-main.yml` → GitHub Pages. Trou : `backend_url_live_test.dart` tape `127.0.0.1:3000` **sans skip** → `flutter test` CI **échoue** s’il n’y a pas de Nest. Pas de `flutter analyze`, pas d’`integration_test`, pas de k6. Push `main` front **ne relance pas** les tests (seulement le deploy). Builds APK/IPA commentés. |
+| Intégration continue | **OK** (gate front) | GitHub Actions. Back : unit + e2e + Postgres/Redis. Front PR : `flutter test` + `build web`. **Fix** : `backend_url_live_test` skip si `/health` injoignable ; `debug_api_test` commenté. Reste picky : pas de `flutter analyze` / integration_test / k6 ; push `main` front déploie sans retester. |
 | Credentials / API keys / env **hors git** (sinon fail projet) | **OK** | `backend/.env` gitignoré, pas de `.env` tracké. Placeholders dans `.env.example`. OAuth secrets via `local.properties` / `Secrets.xcconfig` / GitHub `secrets.*` / `--dart-define`. Compose lit `env_file: backend/.env`. |
 
-**V.8 est OK** sur agilité, tests et secrets ; **PARTIEL** uniquement sur la CI front (tests live). Un évaluateur qui ouvre Actions et voit du rouge sur `flutter test` peut coller ça. Fix rapide : skip / `skipUnless` si Nest n’écoute pas.
+**V.8 est OK** sur agilité, tests, secrets et CI front (skip live). Picky restants dans « À perfectionner ».
 
 ## IV.1 Architecture logicielle
 
@@ -149,7 +149,7 @@ Légende : **OK** = respectée entièrement · **PARTIEL** · **KO** · _à vér
 
 | Consigne | Verdict | Notes |
 |----------|---------|-------|
-| L’app mobile permet **toutes** les actions du projet | **OK** | Flutter : mêmes écrans sur téléphone que le mandatory (V.1 + Vote + Playlist + délégation grant). Bottom nav sous 700 px. Le play remote cassé est déjà **V.2.2 PARTIEL** — 2 services / 3 suffisent. |
+| L’app mobile permet **toutes** les actions du projet | **OK** | Flutter : mêmes écrans sur téléphone (V.1 + Vote + Playlist + délégation remote). Bottom nav sous 700 px. |
 | Android **ou** iOS (techno libre) | **OK** | Les deux : `android/` (INTERNET + `usesCleartextTraffic`) et `ios/` (URL schemes Google/Facebook). Sujet = l’un des deux. |
 
 **Mapping actions → écrans** (téléphone) :
@@ -165,7 +165,7 @@ Légende : **OK** = respectée entièrement · **PARTIEL** · **KO** · _à vér
 | Playlist : créer, licences, add / reorder / remove, invite | Playlists → `PlaylistDetailPage` (`SliverReorderableList`) |
 | Privé : trouver + accepter | Inbox (`FriendsPage`) invitations |
 | Amis | Inbox : search + requests |
-| Délégation grant / revoke / remote UI | Profile → Devices ; `RemoteControlPage` (commandes, player owner cassé) |
+| Délégation grant / revoke / remote UI | Profile → Devices ; `RemoteControlPage` (commandes → just_audio chez le owner) |
 | URL du back (V.5) | Login + Settings `BackendUrlSection` ; Android emu réécrit `localhost` → `10.0.2.2` |
 
 **IV.2 est OK.** Démo conseillée : **Android émulateur** (HTTP OK). iPhone physique + `http://IP` peut se faire bloquer (pas d’ATS cleartext dans `Info.plist`).
@@ -212,22 +212,16 @@ Ce n’est **pas** des KO sujet. Un évaluateur picky peut quand même les poser
 - [ ] **`previous` vote lu hors transaction** : deux clics très rapides du *même* user peuvent TOCTOU ; le unique `(trackId, userId)` sert de filet (un 409). Mieux : lire / upsert *dans* la tx.
 - [ ] **Load test `02_vote_surge`** : 50 VUs, 0 % fail — mais **chaque VU a sa propre room**. Ça prouve la charge, pas N votants sur *une* même track. Pour la défense, expliquer l’`increment` atomique + unique, ou refaire un script shared-room.
 
-### V.2.2 Delegation — à fixer (ça casse la démo)
+### V.2.2 Delegation
 
-**Effort : rapide** (environ 1–2 h, pas une refonte). Le grant/revoke par device est déjà bon ; il manque d’aligner le remote sur le player `just_audio` déjà utilisé. `AudioPlayerService` n’a pas encore `setVolume` (à ajouter, 5 lignes).
-
-Ordre conseillé (le 1–4 = démo qui marche) :
-
-- [ ] **Rapide — Player owner** : dans `handlePlaybackCommand`, appeler `_audio.pause()` / `resume()` / `playNext()` / `playPrevious()` au lieu de `_audioPlayer`. Puis supprimer le second moteur `audioplayers` s’il ne sert plus.
-- [ ] **Rapide — next / previous** : ajouter `case 'next'` / `'previous'` qui appellent `playNext()` / `playPrevious()` (déjà là dans `PlayerProvider`).
-- [ ] **Rapide — Payload play** : le remote n’a pas besoin de Spotify `uris`. Play sans track = resume. Optionnel : envoyer `trackId` si on veut lancer une piste. Owner : ignorer `trackUri`, utiliser `_audio`.
-- [ ] **Rapide — Cible device** : dans `handlePlaybackCommand`, ignorer l’event si `data['deviceId']` ≠ le `x-device-id` local (déjà dans `TokenStorage`).
+- [x] **Player owner** : `handlePlaybackCommand` pilote `_audio` (just_audio). `audioplayers` retiré.
+- [x] **next / previous** : `case 'next'` / `'previous'` → `playNext()` / `playPrevious()`.
+- [x] **Payload play** : plus de Spotify `uris`. Play sans `trackId` = resume. Owner ignore `trackUri`.
+- [x] **Cible device** : ignore l’event si `data['deviceId']` ≠ le `x-device-id` local (`TokenStorage`).
 - [ ] **Rapide — UI displayName** : l’API envoie déjà `delegate` / `owner` ; afficher `displayName` au lieu de l’UUID.
-- [ ] **Rapide — Loadtest** : `GET /users/me/controlled-devices` à la place de `/users/me/delegations`.
+- [x] **Loadtest** : `05_delegation.js` liste `GET /users/me/devices` (plus `/users/me/delegations`).
 - [x] **Picker amis** : `UserSearchSheet` est déjà sur Devices. L’API 403 si pas ami. Optionnel : n’afficher que `getFriends()`.
 - [ ] **Moyen / court — Grant** : refuser un `deviceId` qui n’est pas une session active du owner.
-
-Sans 1–4, un évaluateur appuie sur play chez l’ami et **rien ne bouge** chez le owner.
 
 ### V.2.3 Playlist — live UI (pas un KO du paragraphe)
 
@@ -254,20 +248,20 @@ Sans 1–4, un évaluateur appuie sur play chez l’ami et **rien ne bouge** che
 - [ ] **k6 vs JMeter** : savoir dire « même famille, Grafana k6, seuils CI ». Pas besoin de relancer en JMeter.
 - [ ] **Premise localhost**, pas Render/prod : latence réseau réelle absente. Les chiffres sont un **plafond local**. En cloud, moins de RPS à p95 égal.
 - [ ] **`measure.sh` assouplit** `THROTTLE_LIMIT`, `AUTH_THROTTLE_LIMIT`, `BCRYPT_ROUNDS_OVERRIDE=4`, `AUTH_ALLOW_UNVERIFIED`. La capacité auth est donc **optimiste**. Vote / playlist / délégation (hors setup register) restent représentatifs.
-- [ ] **`GET /users/me/delegations`** n’existe plus (c’est `GET /users/me/devices`). Le `05_delegation.txt` (0 % fail) vient d’un clone plus ancien (`/Users/jeremycointre/music-room/`). Relancer après le fix du path pour un artefact rejouable.
+- [x] **`GET /users/me/devices`** dans `05_delegation.js` (l’ancienne route `/users/me/delegations` n’existe plus). Relancer k6 avant soutenance pour un `results/05_delegation.txt` à jour.
 - [ ] Vote 50 VU / playlist 20 VU = **1 room par VU** (déjà noté V.2). Charge API OK, pas N users sur *une* ressource.
 - [ ] `dev_reports/11_loadtest.md` **absent** (README backend le cite). La vraie doc = `backend/loadtest/README.md` + `results/`.
-- [ ] Playback délégation **exclu** des k6 (commentaire Spotify périmé). Mesure = grant/list/revoke, pas le player remote (déjà cassé V.2.2).
+- [ ] Playback délégation **exclu** des k6 (grant/list/revoke seulement — le player remote est just_audio chez le owner).
 
 ### V.8 Agility / CI / secrets
 
-- [ ] **Rapide — CI front verte** : `test/config/backend_url_live_test.dart` exige Nest sur `:3000` (sinon `connectionError` → fail). Skip si `/health` injoignable, ou ne le lancer que localement. `debug_api_test.dart` avale les erreurs (passe toujours) — le commenter comme `debug_delegation_api_test.dart`.
+- [x] **CI front verte** : `backend_url_live_test` skip si `/health` injoignable. `debug_api_test.dart` commenté comme `debug_delegation_api_test.dart`.
 - [ ] **`flutter analyze`** + `integration_test/offline_mode_test.dart` dans `validate-pr.yml`. Optionnel : k6 smoke.
 - [ ] **Push `main` front** : `deploy-main.yml` build/deploy **sans** `flutter test`. Brancher le job test avant deploy, ou garder les PR comme gate (et ne plus push direct).
 - [ ] **`backend-ci.yml`** : trigger `backend` (branche absente du remote) et **pas** `dev`. Ajouter `dev` si vous mergez là.
 - [ ] Pas de PRs GitHub visibles (`gh pr list` vide) — en défense : branches + CI, ou coller 2–3 PRs d’exemple.
 - [ ] **e2e vote / playlist** : uniquement unit (`tracks.service.spec`, `playlist.service.spec`). Suffisant « par couche » ; un picky peut demander un e2e HTTP vote.
-- [ ] **Mot de passe seed** `Diego1@#` dans `prisma/seed.ts` + `debug_api_test.dart`. Compte démo local, pas une clé API — savoir le dire. Ne pas le réutiliser en prod.
+- [ ] **Mot de passe seed** `Diego1@#` dans `prisma/seed.ts` (et le debug test commenté). Compte démo local, pas une clé API — savoir le dire. Ne pas le réutiliser en prod.
 - [ ] **IDs publics commités** : Google client IDs dans `Info.plist` / `web/index.html` (le plist dit déjà « NOT a secret ») ; Facebook App ID défaut `1028619539827089` dans `main.dart`. Les **secrets** (client secret, client token) restent hors git. Si on demande : App ID ≠ App Secret.
 - [x] **Root `.gitignore`** : `.env` / `.env.local` / `.env.*.local` à la racine. `backend/.gitignore` les ignorait déjà sous `backend/`.
 
@@ -286,7 +280,7 @@ Sans 1–4, un évaluateur appuie sur play chez l’ami et **rien ne bouge** che
 - [ ] **Vérif / reset mail** : liens → front **web** (`/#/auth/...`). Reset a un champ coller token ; verify **non**. Sans Pages/web, coller le token n’est possible que pour le reset. Prévoir Mailpit + ouvrir le lien dans le navigateur du téléphone, ou un APK qui ouvre le hash.
 - [ ] **iOS HTTP** : pas de `NSAllowsArbitraryLoads`. Simulateur + localhost souvent OK ; iPhone + IP LAN en `http://` peut échouer. Android a `usesCleartextTraffic=true`.
 - [ ] **OAuth device** : sans `local.properties` / `Secrets.xcconfig` / dart-defines, Google/Facebook natifs cassent. Le chemin mail/password suffit pour IV.2.
-- [ ] Play remote : déjà V.2.2 — ne pas en faire la démo IV.2. Montrer Vote + Playlist + signup + vote swipe.
+- [x] **Play remote** : commandes branchées sur just_audio. Démo : owner lance une preview, ami play/pause depuis Remote Control.
 
 ### V.4 API
 

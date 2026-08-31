@@ -9,11 +9,7 @@ abstract class DeviceRepository {
     String delegateUserId,
   );
   Future<void> revokeControl(String deviceId);
-  Future<void> playPlayback(
-    String delegationId, {
-    List<String>? uris,
-    String? contextUri,
-  });
+  Future<void> playPlayback(String delegationId, {String? trackId});
   Future<void> pausePlayback(String delegationId);
   Future<void> nextTrack(String delegationId);
   Future<void> previousTrack(String delegationId);

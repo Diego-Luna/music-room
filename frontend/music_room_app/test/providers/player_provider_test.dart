@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
-import 'package:audioplayers/audioplayers.dart';
 import 'package:music_room_app/core/audio/audio_player_service.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/models/user.dart';
@@ -17,12 +16,10 @@ class MockRoomsProvider extends Mock implements RoomsProvider {}
 
 class MockDeviceRepository extends Mock implements DeviceRepository {}
 
-class MockAudioPlayer extends Mock implements AudioPlayer {}
-
-class FakeSource extends Fake implements Source {}
-
-/// No-op audio backend so the provider's logic is tested without the plugin.
+/// Recording audio backend so owner-command tests assert just_audio calls.
 class FakeAudioPlayerService implements AudioPlayerService {
+  final List<String> calls = [];
+
   @override
   Stream<Duration> get positionStream => const Stream.empty();
   @override
@@ -32,13 +29,15 @@ class FakeAudioPlayerService implements AudioPlayerService {
   @override
   Stream<void> get completedStream => const Stream.empty();
   @override
-  Future<void> play(String url) async {}
+  Future<void> play(String url) async => calls.add('play:$url');
   @override
-  Future<void> pause() async {}
+  Future<void> pause() async => calls.add('pause');
   @override
-  Future<void> resume() async {}
+  Future<void> resume() async => calls.add('resume');
   @override
-  Future<void> stop() async {}
+  Future<void> stop() async => calls.add('stop');
+  @override
+  Future<void> setVolume(double volume) async => calls.add('volume:$volume');
   @override
   Future<void> dispose() async {}
 }
@@ -50,17 +49,13 @@ void main() {
   late MockAuthProvider mockAuthProvider;
   late MockRoomsProvider mockRoomsProvider;
   late MockDeviceRepository mockDeviceRepository;
-  late MockAudioPlayer mockAudioPlayer;
-
-  setUpAll(() {
-    registerFallbackValue(FakeSource());
-  });
+  late FakeAudioPlayerService fakeAudio;
 
   setUp(() {
     mockAuthProvider = MockAuthProvider();
     mockRoomsProvider = MockRoomsProvider();
     mockDeviceRepository = MockDeviceRepository();
-    mockAudioPlayer = MockAudioPlayer();
+    fakeAudio = FakeAudioPlayerService();
 
     final defaultUser = User(
       id: 'user-1',
@@ -69,23 +64,12 @@ void main() {
     );
     when(() => mockAuthProvider.user).thenReturn(defaultUser);
 
-    // * Mock AudioPlayer streams and futures
-    when(
-      () => mockAudioPlayer.onPlayerStateChanged,
-    ).thenAnswer((_) => const Stream<PlayerState>.empty());
-    when(() => mockAudioPlayer.dispose()).thenAnswer((_) async => {});
-    when(() => mockAudioPlayer.play(any())).thenAnswer((_) async => {});
-    when(() => mockAudioPlayer.resume()).thenAnswer((_) async => {});
-    when(() => mockAudioPlayer.pause()).thenAnswer((_) async => {});
-    when(() => mockAudioPlayer.stop()).thenAnswer((_) async => {});
-    when(() => mockAudioPlayer.setVolume(any())).thenAnswer((_) async => {});
-
     playerProvider = PlayerProvider(
       authProvider: mockAuthProvider,
       roomsProvider: mockRoomsProvider,
       deviceRepository: mockDeviceRepository,
-      audioPlayer: mockAudioPlayer,
-      audioService: FakeAudioPlayerService(),
+      audioService: fakeAudio,
+      getLocalDeviceId: () async => 'local-device',
     );
   });
 
@@ -406,17 +390,14 @@ void main() {
         when(
           () => mockDeviceRepository.playPlayback(
             'del-xyz',
-            uris: any(named: 'uris'),
+            trackId: any(named: 'trackId'),
           ),
         ).thenAnswer((_) async => {});
 
-        await playerProvider.sendPlayCommand(uris: ['spotify:track:123']);
+        await playerProvider.sendPlayCommand();
 
         verify(
-          () => mockDeviceRepository.playPlayback(
-            'del-xyz',
-            uris: ['spotify:track:123'],
-          ),
+          () => mockDeviceRepository.playPlayback('del-xyz', trackId: null),
         ).called(1);
       },
     );
@@ -478,60 +459,93 @@ void main() {
     );
 
     group('Owner Command Handling', () {
-      test(
-        'handlePlaybackCommand play with trackUri calls audioPlayer.play',
-        () async {
-          playerProvider.handlePlaybackCommand({
-            'action': 'play',
-            'trackUri': 'http://example.com/song.mp3',
-          });
-
-          verify(
-            () => mockAudioPlayer.play(
-              any(
-                that: isA<UrlSource>().having(
-                  (s) => s.url,
-                  'url',
-                  'http://example.com/song.mp3',
-                ),
-              ),
-            ),
-          ).called(1);
-        },
+      Track queuedTrack() => Track(
+        id: 't-1',
+        providerId: 'p-1',
+        title: 'One',
+        artist: 'A',
+        durationMs: 1000,
+        previewUrl: 'https://example.com/1.mp3',
       );
 
-      test(
-        'handlePlaybackCommand play without trackUri calls audioPlayer.resume',
-        () async {
-          playerProvider.handlePlaybackCommand({'action': 'play'});
+      test('handlePlaybackCommand play without trackId resumes just_audio', () async {
+        playerProvider.playTrack(queuedTrack());
+        fakeAudio.calls.clear();
+        await playerProvider.handlePlaybackCommand({'action': 'play'});
+        expect(fakeAudio.calls, contains('resume'));
+      });
 
-          verify(() => mockAudioPlayer.resume()).called(1);
-        },
-      );
+      test('handlePlaybackCommand play ignores Spotify trackUri', () async {
+        playerProvider.playTrack(queuedTrack());
+        fakeAudio.calls.clear();
+        await playerProvider.handlePlaybackCommand({
+          'action': 'play',
+          'trackUri': 'http://example.com/song.mp3',
+        });
+        expect(fakeAudio.calls, contains('resume'));
+        expect(fakeAudio.calls.any((c) => c.startsWith('play:')), isFalse);
+      });
 
-      test('handlePlaybackCommand pause calls audioPlayer.pause', () async {
+      test('handlePlaybackCommand pause pauses just_audio', () async {
         playerProvider.handlePlaybackCommand({'action': 'pause'});
-
-        verify(() => mockAudioPlayer.pause()).called(1);
+        await Future<void>.delayed(Duration.zero);
+        expect(fakeAudio.calls, contains('pause'));
       });
 
-      test('handlePlaybackCommand stop calls audioPlayer.stop', () async {
-        playerProvider.handlePlaybackCommand({'action': 'stop'});
+      test('handlePlaybackCommand next / previous skip the queue', () async {
+        final tracks = [
+          Track(
+            id: 't-1',
+            providerId: 'p-1',
+            title: 'One',
+            artist: 'A',
+            durationMs: 1000,
+            previewUrl: 'https://example.com/1.mp3',
+          ),
+          Track(
+            id: 't-2',
+            providerId: 'p-2',
+            title: 'Two',
+            artist: 'A',
+            durationMs: 1000,
+            previewUrl: 'https://example.com/2.mp3',
+          ),
+        ];
+        playerProvider.playTrack(tracks[0], queue: tracks, index: 0);
+        fakeAudio.calls.clear();
 
-        verify(() => mockAudioPlayer.stop()).called(1);
+        await playerProvider.handlePlaybackCommand({'action': 'next'});
+        expect(playerProvider.currentTrack?.id, 't-2');
+        expect(fakeAudio.calls, contains('play:https://example.com/2.mp3'));
+
+        fakeAudio.calls.clear();
+        await playerProvider.handlePlaybackCommand({'action': 'previous'});
+        expect(playerProvider.currentTrack?.id, 't-1');
       });
 
-      test(
-        'handlePlaybackCommand volume calls audioPlayer.setVolume with double value',
-        () async {
-          playerProvider.handlePlaybackCommand({
-            'action': 'volume',
-            'percent': 80,
-          });
+      test('handlePlaybackCommand volume sets just_audio gain', () async {
+        await playerProvider.handlePlaybackCommand({
+          'action': 'volume',
+          'percent': 80,
+        });
+        expect(fakeAudio.calls, contains('volume:0.8'));
+      });
 
-          verify(() => mockAudioPlayer.setVolume(0.8)).called(1);
-        },
-      );
+      test('handlePlaybackCommand ignores another deviceId', () async {
+        await playerProvider.handlePlaybackCommand({
+          'action': 'pause',
+          'deviceId': 'other-device',
+        });
+        expect(fakeAudio.calls, isEmpty);
+      });
+
+      test('handlePlaybackCommand applies when deviceId matches', () async {
+        await playerProvider.handlePlaybackCommand({
+          'action': 'pause',
+          'deviceId': 'local-device',
+        });
+        expect(fakeAudio.calls, contains('pause'));
+      });
     });
   });
 }
