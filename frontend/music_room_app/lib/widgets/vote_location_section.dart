@@ -21,12 +21,8 @@ class _VoteLocationSectionState extends State<VoteLocationSection> {
   void initState() {
     super.initState();
     final current = LocationConfig.current;
-    _latController = TextEditingController(
-      text: current?.lat.toString() ?? '',
-    );
-    _lngController = TextEditingController(
-      text: current?.lng.toString() ?? '',
-    );
+    _latController = TextEditingController(text: current?.lat.toString() ?? '');
+    _lngController = TextEditingController(text: current?.lng.toString() ?? '');
   }
 
   @override
@@ -125,6 +121,7 @@ class _VoteLocationSectionState extends State<VoteLocationSection> {
         const SizedBox(height: AppDimens.xs),
         Text(
           'Sent with each vote when an event is location-licensed. '
+          'Also the position used to detect nearby public events (VI.2). '
           'Match the venue coords (or use the Paris demo).',
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.disabledColor,

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_room_app/config/location_config.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
-import 'package:music_room_app/core/services/proximity_service.dart';
+import 'package:music_room_app/core/services/proximity_watcher.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/models/room.dart';
@@ -13,7 +13,6 @@ import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/pages/events/widgets/create_event_dialog.dart';
-import 'package:music_room_app/pages/events/widgets/proximity_approach_sheet.dart';
 import 'package:music_room_app/widgets/neumorphic_search_bar.dart';
 
 //* Events list page — symmetric to PlaylistsPage. Tapping an event opens its
@@ -28,16 +27,11 @@ class EventsPage extends StatefulWidget {
 class _EventsPageState extends State<EventsPage> {
   String _searchQuery = '';
 
-  /// VI.2 — avoid re-showing the same approach sheet in one session.
-  final Set<String> _announcedProximityIds = {};
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await context.read<EventsProvider>().fetchEvents();
-      if (!mounted) return;
-      await _scanProximity();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<EventsProvider>().fetchEvents();
     });
   }
 
@@ -55,40 +49,12 @@ class _EventsPageState extends State<EventsPage> {
     context.go('$routeEvents/$routeEventDetail', extra: {'event': event});
   }
 
-  /// VI.2 — if current position is inside a public geo event, show its info.
-  Future<void> _scanProximity({bool force = false}) async {
-    final position = LocationConfig.current;
-    if (position == null) return;
-
-    final events = context.read<EventsProvider>().events;
-    final nearby = ProximityService.findNearbyPublicEvents(
-      position: position,
-      events: events,
-    );
-    if (nearby.isEmpty) return;
-
-    for (final hit in nearby) {
-      if (!force && _announcedProximityIds.contains(hit.room.id)) continue;
-      _announcedProximityIds.add(hit.room.id);
-      if (!mounted) return;
-
-      await ProximityApproachSheet.show(
-        context,
-        nearby: hit,
-        onOpen: () => _openEvent(hit.room),
-      );
-      // * One sheet at a time for the demo.
-      break;
-    }
-  }
-
   /// Desktop / school demo: teleport into the first public geo event's venue.
+  /// [ProximityWatcher] then opens the approach sheet automatically.
   Future<void> _enterProximityZoneDemo() async {
     final messenger = ScaffoldMessenger.of(context);
     final events = context.read<EventsProvider>().events;
-    final geoPublic = events
-        .where((e) => e.isPublic && e.isGeoGated)
-        .toList();
+    final geoPublic = events.where((e) => e.isPublic && e.isGeoGated).toList();
 
     if (geoPublic.isEmpty) {
       messenger.showSnackBar(
@@ -102,20 +68,24 @@ class _EventsPageState extends State<EventsPage> {
     }
 
     final target = geoPublic.first;
+    final alreadyThere =
+        LocationConfig.current?.lat == target.voteLocationLat &&
+        LocationConfig.current?.lng == target.voteLocationLng;
     await LocationConfig.setOverride(
       lat: target.voteLocationLat!,
       lng: target.voteLocationLng!,
     );
     if (!mounted) return;
 
-    _announcedProximityIds.remove(target.id);
     messenger.showSnackBar(
       SnackBar(
         content: Text('Entered zone for "${target.name}"'),
         backgroundColor: Colors.green,
       ),
     );
-    await _scanProximity(force: true);
+    if (alreadyThere) {
+      ProximityWatcher.instance?.replay(target.id);
+    }
   }
 
   Widget _buildEmptyState(BuildContext context) {
@@ -219,7 +189,7 @@ class _EventsPageState extends State<EventsPage> {
                     Center(
                       child: NeumorphicIconButton(
                         icon: Icons.sensors,
-                        tooltip: 'Enter proximity zone (demo)',
+                        tooltip: 'Simulate walking into a nearby event',
                         onTap: _enterProximityZoneDemo,
                       ),
                     ),

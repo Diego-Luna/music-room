@@ -12,6 +12,7 @@ import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/config/location_config.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:music_room_app/core/globals.dart';
+import 'package:music_room_app/widgets/proximity_host.dart';
 
 // * Builds the offline-sync notification: actions the server rejected on
 // * reconnect, with their precise cause (vote session closed, item deleted…).
@@ -33,41 +34,47 @@ void main() async {
   setUrlStrategy(HashUrlStrategy());
   WidgetsFlutterBinding.ensureInitialized();
 
-	// * Initialize Google Sign-In (v7+).
-	// ! On Web, serverClientId must NOT be passed — the plugin asserts it is null.
-	// * On mobile, clientId is the platform-specific OAuth client ID.
-	// * serverClientId must be the WEB client ID so the backend can verify the
-	// * idToken audience against the correct OAuth app registration.
-	const googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
-	const googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
-	const googleAndroidClientId = String.fromEnvironment('GOOGLE_ANDROID_CLIENT_ID');
+  // * Initialize Google Sign-In (v7+).
+  // ! On Web, serverClientId must NOT be passed — the plugin asserts it is null.
+  // * On mobile, clientId is the platform-specific OAuth client ID.
+  // * serverClientId must be the WEB client ID so the backend can verify the
+  // * idToken audience against the correct OAuth app registration.
+  const googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
+  const googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
+  const googleAndroidClientId = String.fromEnvironment(
+    'GOOGLE_ANDROID_CLIENT_ID',
+  );
 
-	final String? platformClientId;
-	if (kIsWeb) {
-		// * Web uses the web client ID; renderButton() handles the auth flow.
-		platformClientId = googleWebClientId.isNotEmpty ? googleWebClientId : null;
-	} else if (defaultTargetPlatform == TargetPlatform.iOS ||
-		defaultTargetPlatform == TargetPlatform.macOS) {
-		platformClientId = googleIosClientId.isNotEmpty ? googleIosClientId : null;
-	} else {
-		platformClientId = googleAndroidClientId.isNotEmpty ? googleAndroidClientId : null;
-	}
+  final String? platformClientId;
+  if (kIsWeb) {
+    // * Web uses the web client ID; renderButton() handles the auth flow.
+    platformClientId = googleWebClientId.isNotEmpty ? googleWebClientId : null;
+  } else if (defaultTargetPlatform == TargetPlatform.iOS ||
+      defaultTargetPlatform == TargetPlatform.macOS) {
+    platformClientId = googleIosClientId.isNotEmpty ? googleIosClientId : null;
+  } else {
+    platformClientId = googleAndroidClientId.isNotEmpty
+        ? googleAndroidClientId
+        : null;
+  }
 
-	if (platformClientId != null) {
-		if (kIsWeb) {
-			await GoogleSignIn.instance.initialize(clientId: platformClientId);
-		} else {
-			await GoogleSignIn.instance.initialize(
-				clientId: platformClientId,
-				// * serverClientId is the web OAuth client — the backend validates
-				// * the idToken's audience (aud) against this ID.
-				serverClientId: googleWebClientId.isNotEmpty ? googleWebClientId : null,
-			);
-		}
-	} else {
-		// ! Platform client ID is missing. Google OAuth flow will be disabled.
-		debugPrint('[GoogleSignIn] Platform client ID not configured — disabling OAuth.');
-	}
+  if (platformClientId != null) {
+    if (kIsWeb) {
+      await GoogleSignIn.instance.initialize(clientId: platformClientId);
+    } else {
+      await GoogleSignIn.instance.initialize(
+        clientId: platformClientId,
+        // * serverClientId is the web OAuth client — the backend validates
+        // * the idToken's audience (aud) against this ID.
+        serverClientId: googleWebClientId.isNotEmpty ? googleWebClientId : null,
+      );
+    }
+  } else {
+    // ! Platform client ID is missing. Google OAuth flow will be disabled.
+    debugPrint(
+      '[GoogleSignIn] Platform client ID not configured — disabling OAuth.',
+    );
+  }
 
   if (kIsWeb) {
     const facebookAppId = String.fromEnvironment(
@@ -147,6 +154,12 @@ class MyApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProv.themeMode,
+            builder: (context, child) {
+              return ProximityHost(
+                events: eventsProvider,
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
           );
         },
       ),

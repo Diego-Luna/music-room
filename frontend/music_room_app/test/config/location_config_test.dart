@@ -50,4 +50,18 @@ void main() {
     expect(LocationConfig.current, isNull);
     expect(Hive.box('app_settings').get('vote_location_lat'), isNull);
   });
+
+  test('listenable notifies when the override changes', () async {
+    var ticks = 0;
+    void tick() => ticks++;
+    LocationConfig.listenable.addListener(tick);
+    addTearDown(() => LocationConfig.listenable.removeListener(tick));
+
+    await LocationConfig.setOverride(lat: 48.8, lng: 2.3);
+    expect(ticks, 1);
+    await LocationConfig.setOverride(lat: 48.8, lng: 2.3);
+    expect(ticks, 1);
+    await LocationConfig.clearOverride();
+    expect(ticks, 2);
+  });
 }

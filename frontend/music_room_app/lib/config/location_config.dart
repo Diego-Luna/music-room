@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 
 /// Coordinates used when voting in a geo-gated room (V.2.1).
@@ -7,10 +7,18 @@ class GeoPoint {
   final double lng;
 
   const GeoPoint({required this.lat, required this.lng});
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GeoPoint && lat == other.lat && lng == other.lng;
+
+  @override
+  int get hashCode => Object.hash(lat, lng);
 }
 
-/// Persisted vote position (Settings override). Used so web / school desktops
-/// can demo location-licensed events without a GPS device.
+/// Persisted vote / proximity position (Settings override). Used so web /
+/// school desktops can demo location-licensed events without a GPS device.
 class LocationConfig {
   static const _settingsBoxName = 'app_settings';
   static const _latKey = 'vote_location_lat';
@@ -18,6 +26,9 @@ class LocationConfig {
 
   static double? _overrideLat;
   static double? _overrideLng;
+
+  /// VI.2 — [ProximityWatcher] listens so entering a venue is automatic.
+  static final ValueNotifier<GeoPoint?> listenable = ValueNotifier(null);
 
   /// Effective position for API votes, or null if none configured.
   static GeoPoint? get current {
@@ -29,6 +40,13 @@ class LocationConfig {
 
   static bool get hasOverride => current != null;
 
+  static void _publish() {
+    final next = current;
+    final prev = listenable.value;
+    if (prev == next) return;
+    listenable.value = next;
+  }
+
   /// Load persisted override. Call after [HiveConfig.initialize].
   static Future<void> load() async {
     final box = Hive.box(_settingsBoxName);
@@ -38,6 +56,7 @@ class LocationConfig {
       _overrideLat = lat.toDouble();
       _overrideLng = lng.toDouble();
     }
+    _publish();
   }
 
   /// Persist vote coordinates. Throws [FormatException] if out of range.
@@ -56,6 +75,7 @@ class LocationConfig {
     final box = Hive.box(_settingsBoxName);
     await box.put(_latKey, lat);
     await box.put(_lngKey, lng);
+    _publish();
   }
 
   static Future<void> clearOverride() async {
@@ -64,6 +84,7 @@ class LocationConfig {
     final box = Hive.box(_settingsBoxName);
     await box.delete(_latKey);
     await box.delete(_lngKey);
+    _publish();
   }
 
   /// Position attached to vote requests (override only for now).
@@ -73,11 +94,13 @@ class LocationConfig {
   static void resetForTest() {
     _overrideLat = null;
     _overrideLng = null;
+    listenable.value = null;
   }
 
   @visibleForTesting
   static void setForTest({double? lat, double? lng}) {
     _overrideLat = lat;
     _overrideLng = lng;
+    _publish();
   }
 }
