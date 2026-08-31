@@ -3,12 +3,10 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/slide_animation.dart';
-import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/pages/home/widgets/quick_picks_carousel.dart';
 import 'package:music_room_app/pages/home/widgets/songs_carousel.dart';
 import 'package:music_room_app/pages/home/widgets/recent_events_list.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
-import 'package:music_room_app/providers/theme_provider.dart';
 import 'package:music_room_app/providers/navigation_provider.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
@@ -78,23 +76,6 @@ class _HomePageState extends State<HomePage> {
                     ),
                   ),
                 ),
-                actions: [
-                  NeumorphicInteractiveContainer(
-                    onTap: () {
-                      context.read<ThemeProvider>().toggleTheme();
-                    },
-                    margin: const EdgeInsets.all(AppDimens.sm),
-                    padding: const EdgeInsets.all(AppDimens.sm),
-                    decoration: const BoxDecoration(shape: BoxShape.circle),
-                    child: Icon(
-                      context.watch<ThemeProvider>().themeMode == ThemeMode.dark
-                          ? Icons.light_mode_rounded
-                          : Icons.dark_mode_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 24,
-                    ),
-                  ),
-                ],
               ),
 
               SliverToBoxAdapter(
