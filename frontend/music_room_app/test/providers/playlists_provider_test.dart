@@ -179,7 +179,50 @@ void main() {
       verify(() => mockRepository.getRooms(kind: RoomKind.playlist)).called(1);
     });
 
-    test('handleTrackAdded adds track to playlists in state', () async {
+    test('handleTrackAdded adds track only to the playlist matching roomId',
+        () async {
+      final roomA = Room(
+        id: 'room-1',
+        name: 'Playlist A',
+        ownerId: 'owner-1',
+        kind: RoomKind.playlist,
+        tracks: [],
+      );
+      final roomB = Room(
+        id: 'room-2',
+        name: 'Playlist B',
+        ownerId: 'owner-1',
+        kind: RoomKind.playlist,
+        tracks: [],
+      );
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.playlist),
+      ).thenAnswer((_) async => [roomA, roomB]);
+
+      await playlistsProvider.fetchPlaylists();
+      expect(playlistsProvider.playlists, hasLength(2));
+
+      final track = Track(
+        id: 'track-1',
+        providerId: 'p-1',
+        provider: 'spotify',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 180000,
+        roomId: 'room-1',
+      );
+      playlistsProvider.handleTrackAdded(track);
+      expect(
+        playlistsProvider.playlists.firstWhere((p) => p.id == 'room-1').tracks,
+        hasLength(1),
+      );
+      expect(
+        playlistsProvider.playlists.firstWhere((p) => p.id == 'room-2').tracks,
+        isEmpty,
+      );
+    });
+
+    test('handleTrackAdded is a no-op without roomId', () async {
       final room = Room(
         id: 'room-1',
         name: 'Playlist Room',
@@ -192,60 +235,65 @@ void main() {
       ).thenAnswer((_) async => [room]);
 
       await playlistsProvider.fetchPlaylists();
-      expect(playlistsProvider.playlists.first.tracks, isEmpty);
 
-      final track = Track(
-        id: 'track-1',
-        providerId: 'p-1',
-        provider: 'spotify',
-        title: 'Song',
-        artist: 'Artist',
-        durationMs: 180000,
+      playlistsProvider.handleTrackAdded(
+        Track(
+          id: 'track-1',
+          providerId: 'p-1',
+          title: 'Song',
+          artist: 'Artist',
+          durationMs: 180000,
+        ),
       );
-      playlistsProvider.handleTrackAdded(track);
-      expect(
-        playlistsProvider.playlists.first.tracks.first.id,
-        equals('track-1'),
-      );
+      expect(playlistsProvider.playlists.first.tracks, isEmpty);
     });
 
     test(
       'handleTrackMoved updates track position and sorts/reorders',
       () async {
-        final track = Track(
-          id: 'track-1',
+        final trackA = Track(
+          id: 'track-a',
           providerId: 'p-1',
           provider: 'spotify',
-          title: 'Song',
+          title: 'First',
           artist: 'Artist',
           durationMs: 180000,
-          position: 'a',
+          position: 'a0',
+        );
+        final trackB = Track(
+          id: 'track-b',
+          providerId: 'p-2',
+          provider: 'spotify',
+          title: 'Second',
+          artist: 'Artist',
+          durationMs: 180000,
+          position: 'a1',
         );
         final room = Room(
           id: 'room-1',
           name: 'Playlist Room',
           ownerId: 'owner-1',
           kind: RoomKind.playlist,
-          tracks: [track],
+          tracks: [trackA, trackB],
         );
         when(
           () => mockRepository.getRooms(kind: RoomKind.playlist),
         ).thenAnswer((_) async => [room]);
         when(
           () => mockRepository.getPlaylistTracks('room-1'),
-        ).thenAnswer((_) async => [track]);
+        ).thenAnswer((_) async => [trackA, trackB]);
 
         await playlistsProvider.fetchPlaylists();
         expect(
-          playlistsProvider.playlists.first.tracks.first.position,
-          equals('a'),
+          playlistsProvider.playlists.first.tracks.map((t) => t.id).toList(),
+          equals(['track-a', 'track-b']),
         );
 
-        playlistsProvider.handleTrackMoved('room-1', 'track-1', 'b');
-        expect(
-          playlistsProvider.playlists.first.tracks.first.position,
-          equals('b'),
-        );
+        playlistsProvider.handleTrackMoved('room-1', 'track-a', 'a2');
+        final tracks = playlistsProvider.playlists.first.tracks;
+        expect(tracks.map((t) => t.id).toList(), equals(['track-b', 'track-a']));
+        expect(tracks.first.position, equals('a1'));
+        expect(tracks.last.position, equals('a2'));
       },
     );
 

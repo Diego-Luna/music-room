@@ -11,6 +11,8 @@ class Track {
   final String? previewUrl;
   final int score;
   final String? position;
+  // * Present on socket/REST playlist payloads so live add targets one room.
+  final String? roomId;
 
   Track({
     required this.id,
@@ -23,6 +25,7 @@ class Track {
     this.previewUrl,
     this.score = 0,
     this.position,
+    this.roomId,
   });
 
   // * Helper getter — converts ms to seconds for display
@@ -46,6 +49,7 @@ class Track {
       previewUrl: json['previewUrl'] as String?,
       score: json['score'] as int? ?? 0,
       position: json['position'] as String?,
+      roomId: json['roomId'] as String?,
     );
   }
 
@@ -60,9 +64,10 @@ class Track {
     if (previewUrl != null) 'previewUrl': previewUrl,
     'score': score,
     if (position != null) 'position': position,
+    if (roomId != null) 'roomId': roomId,
   };
 
-	Track copyWith({int? score, String? position}) {
+	Track copyWith({int? score, String? position, String? roomId}) {
 		return Track(
 			id: id,
 			providerId: providerId,
@@ -74,6 +79,7 @@ class Track {
 			previewUrl: previewUrl,
 			score: score ?? this.score,
 			position: position ?? this.position,
+			roomId: roomId ?? this.roomId,
 		);
 	}
 

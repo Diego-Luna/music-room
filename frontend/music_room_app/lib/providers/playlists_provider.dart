@@ -169,8 +169,11 @@ class PlaylistsProvider extends ChangeNotifier {
 
   // * Handler methods for socket events
   void handleTrackAdded(Track track) {
+    final targetId = track.roomId;
+    if (targetId == null) return;
     for (var i = 0; i < _playlists.length; i++) {
       final room = _playlists[i];
+      if (room.id != targetId) continue;
       if (room.tracks.any((t) => t.id == track.id)) continue;
       final updatedTracks = List<Track>.from(room.tracks)..add(track);
       _playlists[i] = room.copyWith(tracks: updatedTracks);
@@ -187,6 +190,9 @@ class PlaylistsProvider extends ChangeNotifier {
         final updatedTrack = room.tracks[idx].copyWith(position: newPosition);
         final updatedTracks = List<Track>.from(room.tracks)
           ..[idx] = updatedTrack;
+        updatedTracks.sort(
+          (a, b) => (a.position ?? '').compareTo(b.position ?? ''),
+        );
         _playlists[i] = room.copyWith(tracks: updatedTracks);
       }
     }

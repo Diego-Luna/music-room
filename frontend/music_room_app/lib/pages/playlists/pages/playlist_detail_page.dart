@@ -27,17 +27,12 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   String? _roomId;
   late SocketProvider _socketProvider;
 
-  // * Locally-mirrored track order so a drag reorders instantly. Resynced from
-  //   the provider whenever the *set* of tracks changes (add/remove) or after a
-  //   rejected reorder — never on a pure reorder, so the optimistic order holds.
+  // * Locally-mirrored track order so a drag reorders instantly. While a local
+  //   drag is in flight we keep that order; otherwise we follow the provider
+  //   (live move/add from another user, or the post-move fetch).
   List<Track> _orderedTracks = [];
   bool _forceResync = false;
-
-  bool _sameIdSet(List<Track> a, List<Track> b) {
-    if (a.length != b.length) return false;
-    final ids = a.map((t) => t.id).toSet();
-    return b.every((t) => ids.contains(t.id));
-  }
+  bool _isLocalReorder = false;
 
   // * newIndex is adjusted here for standard Flutter onReorder semantics.
   Future<void> _onReorder(Room playlist, int oldIndex, int newIndex) async {
@@ -49,7 +44,10 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     final reordered = List<Track>.from(_orderedTracks);
     final moved = reordered.removeAt(oldIndex);
     reordered.insert(newIndex, moved);
-    setState(() => _orderedTracks = reordered);
+    setState(() {
+      _orderedTracks = reordered;
+      _isLocalReorder = true;
+    });
 
     // Backend wants exactly one anchor: prefer the track now above the moved
     // one; if it landed at the top, anchor before the track now below it.
@@ -79,6 +77,8 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
           backgroundColor: Colors.redAccent,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _isLocalReorder = false);
     }
   }
 
@@ -242,8 +242,8 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     );
 
     // Keep the local drag order in sync with the authoritative list, except
-    // mid-reorder (same id set) so the optimistic order isn't clobbered.
-    if (_forceResync || !_sameIdSet(_orderedTracks, playlist.tracks)) {
+    // mid-reorder so the optimistic order isn't clobbered by a provider notify.
+    if (_forceResync || !_isLocalReorder) {
       _orderedTracks = List<Track>.from(playlist.tracks);
       _forceResync = false;
     }
