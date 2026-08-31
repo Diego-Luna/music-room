@@ -110,7 +110,7 @@ class _PlayerPageState extends State<PlayerPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppDesignTokens>();
-    final isMobile = MediaQuery.of(context).size.width < 700;
+    final isMobile = AppBreakpoints.isCompact(context);
     final playerProvider = context.watch<PlayerProvider>();
     final isVoteRoom = playerProvider.voteRoomId != null;
 

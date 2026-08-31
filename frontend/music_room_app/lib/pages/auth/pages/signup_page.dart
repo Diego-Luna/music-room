@@ -10,6 +10,8 @@ import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
+import 'package:music_room_app/widgets/google_sign_in_button.dart';
+import 'package:music_room_app/widgets/responsive_body.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -31,33 +33,35 @@ class _SignupPageState extends State<SignupPage> {
     super.dispose();
   }
 
-	void _handleSignup() async {
-		final auth = context.read<AuthProvider>();
-		await auth.register(
-			_emailController.text.trim(),
-			_passwordController.text,
-			_nameController.text.trim(),
-		);
+  void _handleSignup() async {
+    final auth = context.read<AuthProvider>();
+    await auth.register(
+      _emailController.text.trim(),
+      _passwordController.text,
+      _nameController.text.trim(),
+    );
 
-		if (mounted) {
-			if (auth.error != null) {
-				ScaffoldMessenger.of(context).showSnackBar(
-					SnackBar(
-						content: Text(auth.error!),
-						backgroundColor: Colors.redAccent,
-					),
-				);
-			} else {
-				ScaffoldMessenger.of(context).showSnackBar(
-					const SnackBar(
-						content: Text('Account created. Check your email to verify it before logging in.'),
-						backgroundColor: Colors.green,
-					),
-				);
-				context.go(routeLogin);
-			}
-		}
-	}
+    if (mounted) {
+      if (auth.error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(auth.error!),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Account created. Check your email to verify it before logging in.',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+        context.go(routeLogin);
+      }
+    }
+  }
 
   void _handleSocial(SocialProvider provider) async {
     final auth = context.read<AuthProvider>();
@@ -68,10 +72,7 @@ class _SignupPageState extends State<SignupPage> {
       context.go(routeHome);
     } else if (auth.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(auth.error!),
-          backgroundColor: Colors.redAccent,
-        ),
+        SnackBar(content: Text(auth.error!), backgroundColor: Colors.redAccent),
       );
     }
   }
@@ -95,150 +96,152 @@ class _SignupPageState extends State<SignupPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppDimens.xl),
-          child: FadeIn(
-            duration: const Duration(milliseconds: 600),
-            child: SlideIn(
-              beginOffset: const Offset(0, 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: AppDimens.md),
-                  Text('Create Account', style: theme.textTheme.displayLarge),
-                  const SizedBox(height: AppDimens.sm),
-                  Text(
-                    'Join Music Room to collaborate on playlists and vote on live tracks.',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.disabledColor,
-                    ),
-                  ),
-                  const SizedBox(height: AppDimens.xxl * 2),
-
-                  Consumer<AuthProvider>(
-                    builder: (context, auth, _) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          AuthTextField(
-                            hintText: 'Display Name',
-                            icon: Icons.person_outline,
-                            controller: _nameController,
-                          ),
-                          const SizedBox(height: AppDimens.lg),
-                          AuthTextField(
-                            hintText: 'Email address',
-                            icon: Icons.email_outlined,
-                            controller: _emailController,
-                          ),
-                          const SizedBox(height: AppDimens.lg),
-                          AuthTextField(
-                            hintText: 'Password',
-                            icon: Icons.lock_outline,
-                            isPassword: true,
-                            controller: _passwordController,
-                          ),
-
-                          const SizedBox(height: AppDimens.xxl),
-
-                          PrimaryButton(
-                            label: 'Sign Up',
-                            isLoading: auth.isLoading,
-                            onPressed: _handleSignup,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: AppDimens.xxl),
-                  Center(
-                    child: Text(
-                      'Or sign up with',
-                      style: theme.textTheme.bodyMedium?.copyWith(
+          child: ResponsiveBody.form(
+            child: FadeIn(
+              duration: const Duration(milliseconds: 600),
+              child: SlideIn(
+                beginOffset: const Offset(0, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppDimens.md),
+                    Text('Create Account', style: theme.textTheme.displayLarge),
+                    const SizedBox(height: AppDimens.sm),
+                    Text(
+                      'Join Music Room to collaborate on playlists and vote on live tracks.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
                         color: theme.disabledColor,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: AppDimens.lg),
+                    const SizedBox(height: AppDimens.xxl * 2),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: NeumorphicInteractiveContainer(
-                          onTap: () => _handleSocial(SocialProvider.google),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              AppDimens.radiusMedium,
+                    Consumer<AuthProvider>(
+                      builder: (context, auth, _) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AuthTextField(
+                              hintText: 'Display Name',
+                              icon: Icons.person_outline,
+                              controller: _nameController,
+                            ),
+                            const SizedBox(height: AppDimens.lg),
+                            AuthTextField(
+                              hintText: 'Email address',
+                              icon: Icons.email_outlined,
+                              controller: _emailController,
+                            ),
+                            const SizedBox(height: AppDimens.lg),
+                            AuthTextField(
+                              hintText: 'Password',
+                              icon: Icons.lock_outline,
+                              isPassword: true,
+                              controller: _passwordController,
+                            ),
+
+                            const SizedBox(height: AppDimens.xxl),
+
+                            PrimaryButton(
+                              label: 'Sign Up',
+                              isLoading: auth.isLoading,
+                              onPressed: _handleSignup,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: AppDimens.xxl),
+                    Center(
+                      child: Text(
+                        'Or sign up with',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.disabledColor,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: AppDimens.lg),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GoogleSignInButton(
+                            onPressed: () =>
+                                _handleSocial(SocialProvider.google),
+                            onTokenReceived: (token) async {
+                              final auth = context.read<AuthProvider>();
+                              final router = GoRouter.of(context);
+                              final messenger = ScaffoldMessenger.of(context);
+                              final ok = await auth.socialLoginWithToken(
+                                'google',
+                                token,
+                              );
+                              if (!mounted) return;
+                              if (ok && auth.signedIn) {
+                                router.go(routeHome);
+                              } else if (auth.error != null) {
+                                messenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(auth.error!),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: AppDimens.lg),
+                        Expanded(
+                          child: NeumorphicInteractiveContainer(
+                            onTap: () => _handleSocial(SocialProvider.facebook),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(
+                                AppDimens.radiusMedium,
+                              ),
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: AppDimens.md,
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.facebook, color: Colors.blue),
+                                const SizedBox(width: AppDimens.sm),
+                                Text(
+                                  'Facebook',
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    fontWeight: AppTypography.semibold,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: AppDimens.md,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.g_mobiledata, size: 30),
-                              const SizedBox(width: AppDimens.sm),
-                              Text(
-                                'Google',
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: AppTypography.semibold,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
-                      ),
-                      const SizedBox(width: AppDimens.lg),
-                      Expanded(
-                        child: NeumorphicInteractiveContainer(
-                          onTap: () => _handleSocial(SocialProvider.facebook),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(
-                              AppDimens.radiusMedium,
+                      ],
+                    ),
+
+                    const SizedBox(height: AppDimens.xxl * 1.5),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Already have an account? ",
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        GestureDetector(
+                          onTap: () => context.go(routeLogin),
+                          child: Text(
+                            "Sign In",
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: AppTypography.bold,
                             ),
                           ),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: AppDimens.md,
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.facebook, color: Colors.blue),
-                              const SizedBox(width: AppDimens.sm),
-                              Text(
-                                'Facebook',
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  fontWeight: AppTypography.semibold,
-                                ),
-                              ),
-                            ],
-                          ),
                         ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: AppDimens.xxl * 1.5),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Already have an account? ",
-                        style: theme.textTheme.bodyMedium,
-                      ),
-                      GestureDetector(
-                        onTap: () => context.go(routeLogin),
-                        child: Text(
-                          "Sign In",
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: AppTypography.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

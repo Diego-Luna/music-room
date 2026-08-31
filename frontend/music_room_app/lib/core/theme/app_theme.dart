@@ -77,6 +77,21 @@ abstract class AppDimens {
   static const double iconXLarge = 32.0;
 }
 
+/// VI.1 — layout switches by width, not by platform.
+abstract class AppBreakpoints {
+  /// Bottom nav (phone) vs top nav (tablet / desktop web).
+  static const double compact = 700;
+
+  /// Main shell content on a wide window (lists, home, profile).
+  static const double content = 960;
+
+  /// Auth forms — stay readable on a 1920 px display.
+  static const double form = 480;
+
+  static bool isCompact(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < compact;
+}
+
 //* Custom ThemeExtension for Neumorphic Design Tokens
 // This allows us to inject custom shadows and blur amounts directly into the theme,
 // keeping our UI components clean and completely decoupled from hardcoded values.

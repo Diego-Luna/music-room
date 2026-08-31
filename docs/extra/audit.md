@@ -29,7 +29,7 @@ Aucun **KO**. Chipotages oraux : [08-defense.md](../sujet/08-defense.md).
 
 | | |
 |---|---|
-| VI.1 Multi-platform / web | Implémenté (Flutter web + Pages) — pas audité ligne à ligne |
+| VI.1 Multi-platform / web | **OK** — [vi1-multiplatform.md](vi1-multiplatform.md) |
 | VI.2 IoT / iBeacon | Géofence client + bouton « Enter proximity zone » ; pas de BLE |
 | VI.3 Free vs Paid | API Subscription + gate Premium sur l’édition playlist |
 | VI.4 Offline | [frontend-offline.md](frontend-offline.md) |

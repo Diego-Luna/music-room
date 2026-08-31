@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:music_room_app/core/theme/app_theme.dart';
+import 'package:music_room_app/widgets/responsive_body.dart';
 import 'package:music_room_app/widgets/responsive_navbar.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 
@@ -10,13 +12,13 @@ class MainPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 700;
+    final isMobile = AppBreakpoints.isCompact(context);
 
     final bodyContent = FadeIn(
       key: ValueKey(child.hashCode),
       // Force simple animation when child route changes
       duration: const Duration(milliseconds: 300),
-      child: child,
+      child: ResponsiveBody(child: child),
     );
 
     if (isMobile) {

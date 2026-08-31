@@ -13,4 +13,4 @@ Une page par exigence écrite du PDF. L’API complète n’est **pas** recopié
 | **IV.2 + V.5** App mobile = télécommande | [07-mobile.md](07-mobile.md) | Écrans ↔ consignes, URL back, OAuth |
 | Oral | [08-defense.md](08-defense.md) | Phrases à avoir si un évaluateur chipote |
 
-Les **bonus** (web, iBeacon, abo, offline) : code + [`../extra/`](../extra/). Pas scorés tant que le mandatory n’est pas parfait.
+Les **bonus** : VI.1 [web / responsive](../extra/vi1-multiplatform.md). VI.2–VI.4 : code + [`../extra/`](../extra/).

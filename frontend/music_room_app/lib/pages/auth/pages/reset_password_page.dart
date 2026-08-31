@@ -8,6 +8,7 @@ import 'package:music_room_app/core/animations/slide_animation.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
+import 'package:music_room_app/widgets/responsive_body.dart';
 
 class ResetPasswordPage extends StatefulWidget {
   //* Token comes from the email link query param (?token=...).
@@ -99,84 +100,86 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppDimens.xl),
-          child: FadeIn(
-            duration: const Duration(milliseconds: 600),
-            child: SlideIn(
-              beginOffset: const Offset(0, 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: AppDimens.md),
-                  Text('Reset Password', style: theme.textTheme.displayLarge),
-                  const SizedBox(height: AppDimens.sm),
-                  Text(
-                    'Choose a new password for your account.',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.disabledColor,
+          child: ResponsiveBody.form(
+            child: FadeIn(
+              duration: const Duration(milliseconds: 600),
+              child: SlideIn(
+                beginOffset: const Offset(0, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppDimens.md),
+                    Text('Reset Password', style: theme.textTheme.displayLarge),
+                    const SizedBox(height: AppDimens.sm),
+                    Text(
+                      'Choose a new password for your account.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.disabledColor,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: AppDimens.xxl * 2),
+                    const SizedBox(height: AppDimens.xxl * 2),
 
-                  Consumer<AuthProvider>(
-                    builder: (context, auth, _) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: AppDimens.lg),
-                          //* Shown only when the token wasn't passed via the
-                          //* deep link, so the user can paste it manually.
-                          if (widget.token == null) ...[
+                    Consumer<AuthProvider>(
+                      builder: (context, auth, _) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: AppDimens.lg),
+                            //* Shown only when the token wasn't passed via the
+                            //* deep link, so the user can paste it manually.
+                            if (widget.token == null) ...[
+                              AuthTextField(
+                                hintText: 'Reset token',
+                                icon: Icons.vpn_key_outlined,
+                                controller: _tokenController,
+                              ),
+                              const SizedBox(height: AppDimens.lg),
+                            ],
                             AuthTextField(
-                              hintText: 'Reset token',
-                              icon: Icons.vpn_key_outlined,
-                              controller: _tokenController,
+                              hintText: 'New password',
+                              icon: Icons.lock_outline,
+                              isPassword: true,
+                              controller: _passwordController,
                             ),
                             const SizedBox(height: AppDimens.lg),
+                            AuthTextField(
+                              hintText: 'Confirm new password',
+                              icon: Icons.lock_outline,
+                              isPassword: true,
+                              controller: _confirmController,
+                            ),
+
+                            const SizedBox(height: AppDimens.xxl),
+
+                            PrimaryButton(
+                              label: 'Update Password',
+                              isLoading: auth.isLoading,
+                              onPressed: _handleResetPassword,
+                            ),
                           ],
-                          AuthTextField(
-                            hintText: 'New password',
-                            icon: Icons.lock_outline,
-                            isPassword: true,
-                            controller: _passwordController,
-                          ),
-                          const SizedBox(height: AppDimens.lg),
-                          AuthTextField(
-                            hintText: 'Confirm new password',
-                            icon: Icons.lock_outline,
-                            isPassword: true,
-                            controller: _confirmController,
-                          ),
+                        );
+                      },
+                    ),
 
-                          const SizedBox(height: AppDimens.xxl),
-
-                          PrimaryButton(
-                            label: 'Update Password',
-                            isLoading: auth.isLoading,
-                            onPressed: _handleResetPassword,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: AppDimens.xxl * 1.5),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text("Back to ", style: theme.textTheme.bodyMedium),
-                      GestureDetector(
-                        onTap: () => context.go(routeLogin),
-                        child: Text(
-                          "Sign In",
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: AppTypography.bold,
+                    const SizedBox(height: AppDimens.xxl * 1.5),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text("Back to ", style: theme.textTheme.bodyMedium),
+                        GestureDetector(
+                          onTap: () => context.go(routeLogin),
+                          child: Text(
+                            "Sign In",
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: AppTypography.bold,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -8,6 +8,7 @@ import 'package:music_room_app/pages/auth/widgets/auth_text_field.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
+import 'package:music_room_app/widgets/responsive_body.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -81,69 +82,74 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppDimens.xl),
-          child: FadeIn(
-            duration: const Duration(milliseconds: 600),
-            child: SlideIn(
-              beginOffset: const Offset(0, 30),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: AppDimens.md),
-                  Text('Forgot Password', style: theme.textTheme.displayLarge),
-                  const SizedBox(height: AppDimens.sm),
-                  Text(
-                    'Enter your email address to receive a password reset link.',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: theme.disabledColor,
+          child: ResponsiveBody.form(
+            child: FadeIn(
+              duration: const Duration(milliseconds: 600),
+              child: SlideIn(
+                beginOffset: const Offset(0, 30),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: AppDimens.md),
+                    Text(
+                      'Forgot Password',
+                      style: theme.textTheme.displayLarge,
                     ),
-                  ),
-                  const SizedBox(height: AppDimens.xxl * 2),
-
-                  Consumer<AuthProvider>(
-                    builder: (context, auth, _) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: AppDimens.lg),
-                          AuthTextField(
-                            hintText: 'Email address',
-                            icon: Icons.email_outlined,
-                            controller: _emailController,
-                          ),
-
-                          const SizedBox(height: AppDimens.xxl),
-
-                          PrimaryButton(
-                            label: 'Reset Password',
-                            isLoading: auth.isLoading,
-                            onPressed: _handleForgotPassword,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: AppDimens.xxl * 1.5),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Already have an account? ",
-                        style: theme.textTheme.bodyMedium,
+                    const SizedBox(height: AppDimens.sm),
+                    Text(
+                      'Enter your email address to receive a password reset link.',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.disabledColor,
                       ),
-                      GestureDetector(
-                        onTap: () => context.go(routeLogin),
-                        child: Text(
-                          "Sign In",
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: AppTypography.bold,
+                    ),
+                    const SizedBox(height: AppDimens.xxl * 2),
+
+                    Consumer<AuthProvider>(
+                      builder: (context, auth, _) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: AppDimens.lg),
+                            AuthTextField(
+                              hintText: 'Email address',
+                              icon: Icons.email_outlined,
+                              controller: _emailController,
+                            ),
+
+                            const SizedBox(height: AppDimens.xxl),
+
+                            PrimaryButton(
+                              label: 'Reset Password',
+                              isLoading: auth.isLoading,
+                              onPressed: _handleForgotPassword,
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: AppDimens.xxl * 1.5),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Already have an account? ",
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        GestureDetector(
+                          onTap: () => context.go(routeLogin),
+                          child: Text(
+                            "Sign In",
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.primary,
+                              fontWeight: AppTypography.bold,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

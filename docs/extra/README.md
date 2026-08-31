@@ -5,6 +5,7 @@ Pas exigée par le PDF. Utile à l’équipe (et pour les bonus).
 | Fichier | Sujet |
 |---|---|
 | [audit.md](audit.md) | Verdicts internes consigne par consigne |
+| [vi1-multiplatform.md](vi1-multiplatform.md) | Bonus VI.1 — web / responsive |
 | [frontend-providers.md](frontend-providers.md) | State management Flutter |
 | [frontend-offline.md](frontend-offline.md) | Bonus VI.4 — cache Hive + file |
 | [frontend-ui.md](frontend-ui.md) | Thème neumorphique |

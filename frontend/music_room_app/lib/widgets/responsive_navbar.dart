@@ -18,8 +18,7 @@ class ResponsiveNavbar extends StatelessWidget {
   Widget build(BuildContext context) {
     final nav = context.watch<NavigationProvider>();
     final notificationsProv = context.watch<NotificationsProvider>();
-    final width = MediaQuery.of(context).size.width;
-    final isMobile = forceMobile ?? width < 700;
+    final isMobile = forceMobile ?? AppBreakpoints.isCompact(context);
 
     final pendingCount =
         notificationsProv.incomingFriendRequests.length +
