@@ -28,6 +28,8 @@ import 'package:music_room_app/pages/playlists/pages/playlist_detail_page.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
+import 'package:music_room_app/providers/subscription_provider.dart';
+import 'package:music_room_app/models/subscription.dart';
 
 class MockRemote extends Mock implements RoomRepository {}
 
@@ -108,10 +110,7 @@ void main() {
       initialLocation: '/home',
       routes: [
         GoRoute(path: '/home', builder: (_, _) => const SizedBox()),
-        GoRoute(
-          path: '/detail',
-          builder: (_, _) => const PlaylistDetailPage(),
-        ),
+        GoRoute(path: '/detail', builder: (_, _) => const PlaylistDetailPage()),
         GoRoute(path: routePlayer, builder: (_, _) => const SizedBox()),
       ],
     );
@@ -125,6 +124,10 @@ void main() {
           ChangeNotifierProvider<SocketProvider>.value(value: socket),
           ChangeNotifierProvider<PlayerProvider>.value(
             value: FakePlayerProvider(),
+          ),
+          ChangeNotifierProvider<SubscriptionProvider>(
+            create: (_) =>
+                SubscriptionProvider(initialTier: SubscriptionTier.premium),
           ),
         ],
         child: MaterialApp.router(
@@ -178,9 +181,11 @@ void main() {
       when(
         () => remote.removePlaylistTrack('r1', 'tA'),
       ).thenAnswer((_) async {});
-      when(
-        () => remote.getRooms(),
-      ).thenAnswer((_) async => [playlist.copyWith(tracks: [_track('tB', 'Song B')])]);
+      when(() => remote.getRooms()).thenAnswer(
+        (_) async => [
+          playlist.copyWith(tracks: [_track('tB', 'Song B')]),
+        ],
+      );
 
       final syncManager = ConnectivitySyncManager(
         remoteRepository: remote,

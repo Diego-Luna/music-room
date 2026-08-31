@@ -14,7 +14,7 @@
 | `MembersProvider` | Membres d’une room |
 | `NotificationsProvider` | Inbox invitations / notifs |
 | `ProfileProvider` | Les 4 champs + display |
-| `SubscriptionProvider` | Free / Premium (bonus) |
+| `SubscriptionProvider` | Free / Premium (bonus VI.3) — global, chargé au login |
 | `ThemeProvider` | Clair / sombre |
 | `NavigationProvider` | Bottom nav / routing helpers |
 

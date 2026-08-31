@@ -25,6 +25,7 @@ import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/rooms_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
+import 'package:music_room_app/providers/subscription_provider.dart';
 import 'package:music_room_app/core/audio/audio_player_service.dart';
 import 'package:music_room_app/pages/home/pages/home_page.dart';
 import 'package:music_room_app/pages/main/pages/main_screen.dart';
@@ -66,6 +67,7 @@ FriendsProvider? _friendsProvider;
 NotificationsProvider? _notificationsProvider;
 PlayerProvider? _playerProvider;
 SocketProvider? _socketProvider;
+SubscriptionProvider? _subscriptionProvider;
 DeviceRepository? _deviceRepository;
 
 //* Initialize singletons. safe to call multiple times.
@@ -104,6 +106,7 @@ void setupLocator() {
     friendsProvider: friendsProvider,
     notificationsProvider: notificationsProvider,
   );
+  _subscriptionProvider ??= SubscriptionProvider(apiClient: _apiClient);
 }
 
 //* Accessors to retrieve the registered singletons.
@@ -193,6 +196,9 @@ SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
   friendsProvider: friendsProvider,
   notificationsProvider: notificationsProvider,
 );
+
+SubscriptionProvider get subscriptionProvider =>
+    _subscriptionProvider ??= SubscriptionProvider(apiClient: apiClient);
 
 /// V.5 — persist a new backend URL and retarget Dio + Socket.IO.
 Future<void> applyBackendUrlChange(String url) async {

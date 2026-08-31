@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
+import 'package:music_room_app/widgets/responsive_body.dart';
 import 'package:music_room_app/providers/subscription_provider.dart';
 import 'package:music_room_app/models/subscription.dart';
 
 /// VI.3 bonus — subscription screen.
 /// Lists the Free/Premium offers (GET /subscription/plans), highlights the
 /// user's current tier (GET /subscription/me) and lets them switch
-/// (PUT /subscription/me). Owns its own provider, like [ProfilePage].
+/// (PUT /subscription/me). Uses the app-wide [SubscriptionProvider] so a
+/// switch here immediately unlocks / locks the Playlist Editor.
 class SubscriptionPage extends StatefulWidget {
   const SubscriptionPage({super.key});
 
@@ -16,30 +19,26 @@ class SubscriptionPage extends StatefulWidget {
 }
 
 class _SubscriptionPageState extends State<SubscriptionPage> {
-  final SubscriptionProvider _subscription = SubscriptionProvider();
-
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _subscription.load());
-  }
-
-  @override
-  void dispose() {
-    _subscription.dispose();
-    super.dispose();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<SubscriptionProvider>().load();
+    });
   }
 
   Future<void> _switchTo(SubscriptionPlan plan) async {
     final messenger = ScaffoldMessenger.of(context);
-    final ok = await _subscription.switchTo(plan.tier);
+    final subscription = context.read<SubscriptionProvider>();
+    final ok = await subscription.switchTo(plan.tier);
     if (!mounted) return;
     messenger.showSnackBar(
       SnackBar(
         content: Text(
           ok
               ? 'You are now on the ${plan.label} plan.'
-              : (_subscription.error ?? 'Could not change your plan.'),
+              : (subscription.error ?? 'Could not change your plan.'),
         ),
         backgroundColor: ok ? Colors.green : Colors.redAccent,
       ),
@@ -48,49 +47,50 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final subscription = context.watch<SubscriptionProvider>();
+
     return Scaffold(
       appBar: AppBar(title: const Text('Subscription')),
-      body: ListenableBuilder(
-        listenable: _subscription,
-        builder: (context, _) {
-          if (_subscription.isLoading && _subscription.plans.isEmpty) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      body: ResponsiveBody(child: _buildBody(context, subscription)),
+    );
+  }
 
-          if (_subscription.plans.isEmpty) {
-            return _ErrorState(
-              message: _subscription.error ?? 'Could not load the offers.',
-              onRetry: _subscription.load,
-            );
-          }
+  Widget _buildBody(BuildContext context, SubscriptionProvider subscription) {
+    if (subscription.isLoading && subscription.plans.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-          return ListView(
-            padding: const EdgeInsets.all(AppDimens.lg),
-            children: [
-              Text(
-                'Choose your plan',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: AppTypography.bold,
-                ),
-              ),
-              const SizedBox(height: AppDimens.xs),
-              Text(
-                'Premium unlocks the Music Playlist Editor — create and host '
-                'your own playlist rooms.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: AppDimens.lg),
-              for (final plan in _subscription.plans)
-                _PlanCard(
-                  plan: plan,
-                  isCurrent: plan.tier == _subscription.currentTier,
-                  isBusy: _subscription.isSwitching,
-                  onSelect: () => _switchTo(plan),
-                ),
-            ],
-          );
-        },
-      ),
+    if (subscription.plans.isEmpty) {
+      return _ErrorState(
+        message: subscription.error ?? 'Could not load the offers.',
+        onRetry: subscription.load,
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(AppDimens.lg),
+      children: [
+        Text(
+          'Choose your plan',
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: AppTypography.bold),
+        ),
+        const SizedBox(height: AppDimens.xs),
+        Text(
+          'Premium unlocks the Music Playlist Editor — create and host '
+          'your own playlist rooms.',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: AppDimens.lg),
+        for (final plan in subscription.plans)
+          _PlanCard(
+            plan: plan,
+            isCurrent: plan.tier == subscription.currentTier,
+            isBusy: subscription.isSwitching,
+            onSelect: () => _switchTo(plan),
+          ),
+      ],
     );
   }
 }
@@ -188,7 +188,9 @@ class _PlanCard extends StatelessWidget {
             )
           else
             PrimaryButton(
-              label: plan.tier.isPremium ? 'Upgrade to Premium' : 'Switch to Free',
+              label: plan.tier.isPremium
+                  ? 'Upgrade to Premium'
+                  : 'Switch to Free',
               isLoading: isBusy,
               onPressed: isBusy ? null : onSelect,
             ),

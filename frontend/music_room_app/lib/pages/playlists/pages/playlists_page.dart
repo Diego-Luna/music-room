@@ -11,6 +11,7 @@ import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/pages/playlists/widgets/create_playlist_dialog.dart';
 import 'package:music_room_app/widgets/neumorphic_search_bar.dart';
+import 'package:music_room_app/providers/subscription_provider.dart';
 
 //* Playlists page skeleton with Staggered Animations and Background Floaters.
 class PlaylistsPage extends StatefulWidget {
@@ -39,7 +40,16 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
+  void _onCreateTap(BuildContext context) {
+    final isPremium = SubscriptionProvider.isPremiumOf(context, listen: false);
+    if (isPremium) {
+      _showCreatePlaylistDialog(context);
+    } else {
+      context.push(routeSubscription);
+    }
+  }
+
+  Widget _buildEmptyState(BuildContext context, {required bool isPremium}) {
     final theme = Theme.of(context);
     return Center(
       child: Padding(
@@ -56,15 +66,18 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
             Text('No playlists yet', style: theme.textTheme.titleLarge),
             const SizedBox(height: AppDimens.sm),
             Text(
-              'Create a collaborative playlist and add tracks from Deezer.',
+              isPremium
+                  ? 'Create a collaborative playlist and add tracks from Deezer.'
+                  : 'The Music Playlist Editor is a Premium feature. '
+                        'You can still join playlists you are invited to.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
             const SizedBox(height: AppDimens.lg),
             PrimaryButton(
-              onPressed: () => _showCreatePlaylistDialog(context),
-              leading: const Icon(Icons.add),
-              label: 'Create Playlist',
+              onPressed: () => _onCreateTap(context),
+              leading: Icon(isPremium ? Icons.add : Icons.workspace_premium),
+              label: isPremium ? 'Create Playlist' : 'Upgrade to Premium',
             ),
           ],
         ),
@@ -102,6 +115,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
   @override
   Widget build(BuildContext context) {
     final playlistsProvider = context.watch<PlaylistsProvider>();
+    final isPremium = SubscriptionProvider.isPremiumOf(context);
     final isEmpty = playlistsProvider.playlists.isEmpty;
     final filteredPlaylists = playlistsProvider.playlists.where((playlist) {
       final nameMatch = playlist.name.toLowerCase().contains(
@@ -140,8 +154,10 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                     Center(
                       child: NeumorphicIconButton(
                         icon: Icons.playlist_add,
-                        tooltip: 'New Playlist',
-                        onTap: () => _showCreatePlaylistDialog(context),
+                        tooltip: isPremium
+                            ? 'New Playlist'
+                            : 'Upgrade to Premium',
+                        onTap: () => _onCreateTap(context),
                       ),
                     ),
                   ],
@@ -163,7 +179,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                 if (isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
-                    child: _buildEmptyState(context),
+                    child: _buildEmptyState(context, isPremium: isPremium),
                   )
                 else if (isSearchEmpty)
                   SliverFillRemaining(

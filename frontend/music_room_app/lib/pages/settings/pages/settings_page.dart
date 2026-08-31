@@ -10,6 +10,7 @@ import 'package:music_room_app/widgets/vote_location_section.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
+import 'package:music_room_app/providers/subscription_provider.dart';
 
 //* Settings page (Account Settings).
 class SettingsPage extends StatelessWidget {
@@ -38,6 +39,7 @@ class SettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final currentPlan = SubscriptionProvider.labelOf(context);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -85,10 +87,7 @@ class SettingsPage extends StatelessWidget {
                               fontWeight: AppTypography.bold,
                             ),
                           ),
-                          Text(
-                            'Free / Premium plans',
-                            style: theme.textTheme.bodySmall,
-                          ),
+                          Text(currentPlan, style: theme.textTheme.bodySmall),
                         ],
                       ),
                     ),

@@ -7,6 +7,7 @@ Pas exigée par le PDF. Utile à l’équipe (et pour les bonus).
 | [audit.md](audit.md) | Verdicts internes consigne par consigne |
 | [vi1-multiplatform.md](vi1-multiplatform.md) | Bonus VI.1 — web / responsive |
 | [vi2-iot.md](vi2-iot.md) | Bonus VI.2 — proximité / iBeacon analogue |
+| [vi3-subscription.md](vi3-subscription.md) | Bonus VI.3 — Free vs Premium |
 | [frontend-providers.md](frontend-providers.md) | State management Flutter |
 | [frontend-offline.md](frontend-offline.md) | Bonus VI.4 — cache Hive + file |
 | [frontend-ui.md](frontend-ui.md) | Thème neumorphique |

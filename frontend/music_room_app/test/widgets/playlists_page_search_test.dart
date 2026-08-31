@@ -6,6 +6,8 @@ import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/pages/playlists/pages/playlists_page.dart';
+import 'package:music_room_app/providers/subscription_provider.dart';
+import 'package:music_room_app/models/subscription.dart';
 
 class MockRoomRepository extends Mock implements RoomRepository {}
 
@@ -80,5 +82,61 @@ void main() {
     expect(find.text('Rock Classics'), findsNothing);
     expect(find.text('Jazz Beats'), findsNothing);
     expect(find.text('No results found'), findsOneWidget);
+  });
+
+  testWidgets('empty state offers Upgrade when the user is on Free', (
+    tester,
+  ) async {
+    when(
+      () => repository.getRooms(kind: RoomKind.playlist),
+    ).thenAnswer((_) async => []);
+    when(() => repository.getPlaylistTracks(any())).thenAnswer((_) async => []);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<PlaylistsProvider>.value(value: provider),
+            ChangeNotifierProvider(
+              create: (_) =>
+                  SubscriptionProvider(initialTier: SubscriptionTier.free),
+            ),
+          ],
+          child: const PlaylistsPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Upgrade to Premium'), findsOneWidget);
+    expect(find.text('Create Playlist'), findsNothing);
+  });
+
+  testWidgets('empty state offers Create Playlist when the user is Premium', (
+    tester,
+  ) async {
+    when(
+      () => repository.getRooms(kind: RoomKind.playlist),
+    ).thenAnswer((_) async => []);
+    when(() => repository.getPlaylistTracks(any())).thenAnswer((_) async => []);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MultiProvider(
+          providers: [
+            ChangeNotifierProvider<PlaylistsProvider>.value(value: provider),
+            ChangeNotifierProvider(
+              create: (_) =>
+                  SubscriptionProvider(initialTier: SubscriptionTier.premium),
+            ),
+          ],
+          child: const PlaylistsPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create Playlist'), findsOneWidget);
+    expect(find.text('Upgrade to Premium'), findsNothing);
   });
 }

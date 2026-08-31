@@ -106,12 +106,15 @@ void main() async {
   authProvider.addListener(() {
     if (authProvider.signedIn) {
       pushTokenService.registerIfNeeded();
+      subscriptionProvider.refreshTier();
     } else {
       pushTokenService.reset();
+      subscriptionProvider.clear();
     }
   });
   if (authProvider.signedIn) {
     pushTokenService.registerIfNeeded();
+    subscriptionProvider.refreshTier();
   }
 
   runApp(const AppState());
@@ -143,6 +146,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: notificationsProvider),
         ChangeNotifierProvider.value(value: playerProvider),
         ChangeNotifierProvider.value(value: socketProvider),
+        ChangeNotifierProvider.value(value: subscriptionProvider),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProv, _) {

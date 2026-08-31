@@ -8,7 +8,7 @@ Phrases courtes si un évaluateur chipote. Le code mandatory est OK ; ceci évit
 - **Pas de GPS device** : lat/lng du vote = Settings → Vote location. Suffisant ordi ; pas le GPS OS.
 - **Geo / créneau** : réglés à la **création**. Edit Room change « who can vote », pas la geofence ni la fenêtre.
 - **Playlist / vote privés** : même modèle. « Find » = inbox après invite, pas la search publique.
-- **Éditer une playlist = Premium** (bonus VI.3). Un FREE voit / rejoint, pas add / move / remove. Ce n’est pas un trou V.2.3.
+- **Éditer une playlist = Premium** (bonus VI.3). Un FREE voit / rejoint, pas add / move / remove. Switch = `PUT /subscription/me` (pas Stripe). Ce n’est pas un trou V.2.3.
 - **musicPreferences** : pas de matching auto d’amis / playlists. Recherche + playlists publiques.
 
 ## Concurrence / charge

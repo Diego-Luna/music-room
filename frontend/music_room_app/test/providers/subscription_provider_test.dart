@@ -40,10 +40,12 @@ void main() {
 
   group('SubscriptionProvider.load', () {
     test('loads the catalogue and the current tier', () async {
-      when(() => api.get(ApiConfig.subscriptionPlans))
-          .thenAnswer((_) async => _ok<dynamic>(plansJson));
-      when(() => api.get(ApiConfig.subscriptionMe))
-          .thenAnswer((_) async => _ok<dynamic>({'tier': 'FREE'}));
+      when(
+        () => api.get(ApiConfig.subscriptionPlans),
+      ).thenAnswer((_) async => _ok<dynamic>(plansJson));
+      when(
+        () => api.get(ApiConfig.subscriptionMe),
+      ).thenAnswer((_) async => _ok<dynamic>({'tier': 'FREE'}));
 
       await provider.load();
 
@@ -66,8 +68,9 @@ void main() {
           ),
         ),
       );
-      when(() => api.get(ApiConfig.subscriptionMe))
-          .thenAnswer((_) async => _ok<dynamic>({'tier': 'FREE'}));
+      when(
+        () => api.get(ApiConfig.subscriptionMe),
+      ).thenAnswer((_) async => _ok<dynamic>({'tier': 'FREE'}));
 
       await provider.load();
 
@@ -77,31 +80,98 @@ void main() {
   });
 
   group('SubscriptionProvider.switchTo', () {
-    test('PUTs the new tier and updates currentTier from the response',
-        () async {
-      provider = SubscriptionProvider(apiClient: api);
-      when(() => api.put(ApiConfig.subscriptionMe, data: {'tier': 'PREMIUM'}))
-          .thenAnswer((_) async => _ok<dynamic>({'tier': 'PREMIUM'}));
+    test(
+      'PUTs the new tier and updates currentTier from the response',
+      () async {
+        provider = SubscriptionProvider(apiClient: api);
+        when(
+          () => api.put(ApiConfig.subscriptionMe, data: {'tier': 'PREMIUM'}),
+        ).thenAnswer((_) async => _ok<dynamic>({'tier': 'PREMIUM'}));
 
-      final ok = await provider.switchTo(SubscriptionTier.premium);
+        final ok = await provider.switchTo(SubscriptionTier.premium);
 
-      expect(ok, true);
-      expect(provider.currentTier, SubscriptionTier.premium);
-      verify(() => api.put(ApiConfig.subscriptionMe, data: {'tier': 'PREMIUM'}))
-          .called(1);
-    });
+        expect(ok, true);
+        expect(provider.currentTier, SubscriptionTier.premium);
+        verify(
+          () => api.put(ApiConfig.subscriptionMe, data: {'tier': 'PREMIUM'}),
+        ).called(1);
+      },
+    );
 
     test('is a no-op when already on the requested tier', () async {
-      when(() => api.get(ApiConfig.subscriptionPlans))
-          .thenAnswer((_) async => _ok<dynamic>(plansJson));
-      when(() => api.get(ApiConfig.subscriptionMe))
-          .thenAnswer((_) async => _ok<dynamic>({'tier': 'PREMIUM'}));
+      when(
+        () => api.get(ApiConfig.subscriptionPlans),
+      ).thenAnswer((_) async => _ok<dynamic>(plansJson));
+      when(
+        () => api.get(ApiConfig.subscriptionMe),
+      ).thenAnswer((_) async => _ok<dynamic>({'tier': 'PREMIUM'}));
       await provider.load();
 
       final ok = await provider.switchTo(SubscriptionTier.premium);
 
       expect(ok, true);
       verifyNever(() => api.put(any(), data: any(named: 'data')));
+    });
+  });
+
+  group('SubscriptionProvider.isPremium / refreshTier / clear', () {
+    test('isPremium is false until a PREMIUM tier is loaded', () async {
+      expect(provider.isPremium, isFalse);
+      expect(provider.currentLabel, 'Free / Premium plans');
+
+      when(
+        () => api.get(ApiConfig.subscriptionPlans),
+      ).thenAnswer((_) async => _ok<dynamic>(plansJson));
+      when(
+        () => api.get(ApiConfig.subscriptionMe),
+      ).thenAnswer((_) async => _ok<dynamic>({'tier': 'PREMIUM'}));
+      await provider.load();
+
+      expect(provider.isPremium, isTrue);
+      expect(provider.currentLabel, 'Premium');
+    });
+
+    test('refreshTier updates currentTier without touching plans', () async {
+      when(
+        () => api.get(ApiConfig.subscriptionMe),
+      ).thenAnswer((_) async => _ok<dynamic>({'tier': 'PREMIUM'}));
+
+      await provider.refreshTier();
+
+      expect(provider.isPremium, isTrue);
+      expect(provider.plans, isEmpty);
+      verifyNever(() => api.get(ApiConfig.subscriptionPlans));
+    });
+
+    test(
+      'refreshTier keeps the last known tier when the request fails',
+      () async {
+        when(
+          () => api.get(ApiConfig.subscriptionMe),
+        ).thenAnswer((_) async => _ok<dynamic>({'tier': 'PREMIUM'}));
+        await provider.refreshTier();
+
+        when(() => api.get(ApiConfig.subscriptionMe)).thenThrow(
+          DioException(
+            requestOptions: RequestOptions(path: ApiConfig.subscriptionMe),
+          ),
+        );
+        await provider.refreshTier();
+
+        expect(provider.isPremium, isTrue);
+      },
+    );
+
+    test('clear drops the current tier', () async {
+      when(
+        () => api.get(ApiConfig.subscriptionMe),
+      ).thenAnswer((_) async => _ok<dynamic>({'tier': 'PREMIUM'}));
+      await provider.refreshTier();
+
+      provider.clear();
+
+      expect(provider.currentTier, isNull);
+      expect(provider.isPremium, isFalse);
     });
   });
 }

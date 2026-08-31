@@ -9,6 +9,7 @@ import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
+import 'package:music_room_app/providers/subscription_provider.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/widgets/track_search_sheet.dart';
@@ -36,6 +37,8 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
 
   // * newIndex is adjusted here for standard Flutter onReorder semantics.
   Future<void> _onReorder(Room playlist, int oldIndex, int newIndex) async {
+    final canEdit = SubscriptionProvider.isPremiumOf(context, listen: false);
+    if (!canEdit) return;
     if (newIndex > oldIndex) {
       newIndex -= 1;
     }
@@ -248,8 +251,14 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
       _forceResync = false;
     }
 
-    final currentUserId = context.watch<AuthProvider>().user?.id;
+    String? currentUserId;
+    try {
+      currentUserId = Provider.of<AuthProvider>(context).user?.id;
+    } on ProviderNotFoundException {
+      currentUserId = null;
+    }
     final isOwner = currentUserId != null && playlist.ownerId == currentUserId;
+    final canEdit = SubscriptionProvider.isPremiumOf(context);
 
     final tag = 'playlist_cover_${playlist.id}';
 
@@ -276,11 +285,13 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                 icon: const Icon(Icons.person_add_alt_1, color: Colors.white),
                 onPressed: () => _showInviteFriendDialog(context, playlist),
               ),
-              IconButton(
-                icon: const Icon(Icons.add, color: Colors.white),
-                onPressed: () =>
-                    _showAddTrackDialog(context, playlist, playlistsProvider),
-              ),
+              if (canEdit)
+                IconButton(
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  tooltip: 'Add track',
+                  onPressed: () =>
+                      _showAddTrackDialog(context, playlist, playlistsProvider),
+                ),
               if (isOwner)
                 IconButton(
                   icon: const Icon(Icons.edit_outlined, color: Colors.white),
@@ -366,33 +377,67 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Tracks', style: theme.textTheme.titleLarge),
-                    IconButton(
-                      icon: Icon(
-                        Icons.add_circle_outline,
-                        color: theme.colorScheme.primary,
+                    if (canEdit)
+                      IconButton(
+                        icon: Icon(
+                          Icons.add_circle_outline,
+                          color: theme.colorScheme.primary,
+                        ),
+                        onPressed: () => _showAddTrackDialog(
+                          context,
+                          playlist,
+                          playlistsProvider,
+                        ),
                       ),
-                      onPressed: () => _showAddTrackDialog(
-                        context,
-                        playlist,
-                        playlistsProvider,
-                      ),
-                    ),
                   ],
                 ),
               ),
             ),
           ),
 
+          if (!canEdit)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimens.lg,
+                  0,
+                  AppDimens.lg,
+                  AppDimens.md,
+                ),
+                child: Material(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
+                  child: ListTile(
+                    leading: Icon(
+                      Icons.workspace_premium,
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: const Text('Playlist editor is Premium'),
+                    subtitle: const Text(
+                      'You can listen. Upgrade to add, reorder, or remove tracks.',
+                    ),
+                    trailing: TextButton(
+                      onPressed: () => context.push(routeSubscription),
+                      child: const Text('Upgrade'),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // The Tracks — long-press a row to drag and reorder (Premium).
           SliverReorderableList(
             itemCount: _orderedTracks.length,
-            onReorder: (oldIndex, newIndex) =>
-                _onReorder(playlist, oldIndex, newIndex),
+            onReorder: canEdit
+                ? (oldIndex, newIndex) =>
+                      _onReorder(playlist, oldIndex, newIndex)
+                : (oldIndex, newIndex) {},
             itemBuilder: (context, i) {
               final track = _orderedTracks[i];
               return ReorderableDelayedDragStartListener(
                 key: ValueKey(track.id),
                 index: i,
+                enabled: canEdit,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(
                     AppDimens.lg,
@@ -418,30 +463,32 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        IconButton(
-                          icon: const Icon(
-                            Icons.delete,
-                            color: Colors.redAccent,
-                          ),
-                          onPressed: () {
-                            final scaffoldMessenger = ScaffoldMessenger.of(
-                              context,
-                            );
-                            playlistsProvider
-                                .removeTrack(playlist.id, track.id)
-                                .then((_) {
-                                  scaffoldMessenger.showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        '${track.title} removed from playlist!',
+                        if (canEdit)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.delete,
+                              color: Colors.redAccent,
+                            ),
+                            onPressed: () {
+                              final scaffoldMessenger = ScaffoldMessenger.of(
+                                context,
+                              );
+                              playlistsProvider
+                                  .removeTrack(playlist.id, track.id)
+                                  .then((_) {
+                                    scaffoldMessenger.showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          '${track.title} removed from playlist!',
+                                        ),
+                                        duration: const Duration(seconds: 1),
                                       ),
-                                      duration: const Duration(seconds: 1),
-                                    ),
-                                  );
-                                });
-                          },
-                        ),
-                        Icon(Icons.drag_handle, color: theme.disabledColor),
+                                    );
+                                  });
+                            },
+                          ),
+                        if (canEdit)
+                          Icon(Icons.drag_handle, color: theme.disabledColor),
                       ],
                     ),
                     onTap: () {
