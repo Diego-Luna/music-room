@@ -27,7 +27,7 @@ export const envValidationSchema = Joi.object({
   FACEBOOK_APP_SECRET: Joi.string().optional().allow(''),
 
   THROTTLE_TTL: Joi.number().default(60000),
-  THROTTLE_LIMIT: Joi.number().default(100000),
+  THROTTLE_LIMIT: Joi.number().default(100),
 
   AUTH_THROTTLE_TTL: Joi.number().default(60000),
   AUTH_THROTTLE_LIMIT: Joi.number().default(10),

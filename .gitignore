@@ -149,3 +149,8 @@ app.*.map.json
 
 # Facebook Local Config (iOS)
 **/ios/Flutter/Facebook.xcconfig
+
+# Env files at repo root (backend/.env is already ignored in backend/.gitignore)
+.env
+.env.local
+.env.*.local

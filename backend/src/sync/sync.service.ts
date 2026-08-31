@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { scrubUser } from '../users/users.service';
 
 // VI.4 — backend support for offline mode. The mobile client owns the
 // hard parts (local cache, action queue, UX of "you are offline"); the
@@ -48,7 +49,7 @@ export class SyncService {
 
     return {
       serverTime: new Date().toISOString(),
-      me,
+      me: scrubUser(me as unknown as Record<string, unknown>),
       rooms,
       invitations,
       friendships,

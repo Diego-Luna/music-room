@@ -46,6 +46,25 @@ export interface PaginatedUsers {
   offset: number;
 }
 
+/** Strips secrets (passwordHash, …) from a Prisma user row. Used by /users/me and GET /sync. */
+export function scrubUser(user: Record<string, unknown>): UserProfile {
+  return {
+    id: user.id as string,
+    email: user.email as string,
+    displayName: user.displayName as string,
+    avatarUrl: (user.avatarUrl as string | null) ?? null,
+    emailVerified: user.emailVerified as boolean,
+    visibility: user.visibility as Visibility,
+    subscriptionTier: user.subscriptionTier as string,
+    musicPreferences: (user.musicPreferences as string[]) ?? [],
+    publicInfo: (user.publicInfo as string | null) ?? null,
+    friendsInfo: (user.friendsInfo as string | null) ?? null,
+    privateInfo: (user.privateInfo as string | null) ?? null,
+    createdAt: user.createdAt as Date,
+    updatedAt: user.updatedAt as Date,
+  };
+}
+
 @Injectable()
 export class UsersService {
   constructor(
@@ -194,20 +213,6 @@ export class UsersService {
   }
 
   private scrub(user: Record<string, unknown>): UserProfile {
-    return {
-      id: user.id as string,
-      email: user.email as string,
-      displayName: user.displayName as string,
-      avatarUrl: (user.avatarUrl as string | null) ?? null,
-      emailVerified: user.emailVerified as boolean,
-      visibility: user.visibility as Visibility,
-      subscriptionTier: user.subscriptionTier as string,
-      musicPreferences: (user.musicPreferences as string[]) ?? [],
-      publicInfo: (user.publicInfo as string | null) ?? null,
-      friendsInfo: (user.friendsInfo as string | null) ?? null,
-      privateInfo: (user.privateInfo as string | null) ?? null,
-      createdAt: user.createdAt as Date,
-      updatedAt: user.updatedAt as Date,
-    };
+    return scrubUser(user);
   }
 }

@@ -31,7 +31,22 @@ describe('SyncService', () => {
   });
 
   it('returns a snapshot with profile, rooms, invitations and friendships', async () => {
-    const me = { id: 'user-1', email: 'a@b.c', displayName: 'A' };
+    const me = {
+      id: 'user-1',
+      email: 'a@b.c',
+      displayName: 'A',
+      avatarUrl: null,
+      emailVerified: true,
+      visibility: 'PUBLIC',
+      subscriptionTier: 'FREE',
+      musicPreferences: ['rock'],
+      publicInfo: 'hi',
+      friendsInfo: 'friends',
+      privateInfo: 'secret',
+      createdAt: new Date('2026-01-01'),
+      updatedAt: new Date('2026-01-02'),
+      passwordHash: 'should-never-leak',
+    };
     prisma.user.findUnique.mockResolvedValue(me);
     prisma.room.findMany.mockResolvedValue([{ id: 'room-1' }]);
     prisma.roomInvitation.findMany.mockResolvedValue([{ id: 'inv-1' }]);
@@ -39,7 +54,22 @@ describe('SyncService', () => {
 
     const snap = await service.snapshot('user-1');
 
-    expect(snap.me).toEqual(me);
+    expect(snap.me).not.toHaveProperty('passwordHash');
+    expect(snap.me).toEqual({
+      id: 'user-1',
+      email: 'a@b.c',
+      displayName: 'A',
+      avatarUrl: null,
+      emailVerified: true,
+      visibility: 'PUBLIC',
+      subscriptionTier: 'FREE',
+      musicPreferences: ['rock'],
+      publicInfo: 'hi',
+      friendsInfo: 'friends',
+      privateInfo: 'secret',
+      createdAt: new Date('2026-01-01'),
+      updatedAt: new Date('2026-01-02'),
+    });
     expect(snap.rooms).toHaveLength(1);
     expect(snap.invitations).toHaveLength(1);
     expect(snap.friendships).toHaveLength(1);

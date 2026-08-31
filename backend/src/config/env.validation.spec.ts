@@ -18,7 +18,7 @@ describe('envValidationSchema', () => {
     expect(value.JWT_EXPIRES_IN_SECONDS).toBe(900);
     expect(value.JWT_REFRESH_EXPIRES_IN_SECONDS).toBe(604800);
     expect(value.THROTTLE_TTL).toBe(60000);
-    expect(value.THROTTLE_LIMIT).toBe(100000);
+    expect(value.THROTTLE_LIMIT).toBe(100);
     expect(value.AUTH_THROTTLE_TTL).toBe(60000);
     expect(value.AUTH_THROTTLE_LIMIT).toBe(10);
     expect(value.APP_BASE_URL).toBe('http://localhost:3000');
