@@ -15,7 +15,7 @@ JWT global (`sub`). `GET /users/:id` filtré (pas d’email ; `privateInfo` soi 
 | Refresh volé | Rotation + révocation de **toute la famille** si reuse |
 | Access JWT volé | TTL 15 min + blacklist Redis au logout |
 | Injection / champs en trop | `ValidationPipe` whitelist + `forbidNonWhitelisted` |
-| Headers HTTP | Helmet, CORS allowlist |
+| Headers HTTP | Helmet, CORS allowlist (Pages / musicroom.me + `localhost` any port for Flutter web debug) |
 | Tokens client | Flutter Secure Storage |
 | Sync | `GET /sync` passe par `scrubUser()` (pas de `passwordHash`) |
 | API globale | Throttle 100 / 60 s (`THROTTLE_LIMIT`) |

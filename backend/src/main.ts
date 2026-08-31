@@ -9,6 +9,7 @@ import helmet from '@fastify/helmet';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
 import { RedisIoAdapter } from './realtime/redis-io.adapter';
+import { isAllowedCorsOrigin } from './common/cors-origin';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(
@@ -29,17 +30,14 @@ async function bootstrap() {
       },
     },
     crossOriginEmbedderPolicy: false,
+    // Public REST API: Flutter web (and Swagger) are other origins.
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
   });
 
   app.enableCors({
-    origin: [
-      'https://diego-luna.github.io',
-      'https://musicroom.me',
-      'https://www.musicroom.me',
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:8080',
-    ],
+    origin: (origin, callback) => {
+      callback(null, isAllowedCorsOrigin(origin));
+    },
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });

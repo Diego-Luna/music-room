@@ -92,17 +92,6 @@ class _HomePageState extends State<HomePage> {
                       size: 24,
                     ),
                   ),
-                  NeumorphicInteractiveContainer(
-                    onTap: () {},
-                    margin: const EdgeInsets.all(AppDimens.sm),
-                    padding: const EdgeInsets.all(AppDimens.sm),
-                    decoration: const BoxDecoration(shape: BoxShape.circle),
-                    child: Icon(
-                      Icons.person_rounded,
-                      color: Theme.of(context).colorScheme.primary,
-                      size: 24,
-                    ),
-                  ),
                 ],
               ),
 
