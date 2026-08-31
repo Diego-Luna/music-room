@@ -119,7 +119,6 @@ class _LoginPageState extends State<LoginPage> {
                             ),
 
                             const SizedBox(height: AppDimens.lg),
-                            // Todo: change the text to button
                             Align(
                               alignment: Alignment.centerRight,
                               child: TextButtonSimple(

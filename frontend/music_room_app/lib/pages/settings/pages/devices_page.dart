@@ -197,7 +197,6 @@ class _DevicesPageState extends State<DevicesPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppDimens.md),
       child: NeumorphicInteractiveContainer(
-        onTap: () {},
         padding: const EdgeInsets.all(AppDimens.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -311,7 +310,6 @@ class _DevicesPageState extends State<DevicesPage> {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppDimens.md),
       child: NeumorphicInteractiveContainer(
-        onTap: () {},
         padding: const EdgeInsets.all(AppDimens.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

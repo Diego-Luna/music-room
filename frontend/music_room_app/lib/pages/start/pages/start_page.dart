@@ -133,22 +133,6 @@ class _StartPageState extends State<StartPage> {
                                     label: 'Get Started',
                                     onPressed: () => context.push(routeLogin),
                                   ),
-                                  const SizedBox(height: AppDimens.lg),
-                                  TextButton(
-                                    onPressed: () {
-                                      // Todo: move to the repository on github
-                                      // https://github.com/Diego-Luna/music-room
-                                      // use the browser to open the repository
-                                    },
-                                    child: Text(
-                                      'Learn More',
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            color: theme.colorScheme.primary,
-                                            fontWeight: AppTypography.bold,
-                                          ),
-                                    ),
-                                  ),
                                   const SizedBox(height: AppDimens.xl),
                                 ],
                               ),

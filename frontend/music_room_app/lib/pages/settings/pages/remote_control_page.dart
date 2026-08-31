@@ -98,7 +98,6 @@ class _RemoteControlPageState extends State<RemoteControlPage> {
 
   Widget _buildTargetCard(ThemeData theme) {
     return NeumorphicInteractiveContainer(
-      onTap: () {},
       padding: const EdgeInsets.all(AppDimens.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -4,7 +4,6 @@ import 'package:music_room_app/core/animations/neumorphic_interactive_container.
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/models/room.dart';
-import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 import 'package:provider/provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 
@@ -24,7 +23,10 @@ class RecentEventsList extends StatelessWidget {
         return NeumorphicInteractiveContainer(
           onTap: () {
             context.read<EventsProvider>().selectEvent(event);
-            context.go(routeEvents);
+            context.go(
+              '$routeEvents/$routeEventDetail',
+              extra: {'event': event},
+            );
           },
           margin: const EdgeInsets.symmetric(
             horizontal: AppDimens.sm,
@@ -68,13 +70,6 @@ class RecentEventsList extends StatelessWidget {
                   ],
                 ),
               ),
-              NeumorphicIconButton(
-                icon: Icons.play_arrow_rounded,
-                iconSize: 28,
-                tooltip: 'Play Event',
-                onTap: () {}, // TODO: Action for play button
-              ),
-              const SizedBox(width: AppDimens.xs),
             ],
           ),
         );

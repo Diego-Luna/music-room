@@ -7,7 +7,9 @@ import 'package:music_room_app/core/animations/neumorphic_interactive_container.
 import 'package:music_room_app/pages/home/widgets/quick_picks_carousel.dart';
 import 'package:music_room_app/pages/home/widgets/songs_carousel.dart';
 import 'package:music_room_app/pages/home/widgets/recent_events_list.dart';
+import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/providers/theme_provider.dart';
+import 'package:music_room_app/providers/navigation_provider.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
@@ -156,15 +158,27 @@ class _HomePageState extends State<HomePage> {
                                         fontWeight: AppTypography.bold,
                                       ),
                                 ),
-                                Text(
-                                  'See All',
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.secondary,
-                                        fontWeight: AppTypography.bold,
-                                      ),
+                                GestureDetector(
+                                  onTap: () {
+                                    final nav = context
+                                        .read<NavigationProvider>();
+                                    final i = nav.destinations.indexWhere(
+                                      (d) => d.route == routeEvents,
+                                    );
+                                    nav.navigateToIndex(context, i);
+                                  },
+                                  child: Text(
+                                    'See All',
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.secondary,
+                                          fontWeight: AppTypography.bold,
+                                        ),
+                                  ),
                                 ),
                               ],
                             ),
