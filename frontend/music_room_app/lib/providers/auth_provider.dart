@@ -105,7 +105,6 @@ class AuthProvider extends ChangeNotifier {
 
       await _tokenStorage.saveTokens(accessToken, refreshToken);
       _user = User.decodeFromToken(accessToken);
-      notifyListeners();
     } on DioException catch (e) {
       _error = e.response?.data['message']?.toString() ?? 'Login failed';
     } catch (e) {
@@ -198,7 +197,6 @@ class AuthProvider extends ChangeNotifier {
     await _tokenStorage.saveTokens(accessToken, refreshToken);
     _user = User.decodeFromToken(accessToken);
     debugPrint('[SocialSignIn] Session established for user: ${_user?.email}');
-    notifyListeners();
     return true;
   }
 
@@ -352,6 +350,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void _setLoading(bool value) {
+    if (_isLoading == value) return;
     _isLoading = value;
     notifyListeners();
   }

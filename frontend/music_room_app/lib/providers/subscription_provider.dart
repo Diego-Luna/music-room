@@ -99,11 +99,15 @@ class SubscriptionProvider extends ChangeNotifier {
     }
   }
 
+  bool _isRefreshingTier = false;
+
   /// Fetches only GET /subscription/me. Used after login so Playlists knows
   /// the gate without opening the subscription screen. Keeps the last known
   /// (Hive-cached) tier if the request fails — a Premium user going offline
   /// must still see the editor.
   Future<void> refreshTier() async {
+    if (_isRefreshingTier) return;
+    _isRefreshingTier = true;
     try {
       final response = await _apiClient.get(ApiConfig.subscriptionMe);
       _currentTier = Subscription.fromJson(
@@ -113,6 +117,8 @@ class SubscriptionProvider extends ChangeNotifier {
       notifyListeners();
     } catch (_) {
       // Keep last known tier (memory or Hive).
+    } finally {
+      _isRefreshingTier = false;
     }
   }
 

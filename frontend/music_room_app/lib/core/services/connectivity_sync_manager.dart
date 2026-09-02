@@ -81,14 +81,15 @@ class ConnectivitySyncManager {
 
   Future<void> syncQueue() async {
     if (_isSyncing) return;
-    // * Start / Login have no JWT. GET /rooms (and queued mutations) would
-    // * 401 and paint a red console line — skip until a session exists.
-    if (!await _sessionReady()) return;
     _isSyncing = true;
 
-    final List<SyncDiscard> rejected = [];
-
     try {
+      // * Start / Login have no JWT. GET /rooms (and queued mutations) would
+      // * 401 and paint a red console line — skip until a session exists.
+      if (!await _sessionReady()) return;
+
+      final List<SyncDiscard> rejected = [];
+
       final List<OfflineAction> actions = _cache.getPendingActions();
       for (final OfflineAction action in actions) {
         try {

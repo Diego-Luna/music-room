@@ -60,6 +60,7 @@ class SocketProvider extends ChangeNotifier {
     _playlistsProvider = playlistsProvider;
     _roomsProvider = roomsProvider;
     _playerProvider = playerProvider;
+    _wasSignedIn = authProvider.signedIn;
     _authProvider.addListener(_onAuthChanged);
     _initializeSocket(socket);
   }
@@ -73,33 +74,45 @@ class SocketProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool _wasSignedIn = false;
+  bool _isConnecting = false;
+
   // * Retrieve token + V.6 device tags, inject into Socket.IO handshake, connect.
   Future<void> _connectSocket() async {
-    final token = await _authProvider.accessToken;
-    final auth = <String, dynamic>{};
-    if (token != null) auth['token'] = token;
-
-    // * V.6 tags: extraHeaders work on mobile; auth map is required on web
-    //   (browsers block custom WebSocket handshake headers).
+    if (_socket.connected || _isConnecting) return;
+    _isConnecting = true;
     try {
-      final deviceId = await _tokenStorage.getOrCreateDeviceId();
-      final info = await ClientDeviceInfo.resolve(deviceId: deviceId);
-      auth.addAll(info.asSocketAuth());
-      _socket.io.options?['extraHeaders'] = info.asHttpHeaders();
-    } catch (_) {
-      // Best-effort — connection must not fail because of device info.
-    }
+      final token = await _authProvider.accessToken;
+      final auth = <String, dynamic>{};
+      if (token != null) auth['token'] = token;
 
-    _socket.io.options?['auth'] = auth;
-    _socket.connect();
-    // * Fetch notifications on connection/login to populate the badge count immediately.
-    _notificationsProvider.fetchNotifications();
+      // * V.6 tags: extraHeaders work on mobile; auth map is required on web
+      //   (browsers block custom WebSocket handshake headers).
+      try {
+        final deviceId = await _tokenStorage.getOrCreateDeviceId();
+        final info = await ClientDeviceInfo.resolve(deviceId: deviceId);
+        auth.addAll(info.asSocketAuth());
+        _socket.io.options?['extraHeaders'] = info.asHttpHeaders();
+      } catch (_) {
+        // Best-effort — connection must not fail because of device info.
+      }
+
+      _socket.io.options?['auth'] = auth;
+      _socket.connect();
+      // * Fetch notifications on connection/login to populate the badge count immediately.
+      _notificationsProvider.fetchNotifications();
+    } finally {
+      _isConnecting = false;
+    }
   }
 
   void _onAuthChanged() {
-    if (_authProvider.signedIn) {
+    final isSignedIn = _authProvider.signedIn;
+    if (isSignedIn && !_wasSignedIn) {
+      _wasSignedIn = true;
       _connectSocket();
-    } else {
+    } else if (!isSignedIn && _wasSignedIn) {
+      _wasSignedIn = false;
       _socket.disconnect();
     }
   }

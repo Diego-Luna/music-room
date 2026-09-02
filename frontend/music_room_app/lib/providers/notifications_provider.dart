@@ -29,7 +29,24 @@ class NotificationsProvider extends ChangeNotifier {
     required this.friendsRepository,
   });
 
-  Future<void> fetchNotifications() async {
+  Future<void>? _fetchNotificationsFuture;
+
+  Future<void> fetchNotifications({bool force = false}) async {
+    if (_fetchNotificationsFuture != null && !force) {
+      return _fetchNotificationsFuture!;
+    }
+    final future = _doFetchNotifications();
+    _fetchNotificationsFuture = future;
+    try {
+      await future;
+    } finally {
+      if (_fetchNotificationsFuture == future) {
+        _fetchNotificationsFuture = null;
+      }
+    }
+  }
+
+  Future<void> _doFetchNotifications() async {
     isLoading = true;
     error = null;
     notifyListeners();
@@ -124,7 +141,7 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> acceptFriendRequest(String id) async {
     try {
       await friendsRepository.acceptRequest(id);
-      await fetchNotifications();
+      await fetchNotifications(force: true);
     } catch (e) {
       error = ApiErrorHandler.getMessage(e);
       notifyListeners();
@@ -135,7 +152,7 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> declineFriendRequest(String id) async {
     try {
       await friendsRepository.declineRequest(id);
-      await fetchNotifications();
+      await fetchNotifications(force: true);
     } catch (e) {
       error = ApiErrorHandler.getMessage(e);
       notifyListeners();
@@ -146,7 +163,7 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> cancelOrRemoveFriendship(String id) async {
     try {
       await friendsRepository.cancelOrUnfriend(id);
-      await fetchNotifications();
+      await fetchNotifications(force: true);
     } catch (e) {
       error = ApiErrorHandler.getMessage(e);
       notifyListeners();
@@ -157,7 +174,7 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> acceptRoomInvitation(String id) async {
     try {
       await roomRepository.acceptInvitation(id);
-      await fetchNotifications();
+      await fetchNotifications(force: true);
     } catch (e) {
       final msg = ApiErrorHandler.getMessage(e);
       error = msg;
@@ -167,7 +184,7 @@ class NotificationsProvider extends ChangeNotifier {
         try {
           await roomRepository.declineInvitation(id);
         } catch (_) {}
-        await fetchNotifications();
+        await fetchNotifications(force: true);
       }
 
       notifyListeners();
@@ -178,7 +195,7 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> declineRoomInvitation(String id) async {
     try {
       await roomRepository.declineInvitation(id);
-      await fetchNotifications();
+      await fetchNotifications(force: true);
     } catch (e) {
       error = ApiErrorHandler.getMessage(e);
       notifyListeners();
@@ -190,7 +207,7 @@ class NotificationsProvider extends ChangeNotifier {
   Future<void> cancelRoomInvitation(String id) async {
     try {
       await roomRepository.cancelInvitation(id);
-      await fetchNotifications();
+      await fetchNotifications(force: true);
     } catch (e) {
       error = ApiErrorHandler.getMessage(e);
       notifyListeners();
