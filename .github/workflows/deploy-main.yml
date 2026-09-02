@@ -63,89 +63,89 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  # build-android:
-  #   name: Build Android APK
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v6
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-  #     - name: Setup Java
-  #       uses: actions/setup-java@v4
-  #       with:
-  #         distribution: "zulu"
-  #         java-version: "17"
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "zulu"
+          java-version: "17"
 
-  #     - name: Install Flutter
-  #       uses: subosito/flutter-action@v2
-  #       with:
-  #         channel: stable
-  #         cache: true
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
-  #     - name: Get dependencies
-  #       working-directory: frontend/music_room_app
-  #       run: flutter pub get
+      - name: Get dependencies
+        working-directory: frontend/music_room_app
+        run: flutter pub get
 
-  #     - name: Build APK
-  #       working-directory: frontend/music_room_app
-  #       run: |
-  #         flutter build apk --release \
-  #           --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }} \
-  #           --dart-define=FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }} \
-  #           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID }} \
-  #           --dart-define=GOOGLE_ANDROID_CLIENT_ID=${{ secrets.GOOGLE_ANDROID_CLIENT_ID || vars.GOOGLE_ANDROID_CLIENT_ID }}
+      - name: Build APK
+        working-directory: frontend/music_room_app
+        run: |
+          flutter build apk --release \
+            --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }} \
+            --dart-define=FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }} \
+            --dart-define=GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID }} \
+            --dart-define=GOOGLE_ANDROID_CLIENT_ID=${{ secrets.GOOGLE_ANDROID_CLIENT_ID || vars.GOOGLE_ANDROID_CLIENT_ID }}
 
-  #     - name: Upload Android APK
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: app-release-apk
-  #         path: frontend/music_room_app/build/app/outputs/flutter-apk/app-release.apk
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-apk
+          path: frontend/music_room_app/build/app/outputs/flutter-apk/app-release.apk
 
-  # build-ios:
-  #   name: Build iOS IPA (Unsigned)
-  #   runs-on: macos-15
-  #   steps:
-  #     - name: Checkout code
-  #       uses: actions/checkout@v6
+  build-ios:
+    name: Build iOS IPA (Unsigned)
+    runs-on: macos-15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-  #     - name: Set Xcode Version
-  #       uses: maxim-lobanov/setup-xcode@v1
-  #       with:
-  #         xcode-version: "latest-stable"
+      - name: Set Xcode Version
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "latest-stable"
 
-  #     - name: Install Flutter
-  #       uses: subosito/flutter-action@v2
-  #       with:
-  #         channel: stable
-  #         cache: true
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
 
-  #     - name: Get dependencies
-  #       working-directory: frontend/music_room_app
-  #       run: flutter pub get
+      - name: Get dependencies
+        working-directory: frontend/music_room_app
+        run: flutter pub get
 
-  #     - name: Create Secrets.xcconfig
-  #       working-directory: frontend/music_room_app
-  #       run: |
-  #         mkdir -p ios/Flutter
-  #         echo "GOOGLE_REVERSED_CLIENT_ID=${{ secrets.GOOGLE_REVERSED_CLIENT_ID || vars.GOOGLE_REVERSED_CLIENT_ID }}" > ios/Flutter/Secrets.xcconfig
-  #         echo "FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }}" >> ios/Flutter/Secrets.xcconfig
-  #         echo "FACEBOOK_CLIENT_TOKEN=${{ secrets.FACEBOOK_CLIENT_TOKEN || vars.FACEBOOK_CLIENT_TOKEN }}" >> ios/Flutter/Secrets.xcconfig
+      - name: Create Secrets.xcconfig
+        working-directory: frontend/music_room_app
+        run: |
+          mkdir -p ios/Flutter
+          echo "GOOGLE_REVERSED_CLIENT_ID=${{ secrets.GOOGLE_REVERSED_CLIENT_ID || vars.GOOGLE_REVERSED_CLIENT_ID }}" > ios/Flutter/Secrets.xcconfig
+          echo "FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }}" >> ios/Flutter/Secrets.xcconfig
+          echo "FACEBOOK_CLIENT_TOKEN=${{ secrets.FACEBOOK_CLIENT_TOKEN || vars.FACEBOOK_CLIENT_TOKEN }}" >> ios/Flutter/Secrets.xcconfig
 
-  #     - name: Build iOS (No Codesign)
-  #       working-directory: frontend/music_room_app
-  #       run: |
-  #         flutter build ios --release --no-codesign \
-  #           --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }} \
-  #           --dart-define=FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }} \
-  #           --dart-define=GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID }} \
-  #           --dart-define=GOOGLE_IOS_CLIENT_ID=${{ secrets.GOOGLE_IOS_CLIENT_ID || vars.GOOGLE_IOS_CLIENT_ID }}
+      - name: Build iOS (No Codesign)
+        working-directory: frontend/music_room_app
+        run: |
+          flutter build ios --release --no-codesign \
+            --dart-define=BACKEND_API_URL=${{ env.BACKEND_API_URL }} \
+            --dart-define=FACEBOOK_APP_ID=${{ secrets.FACEBOOK_APP_ID || vars.FACEBOOK_APP_ID }} \
+            --dart-define=GOOGLE_WEB_CLIENT_ID=${{ secrets.GOOGLE_WEB_CLIENT_ID || vars.GOOGLE_WEB_CLIENT_ID }} \
+            --dart-define=GOOGLE_IOS_CLIENT_ID=${{ secrets.GOOGLE_IOS_CLIENT_ID || vars.GOOGLE_IOS_CLIENT_ID }}
 
-  #     - name: Compress iOS build
-  #       working-directory: frontend/music_room_app/build/ios
-  #       run: zip -r iphoneos.zip iphoneos
+      - name: Compress iOS build
+        working-directory: frontend/music_room_app/build/ios
+        run: zip -r iphoneos.zip iphoneos
 
-  #     - name: Upload iOS Artifact
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: app-release-ios
-  #         path: frontend/music_room_app/build/ios/iphoneos.zip
+      - name: Upload iOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-ios
+          path: frontend/music_room_app/build/ios/iphoneos.zip

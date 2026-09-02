@@ -7,7 +7,12 @@ services:
       - .:/app
       - ../build:/app/build
       - /app/.dart_tool/
+      - pub-cache:/root/.pub-cache
+      - gradle-cache:/root/.gradle
+      - android-sdk:/opt/android-sdk-linux
     working_dir: /app
+    shm_size: '2gb'
+
 
   # ! Work in progress
   # --- START OF macOS-BUILDER SERVICE DEFINITION ---
@@ -37,3 +42,8 @@ services:
       - 5173:80
     volumes:
       - ../build/web:/usr/share/nginx/html
+
+volumes:
+  pub-cache:
+  gradle-cache:
+  android-sdk:
