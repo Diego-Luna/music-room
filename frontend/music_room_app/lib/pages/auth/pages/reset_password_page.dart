@@ -7,6 +7,7 @@ import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/slide_animation.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/core/routing/safe_navigation.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/widgets/responsive_body.dart';
 
@@ -94,7 +95,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             Icons.arrow_back_ios_new,
             color: theme.colorScheme.primary,
           ),
-          onPressed: () => context.go(routeLogin),
+          onPressed: () => context.safePop(fallbackRoute: routeLogin),
         ),
       ),
       body: SafeArea(

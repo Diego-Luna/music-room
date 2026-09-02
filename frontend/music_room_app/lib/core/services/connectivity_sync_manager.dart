@@ -74,8 +74,9 @@ class ConnectivitySyncManager {
   }
 
   Future<bool> _sessionReady() async {
-    if (_hasSession == null) return true;
-    return _hasSession!();
+    final hasSession = _hasSession;
+    if (hasSession == null) return true;
+    return hasSession();
   }
 
   Future<void> syncQueue() async {

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
@@ -9,6 +8,8 @@ import 'package:music_room_app/pages/player/widgets/audio_visualizer.dart';
 import 'package:music_room_app/widgets/interactive_3d/interactive_mpc.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
+import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/core/routing/safe_navigation.dart';
 import 'package:music_room_app/models/track.dart';
 
 String _formatDuration(Duration d) {
@@ -148,7 +149,7 @@ class _PlayerPageState extends State<PlayerPage> {
                   child: Row(
                     children: [
                       NeumorphicInteractiveContainer(
-                        onTap: () => context.pop(),
+                        onTap: () => context.safePop(fallbackRoute: routeHome),
                         padding: const EdgeInsets.all(AppDimens.sm),
                         decoration: const BoxDecoration(shape: BoxShape.circle),
                         child: Icon(

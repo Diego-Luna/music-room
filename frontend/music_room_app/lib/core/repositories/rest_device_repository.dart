@@ -51,7 +51,7 @@ class RestDeviceRepository implements DeviceRepository {
   Future<void> playPlayback(String delegationId, {String? trackId}) async {
     await _client.post(
       '/delegations/$delegationId/playback/play',
-      data: {if (trackId != null) 'trackId': trackId},
+      data: {'trackId': ?trackId},
     );
   }
 
