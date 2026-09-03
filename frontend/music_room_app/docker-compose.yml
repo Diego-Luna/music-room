@@ -12,6 +12,8 @@ services:
       - android-sdk:/opt/android-sdk-linux
     working_dir: /app
     shm_size: '2gb'
+    environment:
+      GRADLE_OPTS: "-Dorg.gradle.daemon=false -Dorg.gradle.parallel=false -Dorg.gradle.vfs.watch=false"
 
 
   # ! Work in progress
