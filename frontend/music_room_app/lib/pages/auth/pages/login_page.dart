@@ -73,7 +73,15 @@ class _LoginPageState extends State<LoginPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: const SizedBox.shrink(), // No back button on login
+        leading: context.canPop()
+            ? IconButton(
+                icon: Icon(
+                  Icons.arrow_back_ios_new,
+                  color: theme.colorScheme.primary,
+                ),
+                onPressed: () => context.pop(),
+              )
+            : const SizedBox.shrink(),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -123,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
                               alignment: Alignment.centerRight,
                               child: TextButtonSimple(
                                 onPressed: () =>
-                                    context.go(routeForgotPassword),
+                                    context.push(routeForgotPassword),
                                 text: 'Forgot Password?',
                               ),
                             ),
@@ -221,7 +229,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         TextButtonSimple(
                           text: 'Sign Up',
-                          onPressed: () => context.go(routeSignup),
+                          onPressed: () => context.push(routeSignup),
                           color: theme.colorScheme.primary,
                           fontWeight: AppTypography.bold,
                         ),

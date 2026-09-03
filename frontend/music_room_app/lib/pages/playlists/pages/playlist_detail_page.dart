@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/core/routing/safe_navigation.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
@@ -270,7 +271,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
             pinned: true,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-              onPressed: () => context.pop(),
+              onPressed: () => context.safePop(fallbackRoute: routePlaylists),
             ),
             actions: [
               IconButton(

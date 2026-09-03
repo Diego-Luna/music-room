@@ -74,10 +74,13 @@ class PushTokenService {
     ).join();
   }
 
+  bool _isRegistering = false;
+
   /// Register once per app session. Best-effort: this is a bonus feature, so
   /// failures are swallowed and never block the user.
   Future<void> registerIfNeeded() async {
-    if (_registered) return;
+    if (_registered || _isRegistering) return;
+    _isRegistering = true;
     try {
       final token = await _deviceToken();
       await _client.post(
@@ -87,6 +90,8 @@ class PushTokenService {
       _registered = true;
     } catch (_) {
       // Ignore — push registration must not impact the session.
+    } finally {
+      _isRegistering = false;
     }
   }
 

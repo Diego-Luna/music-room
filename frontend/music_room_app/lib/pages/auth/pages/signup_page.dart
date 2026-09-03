@@ -8,6 +8,7 @@ import 'package:music_room_app/core/animations/neumorphic_interactive_container.
 import 'package:music_room_app/pages/auth/widgets/auth_text_field.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/core/routing/safe_navigation.dart';
 import 'package:music_room_app/core/auth/social_auth_service.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/widgets/google_sign_in_button.dart';
@@ -90,7 +91,7 @@ class _SignupPageState extends State<SignupPage> {
             Icons.arrow_back_ios_new,
             color: theme.colorScheme.primary,
           ),
-          onPressed: () => context.pop(),
+          onPressed: () => context.safePop(fallbackRoute: routeLogin),
         ),
       ),
       body: SafeArea(

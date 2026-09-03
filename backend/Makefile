@@ -34,7 +34,7 @@ db-generate:
 	npx prisma generate
 
 db-seed:
-	npx prisma db seed
+	npx tsx prisma/seed.ts
 
 # ─── Docker — infra services only (postgres + redis + mailpit) ────────────────
 docker-up:

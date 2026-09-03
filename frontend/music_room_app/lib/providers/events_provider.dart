@@ -27,7 +27,24 @@ class EventsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> fetchEvents() async {
+  Future<void>? _fetchEventsFuture;
+
+  Future<void> fetchEvents({bool force = false}) async {
+    if (_fetchEventsFuture != null && !force) {
+      return _fetchEventsFuture!;
+    }
+    final future = _doFetchEvents();
+    _fetchEventsFuture = future;
+    try {
+      await future;
+    } finally {
+      if (_fetchEventsFuture == future) {
+        _fetchEventsFuture = null;
+      }
+    }
+  }
+
+  Future<void> _doFetchEvents() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -83,7 +100,7 @@ class EventsProvider extends ChangeNotifier {
         lat: position?.lat,
         lng: position?.lng,
       );
-      await fetchEvents();
+      await fetchEvents(force: true);
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -99,7 +116,7 @@ class EventsProvider extends ChangeNotifier {
   Future<void> suggestTrack(String roomId, Track track) async {
     try {
       await _repository.addVoteTrack(roomId, track);
-      await fetchEvents();
+      await fetchEvents(force: true);
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -181,7 +198,7 @@ class EventsProvider extends ChangeNotifier {
         voteLocationLng: voteLocationLng,
         voteLocationRadiusM: voteLocationRadiusM,
       );
-      await fetchEvents();
+      await fetchEvents(force: true);
       final idx = _events.indexWhere((e) => e.id == room.id);
       if (idx != -1) {
         _selectedEvent = _events[idx];

@@ -104,12 +104,16 @@ void main() async {
   // Unregistration runs via onBeforeLogout (below) while the bearer is still
   // valid; the listener only needs to (re)register on sign-in.
   authProvider.onBeforeLogout = pushTokenService.unregister;
+  bool wasSignedIn = authProvider.signedIn;
   authProvider.addListener(() {
-    if (authProvider.signedIn) {
+    final isSignedIn = authProvider.signedIn;
+    if (isSignedIn && !wasSignedIn) {
+      wasSignedIn = true;
       pushTokenService.registerIfNeeded();
       subscriptionProvider.refreshTier();
       syncManager.syncQueue();
-    } else {
+    } else if (!isSignedIn && wasSignedIn) {
+      wasSignedIn = false;
       pushTokenService.reset();
       subscriptionProvider.clear();
     }

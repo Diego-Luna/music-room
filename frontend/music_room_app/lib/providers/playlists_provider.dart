@@ -18,7 +18,24 @@ class PlaylistsProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  Future<void> fetchPlaylists() async {
+  Future<void>? _fetchPlaylistsFuture;
+
+  Future<void> fetchPlaylists({bool force = false}) async {
+    if (_fetchPlaylistsFuture != null && !force) {
+      return _fetchPlaylistsFuture!;
+    }
+    final future = _doFetchPlaylists();
+    _fetchPlaylistsFuture = future;
+    try {
+      await future;
+    } finally {
+      if (_fetchPlaylistsFuture == future) {
+        _fetchPlaylistsFuture = null;
+      }
+    }
+  }
+
+  Future<void> _doFetchPlaylists() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -61,7 +78,7 @@ class PlaylistsProvider extends ChangeNotifier {
         description: description,
         editAccess: editAccess,
       );
-      await fetchPlaylists();
+      await fetchPlaylists(force: true);
       return room;
     } catch (e) {
       _error = e.toString();
@@ -126,7 +143,7 @@ class PlaylistsProvider extends ChangeNotifier {
   Future<void> addTrack(String roomId, Track track) async {
     try {
       await _repository.addPlaylistTrack(roomId, track);
-      await fetchPlaylists();
+      await fetchPlaylists(force: true);
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -136,7 +153,7 @@ class PlaylistsProvider extends ChangeNotifier {
   Future<void> removeTrack(String roomId, String trackId) async {
     try {
       await _repository.removePlaylistTrack(roomId, trackId);
-      await fetchPlaylists();
+      await fetchPlaylists(force: true);
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -163,7 +180,7 @@ class PlaylistsProvider extends ChangeNotifier {
       _error = e.toString();
       rethrow;
     } finally {
-      await fetchPlaylists();
+      await fetchPlaylists(force: true);
     }
   }
 

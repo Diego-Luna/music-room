@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/core/routing/safe_navigation.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/pages/events/widgets/swipeable_track_card.dart';
 import 'package:music_room_app/pages/events/widgets/suggest_track_dialog.dart';
@@ -198,7 +199,7 @@ class _EventDetailPageState extends State<EventDetailPage> {
             pinned: true,
             leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-              onPressed: () => context.pop(),
+              onPressed: () => context.safePop(fallbackRoute: routeEvents),
             ),
             actions: [
               IconButton(
