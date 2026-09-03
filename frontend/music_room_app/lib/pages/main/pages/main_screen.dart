@@ -35,12 +35,8 @@ class MainPage extends StatelessWidget {
     }
 
     return Scaffold(
-      body: Column(
-        children: [
-          const ResponsiveNavbar(),
-          Expanded(child: bodyContent),
-        ],
-      ),
+      appBar: const ResponsiveNavbar(),
+      body: ClipRect(child: bodyContent),
     );
   }
 }
