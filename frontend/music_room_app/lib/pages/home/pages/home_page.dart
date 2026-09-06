@@ -52,7 +52,7 @@ class _HomePageState extends State<HomePage> {
           const Opacity(opacity: 0.6, child: BackgroundFloaters()),
 
           CustomScrollView(
-            clipBehavior: Clip.none,
+            clipBehavior: Clip.hardEdge,
             slivers: [
               SliverAppBar(
                 expandedHeight: 120.0,

@@ -8,11 +8,14 @@ import 'package:music_room_app/core/animations/neumorphic_interactive_container.
 // ! Responsive navigation bar that reads destinations from `NavigationProvider`.
 //* - On small widths it renders a custom Neumorphic bottom bar.
 //* - On wide screens it renders a top horizontal navigation bar.
-class ResponsiveNavbar extends StatelessWidget {
+class ResponsiveNavbar extends StatelessWidget implements PreferredSizeWidget {
   // ! Temporal:  Optional override to force mobile layout for testing.
   final bool? forceMobile;
 
   const ResponsiveNavbar({super.key, this.forceMobile});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(AppDimens.navbarHeight);
 
   @override
   Widget build(BuildContext context) {
@@ -113,13 +116,14 @@ class ResponsiveNavbar extends StatelessWidget {
     final tokens = theme.extension<AppDesignTokens>();
 
     return Container(
+      height: AppDimens.navbarHeight,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         boxShadow: tokens?.neumorphicShadow,
       ),
       padding: const EdgeInsets.symmetric(
         horizontal: AppDimens.xxl,
-        vertical: AppDimens.lg,
+        vertical: AppDimens.xs,
       ),
       child: SafeArea(
         bottom: false,
