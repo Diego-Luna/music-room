@@ -3,6 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:music_room_app/core/globals.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
+import 'package:music_room_app/models/track.dart';
+import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
+import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
@@ -26,11 +30,24 @@ class MockFriendsProvider extends Mock implements FriendsProvider {}
 
 class MockNotificationsProvider extends Mock implements NotificationsProvider {}
 
+class MockRoomRepository extends Mock implements RoomRepository {}
+
+class MockOfflineCache extends Mock implements OfflineCache {}
+
 class MockSocket extends Mock implements io.Socket {}
 
 void main() {
   setUpAll(() {
     registerFallbackValue(<String, dynamic>{});
+    registerFallbackValue(
+      Track(
+        id: 'dummy',
+        providerId: 'dummy',
+        title: 'dummy',
+        artist: 'dummy',
+        durationMs: 0,
+      ),
+    );
   });
 
   late MockAuthProvider auth;
@@ -56,6 +73,7 @@ void main() {
 
     when(() => auth.signedIn).thenReturn(false);
     when(() => player.handlePlaybackCommand(any())).thenAnswer((_) async {});
+    when(() => socket.disconnect()).thenReturn(socket);
     when(() => socket.on(any(), any())).thenAnswer((invocation) {
       final event = invocation.positionalArguments[0] as String;
       final callback = invocation.positionalArguments[1] as Function;
@@ -415,5 +433,229 @@ void main() {
         );
       },
     );
+  });
+
+  group('WebSocket Event Buffering During Offline Sync (Case 1)', () {
+    late MockRoomRepository mockRemote;
+    late MockOfflineCache mockCache;
+    late ConnectivitySyncManager syncManager;
+
+    setUp(() {
+      mockRemote = MockRoomRepository();
+      mockCache = MockOfflineCache();
+      syncManager = ConnectivitySyncManager(
+        remoteRepository: mockRemote,
+        cache: mockCache,
+      );
+    });
+
+    test(
+      'buffers incoming socket events when isSyncing is true and executes in FIFO order when sync completes',
+      () {
+        final executionOrder = <String>[];
+
+        when(() => events.handleTrackAdded(any())).thenAnswer((_) {
+          executionOrder.add('track:added');
+        });
+        when(() => events.handleTrackVoted(any(), any(), any())).thenAnswer((
+          _,
+        ) {
+          executionOrder.add('track:voted');
+        });
+        when(() => playlists.handleTrackAdded(any())).thenAnswer((_) {
+          executionOrder.add('playlist:item-added');
+        });
+        when(() => playlists.handleTrackMoved(any(), any(), any())).thenAnswer((
+          _,
+        ) {
+          executionOrder.add('playlist:item-moved');
+        });
+        when(() => playlists.handleTrackRemoved(any())).thenAnswer((_) {
+          executionOrder.add('playlist:item-removed');
+        });
+
+        final provider = SocketProvider(
+          authProvider: auth,
+          eventsProvider: events,
+          playlistsProvider: playlists,
+          roomsProvider: rooms,
+          playerProvider: player,
+          friendsProvider: friends,
+          notificationsProvider: notifications,
+          syncManager: syncManager,
+          socket: socket,
+        );
+
+        // Put manager into syncing state
+        syncManager.isSyncingNotifier.value = true;
+        expect(syncManager.isSyncing, isTrue);
+
+        // Receive multiple incoming socket events in specific order
+        socketListeners['track:added']?.call({
+          'id': 't1',
+          'providerId': 'p1',
+          'title': 'Track 1',
+          'artist': 'Artist 1',
+          'durationMs': 1000,
+        });
+        socketListeners['track:voted']?.call({
+          'trackId': 't1',
+          'score': 5,
+          'votesCount': 2,
+        });
+        socketListeners['playlist:item-added']?.call({
+          'id': 't2',
+          'providerId': 'p2',
+          'title': 'Track 2',
+          'artist': 'Artist 2',
+          'durationMs': 2000,
+        });
+        socketListeners['playlist:item-moved']?.call({
+          'roomId': 'r1',
+          'trackId': 't2',
+          'position': 'next',
+        });
+        socketListeners['playlist:item-removed']?.call({'trackId': 't2'});
+
+        // None of the handlers should have executed yet
+        expect(executionOrder, isEmpty);
+        expect(provider.bufferedEventCount, equals(5));
+        verifyNever(() => events.handleTrackAdded(any()));
+        verifyNever(() => events.handleTrackVoted(any(), any(), any()));
+        verifyNever(() => playlists.handleTrackAdded(any()));
+        verifyNever(() => playlists.handleTrackMoved(any(), any(), any()));
+        verifyNever(() => playlists.handleTrackRemoved(any()));
+
+        // Sync completes
+        syncManager.isSyncingNotifier.value = false;
+        expect(syncManager.isSyncing, isFalse);
+
+        // All buffered handlers must have run in FIFO order
+        expect(provider.bufferedEventCount, equals(0));
+        expect(
+          executionOrder,
+          equals([
+            'track:added',
+            'track:voted',
+            'playlist:item-added',
+            'playlist:item-moved',
+            'playlist:item-removed',
+          ]),
+        );
+        verify(() => events.handleTrackAdded(any())).called(1);
+        verify(() => events.handleTrackVoted('t1', 5, 2)).called(1);
+        verify(() => playlists.handleTrackAdded(any())).called(1);
+        verify(() => playlists.handleTrackMoved('r1', 't2', 'next')).called(1);
+        verify(() => playlists.handleTrackRemoved('t2')).called(1);
+      },
+    );
+
+    test('executes events immediately when isSyncing is false', () {
+      final provider = SocketProvider(
+        authProvider: auth,
+        eventsProvider: events,
+        playlistsProvider: playlists,
+        roomsProvider: rooms,
+        playerProvider: player,
+        friendsProvider: friends,
+        notificationsProvider: notifications,
+        syncManager: syncManager,
+        socket: socket,
+      );
+
+      expect(syncManager.isSyncing, isFalse);
+
+      socketListeners['track:added']?.call({
+        'id': 't1',
+        'providerId': 'p1',
+        'title': 'Track 1',
+        'artist': 'Artist 1',
+        'durationMs': 1000,
+      });
+
+      verify(() => events.handleTrackAdded(any())).called(1);
+      expect(provider.bufferedEventCount, equals(0));
+    });
+
+    test('drops incoming events when provider is disposed', () {
+      final provider = SocketProvider(
+        authProvider: auth,
+        eventsProvider: events,
+        playlistsProvider: playlists,
+        roomsProvider: rooms,
+        playerProvider: player,
+        friendsProvider: friends,
+        notificationsProvider: notifications,
+        syncManager: syncManager,
+        socket: socket,
+      );
+
+      provider.dispose();
+
+      socketListeners['track:added']?.call({
+        'id': 't1',
+        'providerId': 'p1',
+        'title': 'Track 1',
+        'artist': 'Artist 1',
+        'durationMs': 1000,
+      });
+
+      verifyNever(() => events.handleTrackAdded(any()));
+      expect(provider.bufferedEventCount, equals(0));
+    });
+
+    test('trackFromJson safely parses Map<dynamic, dynamic>', () {
+      SocketProvider(
+        authProvider: auth,
+        eventsProvider: events,
+        playlistsProvider: playlists,
+        roomsProvider: rooms,
+        playerProvider: player,
+        friendsProvider: friends,
+        notificationsProvider: notifications,
+        syncManager: syncManager,
+        socket: socket,
+      );
+
+      final dynamicMap = <dynamic, dynamic>{
+        'id': 't_dynamic',
+        'providerId': 'p_dynamic',
+        'title': 'Dynamic Track',
+        'artist': 'Dynamic Artist',
+        'durationMs': 1234,
+      };
+
+      socketListeners['track:added']?.call(dynamicMap);
+
+      verify(
+        () => events.handleTrackAdded(
+          any(
+            that: predicate<Track>((t) {
+              return t.id == 't_dynamic' &&
+                  t.title == 'Dynamic Track' &&
+                  t.durationMs == 1234;
+            }),
+          ),
+        ),
+      ).called(1);
+    });
+
+    test('dispose does not call socket.dispose when socket is externally injected', () {
+      when(() => socket.disconnect()).thenReturn(socket);
+      final provider = SocketProvider(
+        authProvider: auth,
+        eventsProvider: events,
+        playlistsProvider: playlists,
+        roomsProvider: rooms,
+        playerProvider: player,
+        friendsProvider: friends,
+        notificationsProvider: notifications,
+        syncManager: syncManager,
+        socket: socket,
+      );
+
+      provider.dispose();
+      verifyNever(() => socket.dispose());
+    });
   });
 }
