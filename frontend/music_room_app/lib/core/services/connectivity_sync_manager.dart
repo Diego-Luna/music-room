@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:music_room_app/config/api_client.dart';
 import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
@@ -26,7 +27,10 @@ class ConnectivitySyncManager {
   final OfflineFriendsRepository? _friends;
   final Future<bool> Function()? _hasSession;
   StreamSubscription<List<ConnectivityResult>>? _subscription;
-  bool _isSyncing = false;
+  final ValueNotifier<bool> isSyncingNotifier = ValueNotifier<bool>(false);
+  bool _disposed = false;
+
+  bool get isSyncing => isSyncingNotifier.value;
 
   final StreamController<List<SyncDiscard>> _discardController =
       StreamController<List<SyncDiscard>>.broadcast();
@@ -73,6 +77,13 @@ class ConnectivitySyncManager {
     _subscription?.cancel();
   }
 
+  void dispose() {
+    _disposed = true;
+    stopMonitoring();
+    _discardController.close();
+    isSyncingNotifier.dispose();
+  }
+
   Future<bool> _sessionReady() async {
     final hasSession = _hasSession;
     if (hasSession == null) return true;
@@ -80,8 +91,8 @@ class ConnectivitySyncManager {
   }
 
   Future<void> syncQueue() async {
-    if (_isSyncing) return;
-    _isSyncing = true;
+    if (isSyncing) return;
+    isSyncingNotifier.value = true;
 
     try {
       // * Start / Login have no JWT. GET /rooms (and queued mutations) would
@@ -172,7 +183,9 @@ class ConnectivitySyncManager {
     } catch (_) {
       // * Silent fallback on errors
     } finally {
-      _isSyncing = false;
+      if (!_disposed) {
+        isSyncingNotifier.value = false;
+      }
     }
   }
 

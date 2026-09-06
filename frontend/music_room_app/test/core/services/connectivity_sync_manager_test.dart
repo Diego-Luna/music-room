@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -470,53 +471,122 @@ void main() {
     expect((captured[1] as List<FriendshipDto>).single.addresseeId, 'u2');
   });
 
-  test('startMonitoring drains the queue when already online (cold start)',
+  test(
+    'startMonitoring drains the queue when already online (cold start)',
+    () async {
+      final connectivity = MockConnectivity();
+      when(
+        () => connectivity.checkConnectivity(),
+      ).thenAnswer((_) async => [ConnectivityResult.wifi]);
+      when(
+        () => connectivity.onConnectivityChanged,
+      ).thenAnswer((_) => const Stream.empty());
+
+      final action = OfflineAction(
+        id: 'a1',
+        roomId: 'r1',
+        type: 'vote',
+        payload: {'trackId': 't1', 'value': 1},
+        createdAt: DateTime.now(),
+      );
+      when(() => mockCache.getPendingActions()).thenReturn([action]);
+      when(
+        () => mockRemote.voteForTrack('r1', 't1', 1),
+      ).thenAnswer((_) async {});
+      when(() => mockCache.removeAction('a1')).thenAnswer((_) async {});
+      when(() => mockRemote.getRooms()).thenAnswer((_) async => []);
+      when(() => mockCache.saveRooms(any())).thenAnswer((_) async {});
+
+      final manager = ConnectivitySyncManager(
+        remoteRepository: mockRemote,
+        cache: mockCache,
+        connectivity: connectivity,
+      );
+      manager.startMonitoring();
+      await pumpEventQueue();
+
+      verify(() => mockRemote.voteForTrack('r1', 't1', 1)).called(1);
+      manager.stopMonitoring();
+    },
+  );
+
+  test(
+    'syncQueue is a no-op when there is no session (Start / Login)',
+    () async {
+      when(() => mockCache.getPendingActions()).thenReturn([]);
+
+      final manager = ConnectivitySyncManager(
+        remoteRepository: mockRemote,
+        cache: mockCache,
+        hasSession: () async => false,
+      );
+      await manager.syncQueue();
+
+      verifyNever(() => mockRemote.getRooms());
+      verifyNever(() => mockCache.getPendingActions());
+    },
+  );
+
+  group('isSyncingNotifier lifecycle', () {
+    test(
+      'isSyncing is false initially, true during sync, and false after completion',
       () async {
-    final connectivity = MockConnectivity();
-    when(
-      () => connectivity.checkConnectivity(),
-    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
-    when(
-      () => connectivity.onConnectivityChanged,
-    ).thenAnswer((_) => const Stream.empty());
+        when(() => mockCache.getPendingActions()).thenReturn([]);
+        final syncCompleter = Completer<List<Room>>();
+        when(
+          () => mockRemote.getRooms(),
+        ).thenAnswer((_) => syncCompleter.future);
+        when(() => mockCache.saveRooms(any())).thenAnswer((_) async {});
 
-    final action = OfflineAction(
-      id: 'a1',
-      roomId: 'r1',
-      type: 'vote',
-      payload: {'trackId': 't1', 'value': 1},
-      createdAt: DateTime.now(),
+        expect(syncManager.isSyncing, isFalse);
+        expect(syncManager.isSyncingNotifier.value, isFalse);
+
+        final syncFuture = syncManager.syncQueue();
+
+        // Yield event queue so syncQueue progresses to the await
+        await Future<void>.delayed(Duration.zero);
+
+        expect(syncManager.isSyncing, isTrue);
+        expect(syncManager.isSyncingNotifier.value, isTrue);
+
+        syncCompleter.complete([]);
+        await syncFuture;
+
+        expect(syncManager.isSyncing, isFalse);
+        expect(syncManager.isSyncingNotifier.value, isFalse);
+      },
     );
-    when(() => mockCache.getPendingActions()).thenReturn([action]);
-    when(() => mockRemote.voteForTrack('r1', 't1', 1)).thenAnswer((_) async {});
-    when(() => mockCache.removeAction('a1')).thenAnswer((_) async {});
-    when(() => mockRemote.getRooms()).thenAnswer((_) async => []);
-    when(() => mockCache.saveRooms(any())).thenAnswer((_) async {});
 
-    final manager = ConnectivitySyncManager(
-      remoteRepository: mockRemote,
-      cache: mockCache,
-      connectivity: connectivity,
-    );
-    manager.startMonitoring();
-    await pumpEventQueue();
-
-    verify(() => mockRemote.voteForTrack('r1', 't1', 1)).called(1);
-    manager.stopMonitoring();
-  });
-
-  test('syncQueue is a no-op when there is no session (Start / Login)',
+    test(
+      'isSyncingNotifier is reset to false in finally block on error',
       () async {
-    when(() => mockCache.getPendingActions()).thenReturn([]);
+        when(() => mockCache.getPendingActions()).thenReturn([]);
+        when(() => mockRemote.getRooms()).thenThrow(Exception('Server error'));
 
-    final manager = ConnectivitySyncManager(
-      remoteRepository: mockRemote,
-      cache: mockCache,
-      hasSession: () async => false,
+        expect(syncManager.isSyncing, isFalse);
+
+        await syncManager.syncQueue();
+
+        expect(syncManager.isSyncing, isFalse);
+        expect(syncManager.isSyncingNotifier.value, isFalse);
+      },
     );
-    await manager.syncQueue();
 
-    verifyNever(() => mockRemote.getRooms());
-    verifyNever(() => mockCache.getPendingActions());
+    test('does not throw FlutterError if disposed while syncQueue is awaiting', () async {
+      final syncCompleter = Completer<List<Room>>();
+      when(() => mockCache.getPendingActions()).thenReturn([]);
+      when(() => mockRemote.getRooms()).thenAnswer((_) => syncCompleter.future);
+
+      final syncFuture = syncManager.syncQueue();
+      await Future<void>.delayed(Duration.zero);
+      expect(syncManager.isSyncing, isTrue);
+
+      // Dispose while syncQueue is running
+      syncManager.dispose();
+
+      // Complete remote response
+      syncCompleter.complete([]);
+      await expectLater(syncFuture, completes);
+    });
   });
 }

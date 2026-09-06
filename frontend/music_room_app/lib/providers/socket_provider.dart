@@ -5,6 +5,7 @@ import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/config/client_device_info.dart';
 import 'package:music_room_app/config/token_storage.dart';
+import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
@@ -23,11 +24,20 @@ class SocketProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
   final FriendsProvider _friendsProvider;
   final NotificationsProvider _notificationsProvider;
+  final ConnectivitySyncManager? _syncManager;
+  final List<void Function()> _eventBuffer = [];
+  bool _disposed = false;
   late final EventsProvider _eventsProvider;
   late final PlaylistsProvider _playlistsProvider;
   late final RoomsProvider _roomsProvider;
   late final PlayerProvider _playerProvider;
   final TokenStorage _tokenStorage = TokenStorage();
+
+  @visibleForTesting
+  List<void Function()> get eventBufferForTest => _eventBuffer;
+
+  @visibleForTesting
+  int get bufferedEventCount => _eventBuffer.length;
 
   // * Id of the room whose detail page is currently open (set via
   // * join/leaveRoom by the detail pages). Lets us pop the user out only when
@@ -51,10 +61,12 @@ class SocketProvider extends ChangeNotifier {
     required PlayerProvider playerProvider,
     required FriendsProvider friendsProvider,
     required NotificationsProvider notificationsProvider,
+    ConnectivitySyncManager? syncManager,
     io.Socket? socket,
   }) : _authProvider = authProvider,
        _friendsProvider = friendsProvider,
        _notificationsProvider = notificationsProvider,
+       _syncManager = syncManager,
        _ownsSocket = socket == null {
     _eventsProvider = eventsProvider;
     _playlistsProvider = playlistsProvider;
@@ -62,6 +74,7 @@ class SocketProvider extends ChangeNotifier {
     _playerProvider = playerProvider;
     _wasSignedIn = authProvider.signedIn;
     _authProvider.addListener(_onAuthChanged);
+    _syncManager?.isSyncingNotifier.addListener(_onSyncStatusChanged);
     _initializeSocket(socket);
   }
 
@@ -117,6 +130,32 @@ class SocketProvider extends ChangeNotifier {
     }
   }
 
+  void _onSyncStatusChanged() {
+    if (_syncManager?.isSyncing == false) {
+      _flushEventBuffer();
+    }
+  }
+
+  void _flushEventBuffer() {
+    while (_eventBuffer.isNotEmpty) {
+      final handler = _eventBuffer.removeAt(0);
+      try {
+        handler();
+      } catch (e) {
+        debugPrint('[SocketProvider] Error running buffered socket event: $e');
+      }
+    }
+  }
+
+  void _handleIncomingEvent(void Function() handler) {
+    if (_disposed) return;
+    if (_syncManager?.isSyncing == true) {
+      _eventBuffer.add(handler);
+    } else {
+      handler();
+    }
+  }
+
   void _initializeSocket(io.Socket? injectedSocket) {
     // ! Connect to backend WebSocket endpoint defined in ApiConfig
     _socket =
@@ -133,113 +172,149 @@ class SocketProvider extends ChangeNotifier {
 
     // * Realtime notification/friends events
     _socket.on('friend:request:new', (_) {
-      _notificationsProvider.fetchNotifications();
-      _showNotificationSnackBar('New friend request received!', routeFriends);
+      _handleIncomingEvent(() {
+        _notificationsProvider.fetchNotifications();
+        _showNotificationSnackBar('New friend request received!', routeFriends);
+      });
     });
     _socket.on('friend:request:accepted', (_) {
-      _notificationsProvider.fetchNotifications();
-      _friendsProvider.fetchFriendsData();
-      _showNotificationSnackBar('Friend request accepted!', routeFriends);
+      _handleIncomingEvent(() {
+        _notificationsProvider.fetchNotifications();
+        _friendsProvider.fetchFriendsData();
+        _showNotificationSnackBar('Friend request accepted!', routeFriends);
+      });
     });
     _socket.on('friend:request:declined', (_) {
-      _notificationsProvider.fetchNotifications();
-      _friendsProvider.fetchFriendsData();
+      _handleIncomingEvent(() {
+        _notificationsProvider.fetchNotifications();
+        _friendsProvider.fetchFriendsData();
+      });
     });
     _socket.on('friend:request:canceled', (_) {
-      _notificationsProvider.fetchNotifications();
-      _friendsProvider.fetchFriendsData();
+      _handleIncomingEvent(() {
+        _notificationsProvider.fetchNotifications();
+        _friendsProvider.fetchFriendsData();
+      });
     });
     _socket.on('friend:removed', (_) {
-      _notificationsProvider.fetchNotifications();
-      _friendsProvider.fetchFriendsData();
+      _handleIncomingEvent(() {
+        _notificationsProvider.fetchNotifications();
+        _friendsProvider.fetchFriendsData();
+      });
     });
     _socket.on('invitation:new', (data) {
-      _notificationsProvider.fetchNotifications();
-      String roomSuffix = '';
-      if (data is Map && data['roomName'] != null) {
-        roomSuffix = ' to join ${data['roomName']}';
-      }
-      _showNotificationSnackBar(
-        'New room invitation received$roomSuffix!',
-        routeFriends,
-      );
+      _handleIncomingEvent(() {
+        _notificationsProvider.fetchNotifications();
+        String roomSuffix = '';
+        if (data is Map && data['roomName'] != null) {
+          roomSuffix = ' to join ${data['roomName']}';
+        }
+        _showNotificationSnackBar(
+          'New room invitation received$roomSuffix!',
+          routeFriends,
+        );
+      });
     });
     _socket.on('invitation:declined', (_) {
-      _notificationsProvider.fetchNotifications();
+      _handleIncomingEvent(() {
+        _notificationsProvider.fetchNotifications();
+      });
     });
     _socket.on('invitation:revoked', (_) {
-      _notificationsProvider.fetchNotifications();
+      _handleIncomingEvent(() {
+        _notificationsProvider.fetchNotifications();
+      });
     });
 
     // * Playlist events
     _socket.on('playlist:item-added', (data) {
-      final track = _trackFromJson(data);
-      _playlistsProvider.handleTrackAdded(track);
+      _handleIncomingEvent(() {
+        final track = _trackFromJson(data);
+        _playlistsProvider.handleTrackAdded(track);
+      });
     });
     _socket.on('playlist:item-moved', (data) {
-      final roomId = data['roomId'] as String? ?? '';
-      final trackId = data['trackId'] as String? ?? '';
-      final position = data['position'] as String? ?? '';
-      _playlistsProvider.handleTrackMoved(roomId, trackId, position);
+      _handleIncomingEvent(() {
+        final roomId = data['roomId'] as String? ?? '';
+        final trackId = data['trackId'] as String? ?? '';
+        final position = data['position'] as String? ?? '';
+        _playlistsProvider.handleTrackMoved(roomId, trackId, position);
+      });
     });
     _socket.on('playlist:item-removed', (data) {
-      final trackId = data['trackId'] as String? ?? '';
-      _playlistsProvider.handleTrackRemoved(trackId);
+      _handleIncomingEvent(() {
+        final trackId = data['trackId'] as String? ?? '';
+        _playlistsProvider.handleTrackRemoved(trackId);
+      });
     });
 
     // * Vote room events (forward to EventsProvider)
     _socket.on('track:added', (data) {
-      final track = _trackFromJson(data);
-      _eventsProvider.handleTrackAdded(track);
+      _handleIncomingEvent(() {
+        final track = _trackFromJson(data);
+        _eventsProvider.handleTrackAdded(track);
+      });
     });
     _socket.on('track:voted', (data) {
-      final trackId = data['trackId'] as String? ?? '';
-      final score = data['score'] as int? ?? 0;
-      final votes = data['votesCount'] as int? ?? 0; // currently unused
-      _eventsProvider.handleTrackVoted(trackId, score, votes);
+      _handleIncomingEvent(() {
+        final trackId = data['trackId'] as String? ?? '';
+        final score = data['score'] as int? ?? 0;
+        final votes = data['votesCount'] as int? ?? 0; // currently unused
+        _eventsProvider.handleTrackVoted(trackId, score, votes);
+      });
     });
 
     // * Room membership events
     _socket.on('member:joined', (data) {
-      final roomId = data['roomId'] as String? ?? '';
-      final userId = data['userId'] as String? ?? '';
-      _roomsProvider.handleMemberJoined(roomId, userId);
+      _handleIncomingEvent(() {
+        final roomId = data['roomId'] as String? ?? '';
+        final userId = data['userId'] as String? ?? '';
+        _roomsProvider.handleMemberJoined(roomId, userId);
+      });
     });
     _socket.on('member:left', (data) {
-      final roomId = data['roomId'] as String? ?? '';
-      final userId = data['userId'] as String? ?? '';
-      _roomsProvider.handleMemberLeft(roomId, userId);
+      _handleIncomingEvent(() {
+        final roomId = data['roomId'] as String? ?? '';
+        final userId = data['userId'] as String? ?? '';
+        _roomsProvider.handleMemberLeft(roomId, userId);
+      });
     });
     _socket.on('member:removed', (data) {
-      final roomId = data['roomId'] as String? ?? '';
-      final userId = data['userId'] as String? ?? '';
-      _roomsProvider.handleMemberLeft(roomId, userId);
-      if (roomId.isNotEmpty) _roomMembersChangedController.add(roomId);
+      _handleIncomingEvent(() {
+        final roomId = data['roomId'] as String? ?? '';
+        final userId = data['userId'] as String? ?? '';
+        _roomsProvider.handleMemberLeft(roomId, userId);
+        if (roomId.isNotEmpty) _roomMembersChangedController.add(roomId);
+      });
     });
     _socket.on('member:role-changed', (data) {
-      final roomId = data['roomId'] as String? ?? '';
-      if (roomId.isNotEmpty) _roomMembersChangedController.add(roomId);
+      _handleIncomingEvent(() {
+        final roomId = data['roomId'] as String? ?? '';
+        if (roomId.isNotEmpty) _roomMembersChangedController.add(roomId);
+      });
     });
 
     // * We were removed from a room (kicked by an admin, or the room was
     // * deleted by its owner). Drop it from both lists + the inbox, and if we
     // * are currently inside that very room, leave the now-dead detail screen.
     _socket.on('room:kicked', (data) {
-      String roomId = '';
-      String roomName = '';
-      if (data is Map) {
-        roomId = data['roomId'] as String? ?? '';
-        roomName = data['roomName'] as String? ?? '';
-      }
-      _playlistsProvider.fetchPlaylists();
-      _eventsProvider.fetchEvents();
-      _notificationsProvider.fetchNotifications();
-      if (roomId.isNotEmpty && _currentRoomId == roomId) {
-        _currentRoomId = null;
-        final router = AppRouter.router;
-        if (router.canPop()) router.pop();
-      }
-      _showRoomKickedSnackBar(roomName);
+      _handleIncomingEvent(() {
+        String roomId = '';
+        String roomName = '';
+        if (data is Map) {
+          roomId = data['roomId'] as String? ?? '';
+          roomName = data['roomName'] as String? ?? '';
+        }
+        _playlistsProvider.fetchPlaylists();
+        _eventsProvider.fetchEvents();
+        _notificationsProvider.fetchNotifications();
+        if (roomId.isNotEmpty && _currentRoomId == roomId) {
+          _currentRoomId = null;
+          final router = AppRouter.router;
+          if (router.canPop()) router.pop();
+        }
+        _showRoomKickedSnackBar(roomName);
+      });
     });
 
     // * Playback (vote queue progression). The back drives "now playing" via
@@ -248,34 +323,44 @@ class SocketProvider extends ChangeNotifier {
     // * The old playbackPaused/Skipped/VolumeChanged events are gone — the
     // * Deezer/relay back never emits them.
     _socket.on('track:nowPlaying', (data) {
-      final track = _trackFromJson(data['track']);
-      _playerProvider.handlePlaybackPlayed(track);
+      _handleIncomingEvent(() {
+        final track = _trackFromJson(data['track']);
+        _playerProvider.handlePlaybackPlayed(track);
+      });
     });
 
     _socket.on('playback:command', (data) {
-      if (data is Map) {
-        _playerProvider.handlePlaybackCommand(Map<String, dynamic>.from(data));
-      }
+      _handleIncomingEvent(() {
+        if (data is Map) {
+          _playerProvider.handlePlaybackCommand(
+            Map<String, dynamic>.from(data),
+          );
+        }
+      });
     });
 
     _socket.on('device:delegation:granted', (data) {
-      if (data is Map) {
-        final deviceId = data['deviceId'] as String?;
-        final ownerId = data['ownerId'] as String?;
-        if (deviceId != null && ownerId != null) {
-          _playerProvider.handleDelegationGranted(deviceId, ownerId);
+      _handleIncomingEvent(() {
+        if (data is Map) {
+          final deviceId = data['deviceId'] as String?;
+          final ownerId = data['ownerId'] as String?;
+          if (deviceId != null && ownerId != null) {
+            _playerProvider.handleDelegationGranted(deviceId, ownerId);
+          }
         }
-      }
+      });
     });
 
     _socket.on('device:delegation:revoked', (data) {
-      if (data is Map) {
-        final deviceId = data['deviceId'] as String?;
-        final ownerId = data['ownerId'] as String?;
-        if (deviceId != null && ownerId != null) {
-          _playerProvider.handleDelegationRevoked(deviceId, ownerId);
+      _handleIncomingEvent(() {
+        if (data is Map) {
+          final deviceId = data['deviceId'] as String?;
+          final ownerId = data['ownerId'] as String?;
+          if (deviceId != null && ownerId != null) {
+            _playerProvider.handleDelegationRevoked(deviceId, ownerId);
+          }
         }
-      }
+      });
     });
 
     // * Finally, connect if signed in
@@ -286,16 +371,18 @@ class SocketProvider extends ChangeNotifier {
 
   // * Helper to convert raw JSON into a Track model
   Track _trackFromJson(dynamic json) {
-    if (json is Map<String, dynamic>) {
-      return Track.fromJson(json);
+    if (json is Map) {
+      try {
+        return Track.fromJson(Map<String, dynamic>.from(json));
+      } catch (_) {}
     }
     // Fallback – create empty placeholder to avoid crashes
     return Track(
-      id: json['id'] ?? 'unknown',
-      providerId: json['providerId'] ?? '',
-      title: json['title'] ?? '',
-      artist: json['artist'] ?? '',
-      durationMs: json['durationMs'] ?? 0,
+      id: (json is Map ? json['id'] : null) ?? 'unknown',
+      providerId: (json is Map ? json['providerId'] : null) ?? '',
+      title: (json is Map ? json['title'] : null) ?? '',
+      artist: (json is Map ? json['artist'] : null) ?? '',
+      durationMs: (json is Map ? json['durationMs'] : null) ?? 0,
     );
   }
 
@@ -314,11 +401,21 @@ class SocketProvider extends ChangeNotifier {
     }
   }
 
-  void disposeSocket() {
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _authProvider.removeListener(_onAuthChanged);
+    _syncManager?.isSyncingNotifier.removeListener(_onSyncStatusChanged);
+    _eventBuffer.clear();
     _roomMembersChangedController.close();
     _socket.disconnect();
+    if (_ownsSocket) _socket.dispose();
     super.dispose();
+  }
+
+  void disposeSocket() {
+    dispose();
   }
 
   // * Informational snackbar (no "View" action) shown when we are removed

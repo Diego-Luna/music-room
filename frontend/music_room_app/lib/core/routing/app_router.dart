@@ -106,6 +106,7 @@ void setupLocator() {
     playerProvider: playerProvider,
     friendsProvider: friendsProvider,
     notificationsProvider: notificationsProvider,
+    syncManager: syncManager,
   );
   _subscriptionProvider ??= SubscriptionProvider(apiClient: _apiClient);
 }
@@ -202,6 +203,7 @@ SocketProvider get socketProvider => _socketProvider ??= SocketProvider(
   playerProvider: playerProvider,
   friendsProvider: friendsProvider,
   notificationsProvider: notificationsProvider,
+  syncManager: syncManager,
 );
 
 SubscriptionProvider get subscriptionProvider =>
