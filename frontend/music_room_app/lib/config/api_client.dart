@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:music_room_app/config/api_config.dart';
 import 'package:music_room_app/config/client_device_info.dart';
@@ -6,11 +7,21 @@ import 'package:flutter/foundation.dart';
 
 class ApiClient {
   final Dio _dio;
-  final TokenStorage _tokenStorage = TokenStorage();
+  final TokenStorage _tokenStorage;
   final void Function()? onUnauthorized;
+  Completer<bool>? _refreshCompleter;
 
-  ApiClient({this.onUnauthorized})
-    : _dio = Dio(BaseOptions(baseUrl: ApiConfig.baseUrl)) {
+  ApiClient({this.onUnauthorized, TokenStorage? tokenStorage, Dio? dio})
+    : _dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              baseUrl: ApiConfig.baseUrl,
+              connectTimeout: const Duration(seconds: 15),
+              receiveTimeout: const Duration(seconds: 15),
+            ),
+          ),
+      _tokenStorage = tokenStorage ?? TokenStorage() {
     if (kDebugMode) {
       _dio.interceptors.add(
         LogInterceptor(
@@ -69,23 +80,68 @@ class ApiClient {
           }
           return handler.next(options);
         },
-        onError: (DioException e, handler) async {
-          if (e.response?.statusCode == 401 &&
-              e.requestOptions.path != ApiConfig.refresh) {
-            final success = await _refreshToken();
-            if (success) {
-              // Retry the original request
-              final options = e.requestOptions;
-              final token = await _tokenStorage.accessToken;
-              options.headers['Authorization'] = 'Bearer $token';
-              final response = await _dio.fetch(options);
-              return handler.resolve(response);
-            } else {
-              // Refresh failed, notify unauthorized
-              onUnauthorized?.call();
+        onError: (DioException err, handler) async {
+          final isRefresh =
+              err.requestOptions.path == ApiConfig.refresh ||
+              err.requestOptions.path.endsWith(ApiConfig.refresh) ||
+              err.requestOptions.extra['isRefresh'] == true;
+
+          if (err.response?.statusCode == 401 && !isRefresh) {
+            if (_refreshCompleter != null) {
+              final inFlight = _refreshCompleter!;
+              final success = await inFlight.future;
+              if (success) {
+                final token = await _tokenStorage.accessToken;
+                if (token != null) {
+                  err.requestOptions.headers['Authorization'] = 'Bearer $token';
+                }
+                try {
+                  final response = await _dio.fetch(err.requestOptions);
+                  return handler.resolve(response);
+                } on DioException catch (retryErr) {
+                  return handler.next(retryErr);
+                } catch (_) {
+                  return handler.next(err);
+                }
+              } else {
+                return handler.next(err);
+              }
+            }
+
+            final completer = Completer<bool>();
+            _refreshCompleter = completer;
+            try {
+              final success = await _refreshToken();
+              if (success) {
+                completer.complete(true);
+                _refreshCompleter = null;
+                final token = await _tokenStorage.accessToken;
+                if (token != null) {
+                  err.requestOptions.headers['Authorization'] = 'Bearer $token';
+                }
+                try {
+                  final response = await _dio.fetch(err.requestOptions);
+                  return handler.resolve(response);
+                } on DioException catch (retryErr) {
+                  return handler.next(retryErr);
+                } catch (_) {
+                  return handler.next(err);
+                }
+              } else {
+                completer.complete(false);
+                _refreshCompleter = null;
+                onUnauthorized?.call();
+                return handler.next(err);
+              }
+            } catch (e) {
+              if (!completer.isCompleted) {
+                completer.complete(false);
+              }
+              _refreshCompleter = null;
+              return handler.next(err);
             }
           }
-          return handler.next(e);
+          return handler.next(err);
         },
       ),
     );
@@ -99,6 +155,7 @@ class ApiClient {
       final response = await _dio.post(
         ApiConfig.refresh,
         data: {'refreshToken': refresh},
+        options: Options(extra: {'isRefresh': true}),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -109,7 +166,6 @@ class ApiClient {
       }
     } catch (e) {
       await _tokenStorage.clear();
-      onUnauthorized?.call();
     }
     return false;
   }
@@ -149,4 +205,10 @@ class ApiClient {
 
   @visibleForTesting
   Dio get dioForTest => _dio;
+
+  @visibleForTesting
+  Completer<bool>? get refreshCompleterForTest => _refreshCompleter;
+
+  @visibleForTesting
+  TokenStorage get tokenStorageForTest => _tokenStorage;
 }
