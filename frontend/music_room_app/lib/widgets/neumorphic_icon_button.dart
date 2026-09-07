@@ -51,23 +51,24 @@ class NeumorphicIconButton extends StatelessWidget {
     }
 
     if (badgeCount > 0) {
+      final label = badgeCount > 99 ? '99+' : '$badgeCount';
       button = Stack(
         clipBehavior: Clip.none,
         children: [
           button,
           Positioned(
-            top: 4,
-            right: 4,
+            top: 2,
+            right: 2,
             child: Container(
-              padding: const EdgeInsets.all(4),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
                 color: theme.colorScheme.error,
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(AppDimens.radiusPill),
               ),
               constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
               child: Center(
                 child: Text(
-                  '$badgeCount',
+                  label,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 9,

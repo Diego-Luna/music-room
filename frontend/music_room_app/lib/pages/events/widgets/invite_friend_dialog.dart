@@ -38,7 +38,8 @@ class _InviteFriendDialogState extends State<InviteFriendDialog> {
   Future<void> _invite(String userId) async {
     final invite =
         widget.onInvite ??
-        (uid) => context.read<EventsProvider>().inviteFriend(widget.room.id, uid);
+        (uid) =>
+            context.read<EventsProvider>().inviteFriend(widget.room.id, uid);
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _invitingIds.add(userId));
     try {
@@ -89,11 +90,13 @@ class _InviteFriendDialogState extends State<InviteFriendDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Invite to ${widget.room.name}',
-                  style: theme.textTheme.titleLarge,
+                Expanded(
+                  child: Text(
+                    'Invite to ${widget.room.name}',
+                    style: theme.textTheme.titleLarge,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close),
