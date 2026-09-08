@@ -32,7 +32,9 @@ class _ProfilePageState extends State<ProfilePage> {
     _ownsProfile = widget.profileProvider == null;
     _profile = widget.profileProvider ?? ProfileProvider();
     if (_profile.profile == null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _profile.loadProfile());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _profile.loadProfile(),
+      );
     }
   }
 

@@ -44,8 +44,9 @@ class JustAudioPlayerService implements AudioPlayerService {
   Stream<bool> get playingStream => _player.playingStream;
 
   @override
-  Stream<void> get completedStream => _player.processingStateStream
-      .where((state) => state == ProcessingState.completed);
+  Stream<void> get completedStream => _player.processingStateStream.where(
+    (state) => state == ProcessingState.completed,
+  );
 
   @override
   Future<void> play(String url) async {

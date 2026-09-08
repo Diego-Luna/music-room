@@ -45,38 +45,38 @@ void main() {
       expect(find.text('Go to Second'), findsOneWidget);
     });
 
-    testWidgets('safePop navigates to fallbackRoute when stack is empty without throwing', (
-      tester,
-    ) async {
-      final router = GoRouter(
-        initialLocation: '/second',
-        routes: [
-          GoRoute(
-            path: '/first',
-            builder: (context, state) => const Scaffold(
-              body: Text('First Screen'),
+    testWidgets(
+      'safePop navigates to fallbackRoute when stack is empty without throwing',
+      (tester) async {
+        final router = GoRouter(
+          initialLocation: '/second',
+          routes: [
+            GoRoute(
+              path: '/first',
+              builder: (context, state) =>
+                  const Scaffold(body: Text('First Screen')),
             ),
-          ),
-          GoRoute(
-            path: '/second',
-            builder: (context, state) => Scaffold(
-              body: ElevatedButton(
-                onPressed: () => context.safePop(fallbackRoute: '/first'),
-                child: const Text('Back'),
+            GoRoute(
+              path: '/second',
+              builder: (context, state) => Scaffold(
+                body: ElevatedButton(
+                  onPressed: () => context.safePop(fallbackRoute: '/first'),
+                  child: const Text('Back'),
+                ),
               ),
             ),
-          ),
-        ],
-      );
+          ],
+        );
 
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-      expect(find.text('Back'), findsOneWidget);
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+        expect(find.text('Back'), findsOneWidget);
 
-      // Tapping back should NOT throw "There is nothing to pop"
-      await tester.tap(find.text('Back'));
-      await tester.pumpAndSettle();
+        // Tapping back should NOT throw "There is nothing to pop"
+        await tester.tap(find.text('Back'));
+        await tester.pumpAndSettle();
 
-      expect(find.text('First Screen'), findsOneWidget);
-    });
+        expect(find.text('First Screen'), findsOneWidget);
+      },
+    );
   });
 }

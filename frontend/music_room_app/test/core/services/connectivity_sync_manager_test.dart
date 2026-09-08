@@ -572,21 +572,26 @@ void main() {
       },
     );
 
-    test('does not throw FlutterError if disposed while syncQueue is awaiting', () async {
-      final syncCompleter = Completer<List<Room>>();
-      when(() => mockCache.getPendingActions()).thenReturn([]);
-      when(() => mockRemote.getRooms()).thenAnswer((_) => syncCompleter.future);
+    test(
+      'does not throw FlutterError if disposed while syncQueue is awaiting',
+      () async {
+        final syncCompleter = Completer<List<Room>>();
+        when(() => mockCache.getPendingActions()).thenReturn([]);
+        when(
+          () => mockRemote.getRooms(),
+        ).thenAnswer((_) => syncCompleter.future);
 
-      final syncFuture = syncManager.syncQueue();
-      await Future<void>.delayed(Duration.zero);
-      expect(syncManager.isSyncing, isTrue);
+        final syncFuture = syncManager.syncQueue();
+        await Future<void>.delayed(Duration.zero);
+        expect(syncManager.isSyncing, isTrue);
 
-      // Dispose while syncQueue is running
-      syncManager.dispose();
+        // Dispose while syncQueue is running
+        syncManager.dispose();
 
-      // Complete remote response
-      syncCompleter.complete([]);
-      await expectLater(syncFuture, completes);
-    });
+        // Complete remote response
+        syncCompleter.complete([]);
+        await expectLater(syncFuture, completes);
+      },
+    );
   });
 }

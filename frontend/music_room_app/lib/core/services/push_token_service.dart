@@ -68,10 +68,7 @@ class PushTokenService {
 
   String _randomHex() {
     final rnd = Random.secure();
-    return List.generate(
-      16,
-      (_) => rnd.nextInt(16).toRadixString(16),
-    ).join();
+    return List.generate(16, (_) => rnd.nextInt(16).toRadixString(16)).join();
   }
 
   bool _isRegistering = false;

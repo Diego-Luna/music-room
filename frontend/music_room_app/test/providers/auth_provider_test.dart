@@ -209,10 +209,7 @@ void main() {
       verify(
         () => mockApiClient.post(
           ApiConfig.socialLogin,
-          data: {
-            'provider': 'google',
-            'accessToken': 'provider-access-token',
-          },
+          data: {'provider': 'google', 'accessToken': 'provider-access-token'},
         ),
       ).called(1);
     });
@@ -228,7 +225,9 @@ void main() {
     });
 
     test('linkSocial posts provider token to link endpoint', () async {
-      when(() => mockApiClient.post(any(), data: any(named: 'data'))).thenAnswer(
+      when(
+        () => mockApiClient.post(any(), data: any(named: 'data')),
+      ).thenAnswer(
         (_) async =>
             Response(requestOptions: RequestOptions(path: ''), statusCode: 200),
       );

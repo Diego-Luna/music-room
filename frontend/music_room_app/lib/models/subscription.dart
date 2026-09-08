@@ -61,6 +61,8 @@ class Subscription {
   const Subscription({required this.tier});
 
   factory Subscription.fromJson(Map<String, dynamic> json) {
-    return Subscription(tier: SubscriptionTier.fromString(json['tier'] as String?));
+    return Subscription(
+      tier: SubscriptionTier.fromString(json['tier'] as String?),
+    );
   }
 }

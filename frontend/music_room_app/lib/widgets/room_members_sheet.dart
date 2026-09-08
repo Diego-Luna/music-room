@@ -130,7 +130,10 @@ class _RoomMembersSheetState extends State<RoomMembersSheet> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Leave', style: TextStyle(color: Colors.redAccent)),
+            child: const Text(
+              'Leave',
+              style: TextStyle(color: Colors.redAccent),
+            ),
           ),
         ],
       ),
@@ -246,9 +249,7 @@ class _RoomMembersSheetState extends State<RoomMembersSheet> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_provider.members.isEmpty) {
-      return Center(
-        child: Text(_provider.error ?? 'No members found.'),
-      );
+      return Center(child: Text(_provider.error ?? 'No members found.'));
     }
     return ListView.builder(
       controller: controller,

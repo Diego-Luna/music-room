@@ -39,7 +39,11 @@ class Playlist {
     'createdAt': createdAt.toIso8601String(),
   };
 
-  Playlist copyWith({String? name, bool? isPublic, List<PlaylistTrack>? tracks}) {
+  Playlist copyWith({
+    String? name,
+    bool? isPublic,
+    List<PlaylistTrack>? tracks,
+  }) {
     return Playlist(
       id: id,
       name: name ?? this.name,

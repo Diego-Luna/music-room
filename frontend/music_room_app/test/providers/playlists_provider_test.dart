@@ -149,78 +149,89 @@ void main() {
       expect(playlistsProvider.error, contains('Forbidden'));
     });
 
-    test('moveTrack calls repository with anchor and reloads playlists', () async {
-      when(
-        () => mockRepository.movePlaylistTrack(
-          any(),
-          any(),
-          afterTrackId: any(named: 'afterTrackId'),
-          beforeTrackId: any(named: 'beforeTrackId'),
-        ),
-      ).thenAnswer((_) async {});
-      when(
-        () => mockRepository.getRooms(kind: RoomKind.playlist),
-      ).thenAnswer((_) async => []);
+    test(
+      'moveTrack calls repository with anchor and reloads playlists',
+      () async {
+        when(
+          () => mockRepository.movePlaylistTrack(
+            any(),
+            any(),
+            afterTrackId: any(named: 'afterTrackId'),
+            beforeTrackId: any(named: 'beforeTrackId'),
+          ),
+        ).thenAnswer((_) async {});
+        when(
+          () => mockRepository.getRooms(kind: RoomKind.playlist),
+        ).thenAnswer((_) async => []);
 
-      await playlistsProvider.moveTrack(
-        'room-pl-1',
-        'uuid-1',
-        afterTrackId: 'uuid-0',
-      );
-
-      verify(
-        () => mockRepository.movePlaylistTrack(
+        await playlistsProvider.moveTrack(
           'room-pl-1',
           'uuid-1',
           afterTrackId: 'uuid-0',
-          beforeTrackId: null,
-        ),
-      ).called(1);
-      verify(() => mockRepository.getRooms(kind: RoomKind.playlist)).called(1);
-    });
+        );
 
-    test('handleTrackAdded adds track only to the playlist matching roomId',
-        () async {
-      final roomA = Room(
-        id: 'room-1',
-        name: 'Playlist A',
-        ownerId: 'owner-1',
-        kind: RoomKind.playlist,
-        tracks: [],
-      );
-      final roomB = Room(
-        id: 'room-2',
-        name: 'Playlist B',
-        ownerId: 'owner-1',
-        kind: RoomKind.playlist,
-        tracks: [],
-      );
-      when(
-        () => mockRepository.getRooms(kind: RoomKind.playlist),
-      ).thenAnswer((_) async => [roomA, roomB]);
+        verify(
+          () => mockRepository.movePlaylistTrack(
+            'room-pl-1',
+            'uuid-1',
+            afterTrackId: 'uuid-0',
+            beforeTrackId: null,
+          ),
+        ).called(1);
+        verify(
+          () => mockRepository.getRooms(kind: RoomKind.playlist),
+        ).called(1);
+      },
+    );
 
-      await playlistsProvider.fetchPlaylists();
-      expect(playlistsProvider.playlists, hasLength(2));
+    test(
+      'handleTrackAdded adds track only to the playlist matching roomId',
+      () async {
+        final roomA = Room(
+          id: 'room-1',
+          name: 'Playlist A',
+          ownerId: 'owner-1',
+          kind: RoomKind.playlist,
+          tracks: [],
+        );
+        final roomB = Room(
+          id: 'room-2',
+          name: 'Playlist B',
+          ownerId: 'owner-1',
+          kind: RoomKind.playlist,
+          tracks: [],
+        );
+        when(
+          () => mockRepository.getRooms(kind: RoomKind.playlist),
+        ).thenAnswer((_) async => [roomA, roomB]);
 
-      final track = Track(
-        id: 'track-1',
-        providerId: 'p-1',
-        provider: 'spotify',
-        title: 'Song',
-        artist: 'Artist',
-        durationMs: 180000,
-        roomId: 'room-1',
-      );
-      playlistsProvider.handleTrackAdded(track);
-      expect(
-        playlistsProvider.playlists.firstWhere((p) => p.id == 'room-1').tracks,
-        hasLength(1),
-      );
-      expect(
-        playlistsProvider.playlists.firstWhere((p) => p.id == 'room-2').tracks,
-        isEmpty,
-      );
-    });
+        await playlistsProvider.fetchPlaylists();
+        expect(playlistsProvider.playlists, hasLength(2));
+
+        final track = Track(
+          id: 'track-1',
+          providerId: 'p-1',
+          provider: 'spotify',
+          title: 'Song',
+          artist: 'Artist',
+          durationMs: 180000,
+          roomId: 'room-1',
+        );
+        playlistsProvider.handleTrackAdded(track);
+        expect(
+          playlistsProvider.playlists
+              .firstWhere((p) => p.id == 'room-1')
+              .tracks,
+          hasLength(1),
+        );
+        expect(
+          playlistsProvider.playlists
+              .firstWhere((p) => p.id == 'room-2')
+              .tracks,
+          isEmpty,
+        );
+      },
+    );
 
     test('handleTrackAdded is a no-op without roomId', () async {
       final room = Room(
@@ -291,7 +302,10 @@ void main() {
 
         playlistsProvider.handleTrackMoved('room-1', 'track-a', 'a2');
         final tracks = playlistsProvider.playlists.first.tracks;
-        expect(tracks.map((t) => t.id).toList(), equals(['track-b', 'track-a']));
+        expect(
+          tracks.map((t) => t.id).toList(),
+          equals(['track-b', 'track-a']),
+        );
         expect(tracks.first.position, equals('a1'));
         expect(tracks.last.position, equals('a2'));
       },

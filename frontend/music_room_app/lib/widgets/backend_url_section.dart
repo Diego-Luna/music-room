@@ -45,10 +45,7 @@ class _BackendUrlSectionState extends State<BackendUrlSection> {
     } on FormatException catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: Colors.redAccent,
-        ),
+        SnackBar(content: Text(e.message), backgroundColor: Colors.redAccent),
       );
     } catch (e) {
       if (!mounted) return;
