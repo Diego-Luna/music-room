@@ -39,21 +39,31 @@ class PlayerProvider extends ChangeNotifier {
        _audio = audioService,
        _getLocalDeviceId =
            getLocalDeviceId ?? TokenStorage().getOrCreateDeviceId {
-    _audio.positionStream.listen((p) {
-      _position = p;
-      notifyListeners();
-    });
-    _audio.durationStream.listen((d) {
-      if (d != null) {
-        _duration = d;
+    _subscriptions.addAll([
+      _audio.positionStream.listen((p) {
+        _position = p;
         notifyListeners();
-      }
-    });
-    _audio.playingStream.listen((p) {
-      _isPlaying = p;
-      notifyListeners();
-    });
+      }),
+      _audio.durationStream.listen((d) {
+        if (d != null) {
+          _duration = d;
+          notifyListeners();
+        }
+      }),
+      _audio.playingStream.listen((p) {
+        _isPlaying = p;
+        notifyListeners();
+      }),
+      _audio.completedStream.listen((_) {
+        _isPlaying = false;
+        _position = Duration.zero;
+        unawaited(_audio.seek(Duration.zero));
+        notifyListeners();
+      }),
+    ]);
   }
+
+  final List<StreamSubscription> _subscriptions = [];
 
   Track? get currentTrack => _currentTrack;
   bool get isPlaying => _isPlaying;
@@ -153,6 +163,10 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
     if (_currentTrack != null) {
+      if (_position >= const Duration(seconds: 30)) {
+        _position = Duration.zero;
+        unawaited(_audio.seek(Duration.zero));
+      }
       _isPlaying = true;
       notifyListeners();
       unawaited(_audio.resume());
@@ -174,6 +188,15 @@ class PlayerProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  Future<void> seek(Duration position) async {
+    final clamped = position > const Duration(seconds: 30)
+        ? const Duration(seconds: 30)
+        : (position < Duration.zero ? Duration.zero : position);
+    _position = clamped;
+    notifyListeners();
+    await _audio.seek(clamped);
   }
 
   Future<void> fetchDevices() async {
@@ -390,6 +413,10 @@ class PlayerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _delegationFetchDebounce?.cancel();
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
     _audio.dispose();
     super.dispose();
   }
