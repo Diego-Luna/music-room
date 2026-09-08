@@ -468,12 +468,15 @@ void main() {
         previewUrl: 'https://example.com/1.mp3',
       );
 
-      test('handlePlaybackCommand play without trackId resumes just_audio', () async {
-        playerProvider.playTrack(queuedTrack());
-        fakeAudio.calls.clear();
-        await playerProvider.handlePlaybackCommand({'action': 'play'});
-        expect(fakeAudio.calls, contains('resume'));
-      });
+      test(
+        'handlePlaybackCommand play without trackId resumes just_audio',
+        () async {
+          playerProvider.playTrack(queuedTrack());
+          fakeAudio.calls.clear();
+          await playerProvider.handlePlaybackCommand({'action': 'play'});
+          expect(fakeAudio.calls, contains('resume'));
+        },
+      );
 
       test('handlePlaybackCommand play ignores Spotify trackUri', () async {
         playerProvider.playTrack(queuedTrack());

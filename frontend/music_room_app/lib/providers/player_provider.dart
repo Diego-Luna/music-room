@@ -86,10 +86,7 @@ class PlayerProvider extends ChangeNotifier {
     int? index,
     String? voteRoomId,
   }) {
-    if (queue != null &&
-        index != null &&
-        index >= 0 &&
-        index < queue.length) {
+    if (queue != null && index != null && index >= 0 && index < queue.length) {
       _queue = List<Track>.from(queue);
       _queueIndex = index;
     } else {
@@ -303,10 +300,18 @@ class PlayerProvider extends ChangeNotifier {
     final targetDeviceId = data['deviceId'] as String?;
     if (targetDeviceId != null && targetDeviceId.isNotEmpty) {
       final localId = await _getLocalDeviceId();
-      if (localId != targetDeviceId) return;
+      if (localId != targetDeviceId) {
+        debugPrint(
+          '[PlayerProvider] Ignoring playback:command because local deviceId ($localId) does not match target ($targetDeviceId)',
+        );
+        return;
+      }
     }
 
     final action = data['action'] as String?;
+    debugPrint(
+      '[PlayerProvider] handlePlaybackCommand: action=$action, targetDeviceId=$targetDeviceId',
+    );
 
     try {
       switch (action) {
