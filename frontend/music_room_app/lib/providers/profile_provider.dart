@@ -10,7 +10,8 @@ import 'package:music_room_app/models/user.dart';
 class ProfileProvider extends ChangeNotifier {
   final ApiClient _apiClient;
 
-  ProfileProvider({ApiClient? apiClient}) : _apiClient = apiClient ?? ApiClient();
+  ProfileProvider({ApiClient? apiClient})
+    : _apiClient = apiClient ?? ApiClient();
 
   User? _profile;
   bool _isLoading = false;

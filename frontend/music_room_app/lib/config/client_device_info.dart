@@ -116,9 +116,7 @@ class ClientDeviceInfo {
           if (machine.isNotEmpty) {
             return '${ios.model} ($machine)';
           }
-          return ios.localizedModel.isNotEmpty
-              ? ios.localizedModel
-              : ios.model;
+          return ios.localizedModel.isNotEmpty ? ios.localizedModel : ios.model;
         case TargetPlatform.macOS:
           final mac = await plugin.macOsInfo;
           return mac.model.isNotEmpty ? mac.model : 'macOS';

@@ -57,19 +57,13 @@ void main() {
 
     await ApiConfig.setBackendUrl('http://retarget.example:9999');
     try {
-      await client.post(
-        ApiConfig.login,
-        data: {'email': 'a', 'password': 'b'},
-      );
+      await client.post(ApiConfig.login, data: {'email': 'a', 'password': 'b'});
     } catch (_) {}
     expect(adapter.lastUri, equals('http://retarget.example:9999/auth/login'));
 
     await ApiConfig.setBackendUrl('http://127.0.0.1:3000');
     try {
-      await client.post(
-        ApiConfig.login,
-        data: {'email': 'a', 'password': 'b'},
-      );
+      await client.post(ApiConfig.login, data: {'email': 'a', 'password': 'b'});
     } catch (_) {}
     expect(adapter.lastUri, equals('http://127.0.0.1:3000/auth/login'));
   });

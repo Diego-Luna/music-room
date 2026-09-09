@@ -78,12 +78,14 @@ class _CreateEventDialogState extends State<CreateEventDialog> {
 
   Widget _buildHeader(ThemeData theme) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          'Create Event (VOTE Room)',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
+        Expanded(
+          child: Text(
+            'Create Event (VOTE Room)',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         IconButton(

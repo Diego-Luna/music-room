@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
@@ -15,6 +16,7 @@ class _AudioVisualizerState extends State<AudioVisualizer>
     with TickerProviderStateMixin {
   late List<AnimationController> _controllers;
   late List<Animation<double>> _animations;
+  final List<Timer> _timers = [];
   final int _barCount = 15;
   final math.Random _random = math.Random();
 
@@ -57,18 +59,28 @@ class _AudioVisualizerState extends State<AudioVisualizer>
     if (widget.isPlaying && !oldWidget.isPlaying) {
       _startAnimations();
     } else if (!widget.isPlaying && oldWidget.isPlaying) {
+      _cancelTimers();
       _stopAnimations();
     }
   }
 
   void _startAnimations() {
+    _cancelTimers();
     for (int i = 0; i < _controllers.length; i++) {
-      Future.delayed(Duration(milliseconds: i * 50), () {
+      final timer = Timer(Duration(milliseconds: i * 50), () {
         if (mounted && widget.isPlaying) {
           _controllers[i].forward();
         }
       });
+      _timers.add(timer);
     }
+  }
+
+  void _cancelTimers() {
+    for (final timer in _timers) {
+      timer.cancel();
+    }
+    _timers.clear();
   }
 
   void _stopAnimations() {
@@ -80,6 +92,7 @@ class _AudioVisualizerState extends State<AudioVisualizer>
 
   @override
   void dispose() {
+    _cancelTimers();
     for (var controller in _controllers) {
       controller.dispose();
     }

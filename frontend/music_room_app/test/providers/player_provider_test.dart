@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:music_room_app/core/audio/audio_player_service.dart';
@@ -19,6 +21,8 @@ class MockDeviceRepository extends Mock implements DeviceRepository {}
 /// Recording audio backend so owner-command tests assert just_audio calls.
 class FakeAudioPlayerService implements AudioPlayerService {
   final List<String> calls = [];
+  final StreamController<void> completedController =
+      StreamController<void>.broadcast();
 
   @override
   Stream<Duration> get positionStream => const Stream.empty();
@@ -27,7 +31,7 @@ class FakeAudioPlayerService implements AudioPlayerService {
   @override
   Stream<bool> get playingStream => const Stream.empty();
   @override
-  Stream<void> get completedStream => const Stream.empty();
+  Stream<void> get completedStream => completedController.stream;
   @override
   Future<void> play(String url) async => calls.add('play:$url');
   @override
@@ -39,7 +43,16 @@ class FakeAudioPlayerService implements AudioPlayerService {
   @override
   Future<void> setVolume(double volume) async => calls.add('volume:$volume');
   @override
-  Future<void> dispose() async {}
+  Future<void> seek(Duration position) async =>
+      calls.add('seek:${position.inSeconds}');
+  @override
+  Future<void> dispose() async {
+    await completedController.close();
+  }
+
+  void triggerCompleted() {
+    completedController.add(null);
+  }
 }
 
 void main() {
@@ -468,12 +481,15 @@ void main() {
         previewUrl: 'https://example.com/1.mp3',
       );
 
-      test('handlePlaybackCommand play without trackId resumes just_audio', () async {
-        playerProvider.playTrack(queuedTrack());
-        fakeAudio.calls.clear();
-        await playerProvider.handlePlaybackCommand({'action': 'play'});
-        expect(fakeAudio.calls, contains('resume'));
-      });
+      test(
+        'handlePlaybackCommand play without trackId resumes just_audio',
+        () async {
+          playerProvider.playTrack(queuedTrack());
+          fakeAudio.calls.clear();
+          await playerProvider.handlePlaybackCommand({'action': 'play'});
+          expect(fakeAudio.calls, contains('resume'));
+        },
+      );
 
       test('handlePlaybackCommand play ignores Spotify trackUri', () async {
         playerProvider.playTrack(queuedTrack());
@@ -546,6 +562,64 @@ void main() {
         });
         expect(fakeAudio.calls, contains('pause'));
       });
+
+      test('seek clamps position and calls audioService.seek', () async {
+        int notified = 0;
+        playerProvider.addListener(() => notified++);
+
+        await playerProvider.seek(const Duration(seconds: 15));
+        expect(playerProvider.position, equals(const Duration(seconds: 15)));
+        expect(fakeAudio.calls, contains('seek:15'));
+        expect(notified, equals(1));
+
+        // Over 30s clamps to 30s
+        await playerProvider.seek(const Duration(seconds: 45));
+        expect(playerProvider.position, equals(const Duration(seconds: 30)));
+        expect(fakeAudio.calls, contains('seek:30'));
+
+        // Below 0 clamps to 0
+        await playerProvider.seek(const Duration(seconds: -5));
+        expect(playerProvider.position, equals(Duration.zero));
+        expect(fakeAudio.calls, contains('seek:0'));
+      });
+
+      test(
+        'when playback completes or when resuming a track that completed, it seeks to 0 and plays',
+        () async {
+          final track = Track(
+            id: 't-comp-1',
+            providerId: 'spotify:track:comp:1',
+            title: 'Completion Test Song',
+            artist: 'Artist',
+            durationMs: 180000,
+            previewUrl: 'https://example.com/preview.mp3',
+          );
+
+          when(() => mockRoomsProvider.currentActiveRoom).thenReturn(null);
+
+          // Start playing track
+          playerProvider.playTrack(track);
+          expect(playerProvider.isPlaying, isTrue);
+          expect(playerProvider.currentTrack, equals(track));
+
+          // 1. Playback completes via completedStream
+          fakeAudio.triggerCompleted();
+          await Future<void>.delayed(Duration.zero);
+
+          expect(playerProvider.isPlaying, isFalse);
+          expect(playerProvider.position, equals(Duration.zero));
+
+          // 2. Resuming a track that reached >= 30 seconds
+          await playerProvider.seek(const Duration(seconds: 30));
+          expect(playerProvider.position, equals(const Duration(seconds: 30)));
+          fakeAudio.calls.clear();
+
+          playerProvider.resume();
+          expect(playerProvider.position, equals(Duration.zero));
+          expect(playerProvider.isPlaying, isTrue);
+          expect(fakeAudio.calls, containsAllInOrder(['seek:0', 'resume']));
+        },
+      );
     });
   });
 }

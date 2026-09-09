@@ -65,8 +65,7 @@ class _CreatePlaylistDialogState extends State<CreatePlaylistDialog> {
 
       // * Premium gate (VI.3): the Playlist Editor is a paid-only feature.
       // * Surface a clear upgrade prompt instead of a raw 403.
-      final isPremiumGate =
-          e is DioException && e.response?.statusCode == 403;
+      final isPremiumGate = e is DioException && e.response?.statusCode == 403;
       if (isPremiumGate) {
         navigator.pop();
         messenger.showSnackBar(
@@ -99,7 +98,9 @@ class _CreatePlaylistDialogState extends State<CreatePlaylistDialog> {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         padding: const EdgeInsets.all(AppDimens.lg),
         decoration: BoxDecoration(
@@ -115,12 +116,14 @@ class _CreatePlaylistDialogState extends State<CreatePlaylistDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'New Playlist',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      'New Playlist',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(

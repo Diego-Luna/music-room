@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/models/track.dart';
+import 'package:music_room_app/widgets/neumorphic_form_field.dart';
 
 /// Action run when the user picks a result (add to playlist, suggest, ...).
 /// Awaited before the sheet closes so failures can keep it open.
@@ -110,12 +111,14 @@ class _TrackSearchSheetState extends State<TrackSearchSheet> {
 
   Widget _buildHeader(ThemeData theme) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(
-          widget.title,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
+        Expanded(
+          child: Text(
+            widget.title,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         IconButton(
@@ -127,37 +130,43 @@ class _TrackSearchSheetState extends State<TrackSearchSheet> {
   }
 
   Widget _buildSearchField(ThemeData theme) {
-    return TextField(
-      controller: _searchController,
-      autofocus: true,
-      textInputAction: TextInputAction.search,
-      decoration: InputDecoration(
-        hintText: 'Search tracks...',
-        prefixIcon: const Icon(Icons.search),
-        suffixIcon: _isSearching
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: Padding(
-                  padding: EdgeInsets.all(12.0),
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              )
-            : IconButton(
-                icon: const Icon(Icons.clear),
-                onPressed: () {
-                  _searchController.clear();
-                  setState(() {
-                    _searchResults = [];
-                    _errorMsg = null;
-                  });
-                },
-              ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
-        ),
+    return NeumorphicInset(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.md,
+        vertical: AppDimens.xs,
       ),
-      onSubmitted: _handleSearch,
+      child: TextField(
+        controller: _searchController,
+        autofocus: true,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: 'Search tracks...',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _isSearching
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: Padding(
+                    padding: EdgeInsets.all(12.0),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              : IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {
+                      _searchResults = [];
+                      _errorMsg = null;
+                    });
+                  },
+                ),
+          border: InputBorder.none,
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(vertical: AppDimens.md),
+        ),
+        onSubmitted: _handleSearch,
+      ),
     );
   }
 

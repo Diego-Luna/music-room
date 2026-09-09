@@ -39,6 +39,8 @@ class NeumorphicTextField extends StatelessWidget {
   final String? hint;
   final TextInputType? keyboardType;
   final bool autofocus;
+  final int maxLines;
+  final int? minLines;
 
   const NeumorphicTextField({
     super.key,
@@ -47,6 +49,8 @@ class NeumorphicTextField extends StatelessWidget {
     this.hint,
     this.keyboardType,
     this.autofocus = false,
+    this.maxLines = 1,
+    this.minLines,
   });
 
   @override
@@ -67,6 +71,8 @@ class NeumorphicTextField extends StatelessWidget {
             controller: controller,
             autofocus: autofocus,
             keyboardType: keyboardType,
+            maxLines: maxLines,
+            minLines: minLines,
             decoration: InputDecoration(
               hintText: hint,
               border: InputBorder.none,

@@ -11,27 +11,38 @@ import 'package:music_room_app/providers/profile_provider.dart';
 import 'package:music_room_app/models/user.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
+import 'package:music_room_app/widgets/neumorphic_form_field.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  final ProfileProvider? profileProvider;
+
+  const ProfilePage({super.key, this.profileProvider});
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  // * Page owns its own provider → no global registration needed (isolated).
-  final ProfileProvider _profile = ProfileProvider();
+  late final ProfileProvider _profile;
+  late final bool _ownsProfile;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _profile.loadProfile());
+    _ownsProfile = widget.profileProvider == null;
+    _profile = widget.profileProvider ?? ProfileProvider();
+    if (_profile.profile == null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _profile.loadProfile(),
+      );
+    }
   }
 
   @override
   void dispose() {
-    _profile.dispose();
+    if (_ownsProfile) {
+      _profile.dispose();
+    }
     super.dispose();
   }
 
@@ -82,12 +93,21 @@ class _ProfilePageState extends State<ProfilePage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Edit $title'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          maxLines: multiline ? 4 : 1,
-          minLines: 1,
-          decoration: InputDecoration(hintText: title),
+        content: NeumorphicInset(
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            maxLines: multiline ? 4 : 1,
+            minLines: 1,
+            decoration: InputDecoration(
+              hintText: title,
+              border: InputBorder.none,
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: AppDimens.sm,
+              ),
+            ),
+          ),
         ),
         actions: [
           TextButton(
@@ -245,7 +265,7 @@ class _ProfilePageState extends State<ProfilePage> {
           title: const Text('Profile'),
           centerTitle: true,
           toolbarHeight: 76.0,
-          expandedHeight: 250.0,
+          expandedHeight: 290.0,
           floating: true,
           pinned: false,
           backgroundColor: theme.scaffoldBackgroundColor,
@@ -261,57 +281,76 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(width: AppDimens.md),
           ],
           flexibleSpace: FlexibleSpaceBar(
-            background: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(height: AppDimens.xxl),
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: theme.colorScheme.surface,
-                    boxShadow: theme
-                        .extension<AppDesignTokens>()
-                        ?.neumorphicShadow,
-                    border: Border.all(
-                      color: theme.scaffoldBackgroundColor,
-                      width: 0.5,
+            background: SafeArea(
+              bottom: false,
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.center,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppDimens.lg,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: AppDimens.xl),
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: theme.colorScheme.surface,
+                            boxShadow: theme
+                                .extension<AppDesignTokens>()
+                                ?.neumorphicShadow,
+                            border: Border.all(
+                              color: theme.scaffoldBackgroundColor,
+                              width: 0.5,
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(AppDimens.sm),
+                          child: CircleAvatar(
+                            radius: 42,
+                            backgroundColor: theme.colorScheme.primary
+                                .withValues(alpha: 0.1),
+                            child: Icon(
+                              Icons.person,
+                              size: 42,
+                              color: theme.colorScheme.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: AppDimens.sm),
+                        Text(
+                          user.displayName,
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: AppTypography.extraBold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: AppDimens.xs),
+                        Text(
+                          user.email,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.disabledColor,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: AppDimens.xs),
+                        SelectableText(
+                          'User ID: ${user.id}',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.disabledColor,
+                          ),
+                          maxLines: 1,
+                        ),
+                      ],
                     ),
                   ),
-                  padding: const EdgeInsets.all(AppDimens.sm),
-                  child: CircleAvatar(
-                    radius: 45,
-                    backgroundColor: theme.colorScheme.primary.withValues(
-                      alpha: 0.1,
-                    ),
-                    child: Icon(
-                      Icons.person,
-                      size: 45,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
                 ),
-                const SizedBox(height: AppDimens.md),
-                Text(
-                  user.displayName,
-                  style: theme.textTheme.headlineLarge?.copyWith(
-                    fontWeight: AppTypography.extraBold,
-                  ),
-                ),
-                const SizedBox(height: AppDimens.xs),
-                Text(
-                  user.email,
-                  style: theme.textTheme.bodyLarge?.copyWith(
-                    color: theme.disabledColor,
-                  ),
-                ),
-                const SizedBox(height: AppDimens.xs),
-                SelectableText(
-                  'User ID: ${user.id}',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.disabledColor,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

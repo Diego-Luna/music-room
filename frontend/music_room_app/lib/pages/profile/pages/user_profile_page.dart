@@ -116,7 +116,11 @@ class _UserProfilePageState extends State<UserProfilePage> {
         ),
         const SizedBox(height: AppDimens.xl),
         if (user.musicPreferences.isNotEmpty)
-          _section(theme, 'Music Preferences', user.musicPreferences.join(', ')),
+          _section(
+            theme,
+            'Music Preferences',
+            user.musicPreferences.join(', '),
+          ),
         if (user.publicInfo != null && user.publicInfo!.isNotEmpty)
           _section(theme, 'Public Information', user.publicInfo!),
         if (user.friendsInfo != null && user.friendsInfo!.isNotEmpty)

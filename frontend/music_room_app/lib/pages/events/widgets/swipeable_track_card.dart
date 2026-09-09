@@ -145,12 +145,14 @@ class SwipeableTrackCardState extends State<SwipeableTrackCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppDesignTokens>();
+    final radius =
+        tokens?.cardRadius ?? BorderRadius.circular(AppDimens.radiusLarge);
 
     // Calculate background colors based on drag
-    double likeOpacity = math
+    final likeOpacity = math
         .max(0.0, (_dragOffset.dx / (_screenSize.width * 0.3)))
         .clamp(0.0, 1.0);
-    double dislikeOpacity = math
+    final dislikeOpacity = math
         .max(0.0, (-(_dragOffset.dx) / (_screenSize.width * 0.3)))
         .clamp(0.0, 1.0);
 
@@ -170,144 +172,180 @@ class SwipeableTrackCardState extends State<SwipeableTrackCard>
             width: double.infinity,
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius:
-                  tokens?.cardRadius ??
-                  BorderRadius.circular(AppDimens.radiusLarge),
+              borderRadius: radius,
               boxShadow: tokens?.neumorphicShadow,
             ),
             child: Stack(
               children: [
-                // 1. The Main Content (Album art placeholder + info)
-                ClipRRect(
-                  borderRadius:
-                      tokens?.cardRadius ??
-                      BorderRadius.circular(AppDimens.radiusLarge),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          width: double.infinity,
-                          decoration: BoxDecoration(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.1,
-                            ),
-                          ),
-                          child: const Icon(
-                            Icons.music_note,
-                            size: 80,
-                            color: Colors.grey,
-                          ),
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.all(AppDimens.lg),
-                        width: double.infinity,
-                        color: theme.colorScheme.surface,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    widget.trackTitle,
-                                    style: theme.textTheme.titleLarge?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: AppDimens.xs),
-                                  Text(
-                                    widget.artistName,
-                                    style: theme.textTheme.bodyLarge?.copyWith(
-                                      color: Colors.grey,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppDimens.md,
-                                vertical: AppDimens.xs,
-                              ),
-                              decoration: BoxDecoration(
-                                color: theme.colorScheme.primary.withValues(
-                                  alpha: 0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(
-                                  AppDimens.radiusSmall,
-                                ),
-                              ),
-                              child: Text(
-                                '${widget.score} votes',
-                                style: theme.textTheme.labelLarge?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+                _TrackCardContent(
+                  trackTitle: widget.trackTitle,
+                  artistName: widget.artistName,
+                  score: widget.score,
+                  imageUrl: widget.imageUrl,
+                  borderRadius: radius,
                 ),
-
-                // 2. Visual overlays for Swiping (LIKE)
                 if (likeOpacity > 0)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.green.withValues(
-                          alpha: likeOpacity * 0.3,
-                        ),
-                        borderRadius:
-                            tokens?.cardRadius ??
-                            BorderRadius.circular(AppDimens.radiusLarge),
-                      ),
-                      alignment: Alignment.center,
-                      child: Transform.scale(
-                        scale: likeOpacity,
-                        child: Icon(
-                          Icons.thumb_up_rounded,
-                          size: 100,
-                          color: Colors.green.withValues(alpha: likeOpacity),
-                        ),
-                      ),
-                    ),
+                  _SwipeOverlay(
+                    opacity: likeOpacity,
+                    color: Colors.green,
+                    icon: Icons.thumb_up_rounded,
+                    borderRadius: radius,
                   ),
-
-                // 3. Visual overlays for Swiping (DISLIKE)
                 if (dislikeOpacity > 0)
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.red.withValues(
-                          alpha: dislikeOpacity * 0.3,
-                        ),
-                        borderRadius:
-                            tokens?.cardRadius ??
-                            BorderRadius.circular(AppDimens.radiusLarge),
-                      ),
-                      alignment: Alignment.center,
-                      child: Transform.scale(
-                        scale: dislikeOpacity,
-                        child: Icon(
-                          Icons.thumb_down_rounded,
-                          size: 100,
-                          color: Colors.red.withValues(alpha: dislikeOpacity),
-                        ),
-                      ),
-                    ),
+                  _SwipeOverlay(
+                    opacity: dislikeOpacity,
+                    color: Colors.red,
+                    icon: Icons.thumb_down_rounded,
+                    borderRadius: radius,
                   ),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SwipeableTrackCardArtwork extends StatelessWidget {
+  final String imageUrl;
+
+  const _SwipeableTrackCardArtwork({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final hasArtwork = imageUrl.isNotEmpty && imageUrl != 'placeholder';
+
+    Widget fallback() => Container(
+      width: double.infinity,
+      height: double.infinity,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.1),
+      ),
+      child: const Icon(Icons.music_note, size: 80, color: Colors.grey),
+    );
+
+    if (hasArtwork) {
+      return Image.network(
+        imageUrl,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => fallback(),
+      );
+    }
+
+    return fallback();
+  }
+}
+
+class _TrackCardContent extends StatelessWidget {
+  final String trackTitle;
+  final String artistName;
+  final int score;
+  final String imageUrl;
+  final BorderRadius borderRadius;
+
+  const _TrackCardContent({
+    required this.trackTitle,
+    required this.artistName,
+    required this.score,
+    required this.imageUrl,
+    required this.borderRadius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return ClipRRect(
+      borderRadius: borderRadius,
+      child: Column(
+        children: [
+          Expanded(child: _SwipeableTrackCardArtwork(imageUrl: imageUrl)),
+          Container(
+            padding: const EdgeInsets.all(AppDimens.lg),
+            width: double.infinity,
+            color: theme.colorScheme.surface,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        trackTitle,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: AppDimens.xs),
+                      Text(
+                        artistName,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: Colors.grey,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppDimens.md,
+                    vertical: AppDimens.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(AppDimens.radiusSmall),
+                  ),
+                  child: Text(
+                    '$score votes',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SwipeOverlay extends StatelessWidget {
+  final double opacity;
+  final Color color;
+  final IconData icon;
+  final BorderRadius borderRadius;
+
+  const _SwipeOverlay({
+    required this.opacity,
+    required this.color,
+    required this.icon,
+    required this.borderRadius,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Container(
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: opacity * 0.3),
+          borderRadius: borderRadius,
+        ),
+        alignment: Alignment.center,
+        child: Transform.scale(
+          scale: opacity,
+          child: Icon(icon, size: 100, color: color.withValues(alpha: opacity)),
         ),
       ),
     );

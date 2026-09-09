@@ -200,6 +200,53 @@ void main() {
     );
   });
 
+  group('Connection Lifecycle Events', () {
+    test(
+      'registers connect, connect_error, disconnect, and auth:error listeners',
+      () {
+        SocketProvider(
+          authProvider: auth,
+          eventsProvider: events,
+          playlistsProvider: playlists,
+          roomsProvider: rooms,
+          playerProvider: player,
+          friendsProvider: friends,
+          notificationsProvider: notifications,
+          socket: socket,
+        );
+
+        expect(socketListeners.containsKey('connect'), isTrue);
+        expect(socketListeners.containsKey('connect_error'), isTrue);
+        expect(socketListeners.containsKey('disconnect'), isTrue);
+        expect(socketListeners.containsKey('auth:error'), isTrue);
+      },
+    );
+
+    test('connect and disconnect notify listeners', () {
+      final provider = SocketProvider(
+        authProvider: auth,
+        eventsProvider: events,
+        playlistsProvider: playlists,
+        roomsProvider: rooms,
+        playerProvider: player,
+        friendsProvider: friends,
+        notificationsProvider: notifications,
+        socket: socket,
+      );
+
+      var notifyCount = 0;
+      provider.addListener(() {
+        notifyCount++;
+      });
+
+      socketListeners['connect']?.call(null);
+      expect(notifyCount, equals(1));
+
+      socketListeners['disconnect']?.call('transport close');
+      expect(notifyCount, equals(2));
+    });
+  });
+
   group('Membership & delegation realtime events', () {
     SocketProvider build() => SocketProvider(
       authProvider: auth,
@@ -640,22 +687,25 @@ void main() {
       ).called(1);
     });
 
-    test('dispose does not call socket.dispose when socket is externally injected', () {
-      when(() => socket.disconnect()).thenReturn(socket);
-      final provider = SocketProvider(
-        authProvider: auth,
-        eventsProvider: events,
-        playlistsProvider: playlists,
-        roomsProvider: rooms,
-        playerProvider: player,
-        friendsProvider: friends,
-        notificationsProvider: notifications,
-        syncManager: syncManager,
-        socket: socket,
-      );
+    test(
+      'dispose does not call socket.dispose when socket is externally injected',
+      () {
+        when(() => socket.disconnect()).thenReturn(socket);
+        final provider = SocketProvider(
+          authProvider: auth,
+          eventsProvider: events,
+          playlistsProvider: playlists,
+          roomsProvider: rooms,
+          playerProvider: player,
+          friendsProvider: friends,
+          notificationsProvider: notifications,
+          syncManager: syncManager,
+          socket: socket,
+        );
 
-      provider.dispose();
-      verifyNever(() => socket.dispose());
-    });
+        provider.dispose();
+        verifyNever(() => socket.dispose());
+      },
+    );
   });
 }

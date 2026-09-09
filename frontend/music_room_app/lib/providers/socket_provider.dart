@@ -110,7 +110,15 @@ class SocketProvider extends ChangeNotifier {
         // Best-effort — connection must not fail because of device info.
       }
 
+      try {
+        _socket.auth = auth;
+      } catch (_) {
+        // Best-effort for mock sockets in tests.
+      }
       _socket.io.options?['auth'] = auth;
+      if (token != null) {
+        _socket.io.options?['query'] = {'token': token};
+      }
       _socket.connect();
       // * Fetch notifications on connection/login to populate the badge count immediately.
       _notificationsProvider.fetchNotifications();
@@ -121,9 +129,11 @@ class SocketProvider extends ChangeNotifier {
 
   void _onAuthChanged() {
     final isSignedIn = _authProvider.signedIn;
-    if (isSignedIn && !_wasSignedIn) {
+    if (isSignedIn) {
       _wasSignedIn = true;
-      _connectSocket();
+      if (!_socket.connected) {
+        _connectSocket();
+      }
     } else if (!isSignedIn && _wasSignedIn) {
       _wasSignedIn = false;
       _socket.disconnect();
@@ -167,7 +177,28 @@ class SocketProvider extends ChangeNotifier {
 
     _socket.on('connect', (_) {
       // * Connected – notify listeners for UI if needed
+      debugPrint('[SocketProvider] Connected to WebSocket server');
       notifyListeners();
+    });
+
+    _socket.on('connect_error', (data) {
+      debugPrint('[SocketProvider] Connect error: $data');
+    });
+
+    _socket.on('disconnect', (reason) {
+      debugPrint('[SocketProvider] Disconnected: $reason');
+      notifyListeners();
+    });
+
+    _socket.on('auth:error', (data) {
+      debugPrint('[SocketProvider] auth:error received: $data');
+      if (_authProvider.signedIn && !_disposed) {
+        Future.delayed(const Duration(seconds: 2), () {
+          if (!_disposed && _authProvider.signedIn && !_socket.connected) {
+            _connectSocket();
+          }
+        });
+      }
     });
 
     // * Realtime notification/friends events

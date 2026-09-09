@@ -43,7 +43,9 @@ class _EditRoomDialogState extends State<EditRoomDialog> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.room.name);
-    _descController = TextEditingController(text: widget.room.description ?? '');
+    _descController = TextEditingController(
+      text: widget.room.description ?? '',
+    );
     _isPublic = widget.room.isPublic;
     _license =
         (_isPlaylist ? widget.room.editAccess : widget.room.voteAccess) ??
@@ -98,7 +100,9 @@ class _EditRoomDialogState extends State<EditRoomDialog> {
     final theme = Theme.of(context);
 
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
       child: Container(
         padding: const EdgeInsets.all(AppDimens.lg),
         decoration: BoxDecoration(
@@ -114,12 +118,14 @@ class _EditRoomDialogState extends State<EditRoomDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Edit Room',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      'Edit Room',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   IconButton(

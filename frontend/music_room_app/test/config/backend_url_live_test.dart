@@ -25,10 +25,12 @@ void main() {
   setUp(() async {
     ApiConfig.resetForTest();
     await Hive.box('app_settings').clear();
-    dio = Dio(BaseOptions(
-      connectTimeout: const Duration(seconds: 3),
-      receiveTimeout: const Duration(seconds: 3),
-    ));
+    dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 3),
+        receiveTimeout: const Duration(seconds: 3),
+      ),
+    );
   });
 
   tearDown(() async {

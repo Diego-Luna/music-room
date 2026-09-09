@@ -67,27 +67,27 @@ class Track {
     if (roomId != null) 'roomId': roomId,
   };
 
-	Track copyWith({int? score, String? position, String? roomId}) {
-		return Track(
-			id: id,
-			providerId: providerId,
-			provider: provider,
-			title: title,
-			artist: artist,
-			durationMs: durationMs,
-			artworkUrl: artworkUrl,
-			previewUrl: previewUrl,
-			score: score ?? this.score,
-			position: position ?? this.position,
-			roomId: roomId ?? this.roomId,
-		);
-	}
+  Track copyWith({int? score, String? position, String? roomId}) {
+    return Track(
+      id: id,
+      providerId: providerId,
+      provider: provider,
+      title: title,
+      artist: artist,
+      durationMs: durationMs,
+      artworkUrl: artworkUrl,
+      previewUrl: previewUrl,
+      score: score ?? this.score,
+      position: position ?? this.position,
+      roomId: roomId ?? this.roomId,
+    );
+  }
 
-	@override
-	bool operator ==(Object other) =>
-		identical(this, other) ||
-		other is Track && runtimeType == other.runtimeType && id == other.id;
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Track && runtimeType == other.runtimeType && id == other.id;
 
-	@override
-	int get hashCode => id.hashCode;
+  @override
+  int get hashCode => id.hashCode;
 }

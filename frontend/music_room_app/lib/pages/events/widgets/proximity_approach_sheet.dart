@@ -83,7 +83,10 @@ class ProximityApproachSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppDimens.xs),
-            Text(ProximityService.musicHint(room), style: theme.textTheme.bodyMedium),
+            Text(
+              ProximityService.musicHint(room),
+              style: theme.textTheme.bodyMedium,
+            ),
             const SizedBox(height: AppDimens.lg),
             Text(
               'How to access',
@@ -92,7 +95,10 @@ class ProximityApproachSheet extends StatelessWidget {
               ),
             ),
             const SizedBox(height: AppDimens.xs),
-            Text(ProximityService.accessHint(room), style: theme.textTheme.bodyMedium),
+            Text(
+              ProximityService.accessHint(room),
+              style: theme.textTheme.bodyMedium,
+            ),
             const SizedBox(height: AppDimens.xl),
             PrimaryButton(
               onPressed: () {

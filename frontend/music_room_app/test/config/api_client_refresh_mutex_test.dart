@@ -246,45 +246,54 @@ void main() {
       },
     );
 
-    test('default constructor sets connectTimeout and receiveTimeout to 15 seconds', () {
-      final defaultClient = ApiClient();
-      expect(
-        defaultClient.dioForTest.options.connectTimeout,
-        equals(const Duration(seconds: 15)),
-      );
-      expect(
-        defaultClient.dioForTest.options.receiveTimeout,
-        equals(const Duration(seconds: 15)),
-      );
-    });
+    test(
+      'default constructor sets connectTimeout and receiveTimeout to 15 seconds',
+      () {
+        final defaultClient = ApiClient();
+        expect(
+          defaultClient.dioForTest.options.connectTimeout,
+          equals(const Duration(seconds: 15)),
+        );
+        expect(
+          defaultClient.dioForTest.options.receiveTimeout,
+          equals(const Duration(seconds: 15)),
+        );
+      },
+    );
 
-    test('when leader retry request fails with DioException, retry error is propagated', () async {
-      adapter.retryStatusCode = 500;
-      try {
-        await client.get('/fail-retry');
-        fail('Should throw DioException');
-      } on DioException catch (e) {
-        expect(e.response?.statusCode, equals(500));
-      }
-    });
+    test(
+      'when leader retry request fails with DioException, retry error is propagated',
+      () async {
+        adapter.retryStatusCode = 500;
+        try {
+          await client.get('/fail-retry');
+          fail('Should throw DioException');
+        } on DioException catch (e) {
+          expect(e.response?.statusCode, equals(500));
+        }
+      },
+    );
 
-    test('when refresh fails, onUnauthorized callback is called exactly once', () async {
-      int callCount = 0;
-      final singleClient = ApiClient(
-        tokenStorage: tokenStorage,
-        onUnauthorized: () {
-          callCount++;
-        },
-      );
-      singleClient.dioForTest.httpClientAdapter = adapter;
-      adapter.failRefresh = true;
+    test(
+      'when refresh fails, onUnauthorized callback is called exactly once',
+      () async {
+        int callCount = 0;
+        final singleClient = ApiClient(
+          tokenStorage: tokenStorage,
+          onUnauthorized: () {
+            callCount++;
+          },
+        );
+        singleClient.dioForTest.httpClientAdapter = adapter;
+        adapter.failRefresh = true;
 
-      await expectLater(
-        singleClient.get('/rooms'),
-        throwsA(isA<DioException>()),
-      );
+        await expectLater(
+          singleClient.get('/rooms'),
+          throwsA(isA<DioException>()),
+        );
 
-      expect(callCount, equals(1));
-    });
+        expect(callCount, equals(1));
+      },
+    );
   });
 }

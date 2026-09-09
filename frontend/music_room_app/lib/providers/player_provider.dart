@@ -39,21 +39,31 @@ class PlayerProvider extends ChangeNotifier {
        _audio = audioService,
        _getLocalDeviceId =
            getLocalDeviceId ?? TokenStorage().getOrCreateDeviceId {
-    _audio.positionStream.listen((p) {
-      _position = p;
-      notifyListeners();
-    });
-    _audio.durationStream.listen((d) {
-      if (d != null) {
-        _duration = d;
+    _subscriptions.addAll([
+      _audio.positionStream.listen((p) {
+        _position = p;
         notifyListeners();
-      }
-    });
-    _audio.playingStream.listen((p) {
-      _isPlaying = p;
-      notifyListeners();
-    });
+      }),
+      _audio.durationStream.listen((d) {
+        if (d != null) {
+          _duration = d;
+          notifyListeners();
+        }
+      }),
+      _audio.playingStream.listen((p) {
+        _isPlaying = p;
+        notifyListeners();
+      }),
+      _audio.completedStream.listen((_) {
+        _isPlaying = false;
+        _position = Duration.zero;
+        unawaited(_audio.seek(Duration.zero));
+        notifyListeners();
+      }),
+    ]);
   }
+
+  final List<StreamSubscription> _subscriptions = [];
 
   Track? get currentTrack => _currentTrack;
   bool get isPlaying => _isPlaying;
@@ -86,10 +96,7 @@ class PlayerProvider extends ChangeNotifier {
     int? index,
     String? voteRoomId,
   }) {
-    if (queue != null &&
-        index != null &&
-        index >= 0 &&
-        index < queue.length) {
+    if (queue != null && index != null && index >= 0 && index < queue.length) {
       _queue = List<Track>.from(queue);
       _queueIndex = index;
     } else {
@@ -156,6 +163,10 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
     if (_currentTrack != null) {
+      if (_position >= const Duration(seconds: 30)) {
+        _position = Duration.zero;
+        unawaited(_audio.seek(Duration.zero));
+      }
       _isPlaying = true;
       notifyListeners();
       unawaited(_audio.resume());
@@ -177,6 +188,15 @@ class PlayerProvider extends ChangeNotifier {
   void clearError() {
     _error = null;
     notifyListeners();
+  }
+
+  Future<void> seek(Duration position) async {
+    final clamped = position > const Duration(seconds: 30)
+        ? const Duration(seconds: 30)
+        : (position < Duration.zero ? Duration.zero : position);
+    _position = clamped;
+    notifyListeners();
+    await _audio.seek(clamped);
   }
 
   Future<void> fetchDevices() async {
@@ -303,10 +323,18 @@ class PlayerProvider extends ChangeNotifier {
     final targetDeviceId = data['deviceId'] as String?;
     if (targetDeviceId != null && targetDeviceId.isNotEmpty) {
       final localId = await _getLocalDeviceId();
-      if (localId != targetDeviceId) return;
+      if (localId != targetDeviceId) {
+        debugPrint(
+          '[PlayerProvider] Ignoring playback:command because local deviceId ($localId) does not match target ($targetDeviceId)',
+        );
+        return;
+      }
     }
 
     final action = data['action'] as String?;
+    debugPrint(
+      '[PlayerProvider] handlePlaybackCommand: action=$action, targetDeviceId=$targetDeviceId',
+    );
 
     try {
       switch (action) {
@@ -385,6 +413,10 @@ class PlayerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _delegationFetchDebounce?.cancel();
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _subscriptions.clear();
     _audio.dispose();
     super.dispose();
   }

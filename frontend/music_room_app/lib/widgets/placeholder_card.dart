@@ -11,6 +11,8 @@ class PlaceholderCard extends StatelessWidget {
   final Widget? trailing;
   final VoidCallback? onTap;
   final double? height;
+  final int maxTitleLines;
+  final int maxSubtitleLines;
 
   const PlaceholderCard({
     super.key,
@@ -20,6 +22,8 @@ class PlaceholderCard extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.height = 64.0,
+    this.maxTitleLines = 1,
+    this.maxSubtitleLines = 2,
   });
 
   @override
@@ -55,11 +59,24 @@ class PlaceholderCard extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: theme.textTheme.titleLarge),
+                Text(
+                  title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: AppTypography.bold,
+                  ),
+                  maxLines: maxTitleLines,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 if (subtitle != null) ...[
                   const SizedBox(height: AppDimens.xs),
-                  Text(subtitle!, style: theme.textTheme.bodySmall),
+                  Text(
+                    subtitle!,
+                    style: theme.textTheme.bodySmall,
+                    maxLines: maxSubtitleLines,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ],
             ),

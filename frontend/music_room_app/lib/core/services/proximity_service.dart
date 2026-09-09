@@ -24,7 +24,10 @@ class ProximityService {
     final lat2 = _toRad(b.lat);
     final h =
         math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(lat1) * math.cos(lat2) * math.sin(dLng / 2) * math.sin(dLng / 2);
+        math.cos(lat1) *
+            math.cos(lat2) *
+            math.sin(dLng / 2) *
+            math.sin(dLng / 2);
     return 2 * _earthRadiusM * math.asin(math.sqrt(h));
   }
 

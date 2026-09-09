@@ -5,6 +5,7 @@ import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/repositories/friends_repository.dart';
 import 'package:music_room_app/core/utils/api_error_handler.dart';
 import 'package:music_room_app/models/user.dart';
+import 'package:music_room_app/widgets/neumorphic_form_field.dart';
 
 // * Reusable user picker backed by GET /users/search. Searches by display name
 // * (empty query = browse all visible users) with offset pagination loaded on
@@ -158,18 +159,23 @@ class _UserSearchSheetState extends State<UserSearchSheet> {
                   ),
                 ),
               ),
-              const SizedBox(height: AppDimens.md),
-              TextField(
-                controller: _searchController,
-                onChanged: _onQueryChanged,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: 'Search by name…',
-                  prefixIcon: const Icon(Icons.search),
-                  filled: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
-                    borderSide: BorderSide.none,
+              NeumorphicInset(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppDimens.md,
+                  vertical: AppDimens.xs,
+                ),
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: _onQueryChanged,
+                  textInputAction: TextInputAction.search,
+                  decoration: const InputDecoration(
+                    hintText: 'Search by name…',
+                    prefixIcon: Icon(Icons.search),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      vertical: AppDimens.md,
+                    ),
                   ),
                 ),
               ),

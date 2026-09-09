@@ -27,6 +27,7 @@ abstract class AudioPlayerService {
 
   /// Linear gain in `[0.0, 1.0]`.
   Future<void> setVolume(double volume);
+  Future<void> seek(Duration position);
   Future<void> dispose();
 }
 
@@ -44,8 +45,9 @@ class JustAudioPlayerService implements AudioPlayerService {
   Stream<bool> get playingStream => _player.playingStream;
 
   @override
-  Stream<void> get completedStream => _player.processingStateStream
-      .where((state) => state == ProcessingState.completed);
+  Stream<void> get completedStream => _player.processingStateStream.where(
+    (state) => state == ProcessingState.completed,
+  );
 
   @override
   Future<void> play(String url) async {
@@ -72,6 +74,9 @@ class JustAudioPlayerService implements AudioPlayerService {
   @override
   Future<void> setVolume(double volume) =>
       _player.setVolume(volume.clamp(0.0, 1.0));
+
+  @override
+  Future<void> seek(Duration position) => _player.seek(position);
 
   @override
   Future<void> dispose() => _player.dispose();

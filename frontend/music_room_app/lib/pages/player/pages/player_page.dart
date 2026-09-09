@@ -5,18 +5,12 @@ import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/pages/events/widgets/swipeable_track_card.dart';
 import 'package:music_room_app/pages/player/widgets/audio_visualizer.dart';
-import 'package:music_room_app/widgets/interactive_3d/interactive_mpc.dart';
+import 'package:music_room_app/pages/player/widgets/player_progress_bar.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/routing/safe_navigation.dart';
 import 'package:music_room_app/models/track.dart';
-
-String _formatDuration(Duration d) {
-  final minutes = d.inMinutes;
-  final seconds = d.inSeconds % 60;
-  return '$minutes:${seconds.toString().padLeft(2, '0')}';
-}
 
 // * Full-screen Player with swipe for voting.
 class PlayerPage extends StatefulWidget {
@@ -27,57 +21,6 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage> {
-  void _showMpcBeatpad() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(AppDimens.radiusLarge),
-          ),
-          boxShadow: Theme.of(
-            context,
-          ).extension<AppDesignTokens>()?.neumorphicShadow,
-        ),
-        child: Column(
-          children: [
-            const SizedBox(height: AppDimens.md),
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Theme.of(context).disabledColor.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-            const SizedBox(height: AppDimens.lg),
-            Text(
-              'MPC BEATPAD',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: AppTypography.bold,
-                letterSpacing: 2.0,
-              ),
-            ),
-            const Expanded(child: InteractiveMpc()),
-            Padding(
-              padding: const EdgeInsets.all(AppDimens.xl),
-              child: Text(
-                'Tap the pads to trigger live samples',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).disabledColor,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   // Cast a real vote for the current track (vote rooms only), then advance.
   void _vote(
     BuildContext context,
@@ -110,7 +53,6 @@ class _PlayerPageState extends State<PlayerPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tokens = theme.extension<AppDesignTokens>();
     final isMobile = AppBreakpoints.isCompact(context);
     final playerProvider = context.watch<PlayerProvider>();
     final isVoteRoom = playerProvider.voteRoomId != null;
@@ -120,248 +62,183 @@ class _PlayerPageState extends State<PlayerPage> {
       return const Scaffold(body: Center(child: Text('No track available')));
     }
 
-    // Real playback progress from the audio backend (30s Deezer preview).
-    final position = playerProvider.position;
-    final duration = playerProvider.duration;
-    final totalMs = duration.inMilliseconds;
-    final progress = totalMs > 0
-        ? (position.inMilliseconds / totalMs).clamp(0.0, 1.0)
-        : 0.0;
-    final remaining = duration > position ? duration - position : Duration.zero;
-
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      body: Stack(
-        children: [
-          // 1. Solid Background for Neumorphism
-          Container(color: theme.scaffoldBackgroundColor),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompactHeight = constraints.maxHeight < 680;
+            final reservedHeight = isCompactHeight ? 280.0 : 330.0;
+            final cardHeight = (constraints.maxHeight - reservedHeight).clamp(
+              140.0,
+              420.0,
+            );
 
-          // 2. Main Content
-          SafeArea(
-            child: Column(
+            return Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Header (Minimize Button)
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimens.md,
-                    vertical: AppDimens.sm,
-                  ),
-                  child: Row(
-                    children: [
-                      NeumorphicInteractiveContainer(
-                        onTap: () => context.safePop(fallbackRoute: routeHome),
-                        padding: const EdgeInsets.all(AppDimens.sm),
-                        decoration: const BoxDecoration(shape: BoxShape.circle),
-                        child: Icon(
-                          Icons.keyboard_arrow_down,
-                          size: 32,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                      Expanded(
-                        child: Text(
-                          isVoteRoom ? 'Live Voting Room' : 'Now Playing',
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: AppTypography.bold,
-                            letterSpacing: 1.2,
-                            color: theme.disabledColor,
-                          ),
-                        ),
-                      ),
-                      NeumorphicInteractiveContainer(
-                        onTap: _showMpcBeatpad,
-                        padding: const EdgeInsets.all(AppDimens.sm),
-                        decoration: const BoxDecoration(shape: BoxShape.circle),
-                        child: Icon(
-                          Icons.grid_view_rounded,
-                          size: 24,
-                          color: theme.colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const Spacer(),
-
-                // Visualizer
+                _PlayerHeader(isVoteRoom: isVoteRoom, theme: theme),
                 AudioVisualizer(isPlaying: playerProvider.isPlaying),
-                const SizedBox(height: AppDimens.md),
-
-                // 3. Track card. In a vote room it's the swipe-to-vote card
-                //    (casts a real vote, then advances); elsewhere it's a
-                //    static now-playing card (no misleading vote affordance).
-                FadeIn(
-                  duration: const Duration(milliseconds: 600),
-                  child: SizedBox(
-                    height: isMobile
-                        ? MediaQuery.of(context).size.height * 0.45
-                        : 500,
-                    width: isMobile ? double.infinity : 400,
-                    child: isVoteRoom
-                        ? SwipeableTrackCard(
-                            key: ValueKey(track.id),
-                            trackTitle: track.title,
-                            artistName: track.artist,
-                            score: track.score,
-                            imageUrl: track.artworkUrl ?? "placeholder",
-                            onSwiped: (action) =>
-                                _vote(context, playerProvider, track, action),
-                          )
-                        : _NowPlayingCard(
-                            key: ValueKey(track.id),
-                            track: track,
-                          ),
-                  ),
+                const SizedBox(height: AppDimens.xs),
+                _PlayerTrackCard(
+                  track: track,
+                  cardHeight: cardHeight,
+                  isMobile: isMobile,
+                  isVoteRoom: isVoteRoom,
+                  onVote: (action) =>
+                      _vote(context, playerProvider, track, action),
                 ),
-
-                const Spacer(),
-
-                // 4. Neumorphic Playback Controls
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppDimens.xl),
-                  child: Column(
-                    children: [
-                      // Progress Bar
-                      Container(
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surface,
-                          borderRadius: BorderRadius.circular(
-                            AppDimens.radiusPill,
-                          ),
-                          boxShadow: tokens?.neumorphicPressedShadow,
-                        ),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: progress,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.primary,
-                              borderRadius: BorderRadius.circular(
-                                AppDimens.radiusPill,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppDimens.sm),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppDimens.xs,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              _formatDuration(position),
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.disabledColor,
-                                fontWeight: AppTypography.bold,
-                              ),
-                            ),
-                            Text(
-                              '-${_formatDuration(remaining)}',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.disabledColor,
-                                fontWeight: AppTypography.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: AppDimens.xl),
-
-                      // Controls
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          NeumorphicInteractiveContainer(
-                            onTap: playerProvider.playPrevious,
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: AppDimens.xs,
-                            ),
-                            padding: const EdgeInsets.all(AppDimens.md),
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.skip_previous_rounded,
-                              size: 36,
-                              color: playerProvider.hasPrevious
-                                  ? theme.colorScheme.primary
-                                  : theme.disabledColor,
-                            ),
-                          ),
-                          NeumorphicInteractiveContainer(
-                            onTap: () {
-                              if (playerProvider.isPlaying) {
-                                playerProvider.pause();
-                              } else {
-                                if (playerProvider.currentTrack == null) {
-                                  playerProvider.playTrack(track);
-                                } else {
-                                  playerProvider.resume();
-                                }
-                              }
-                              // Show alert if no permission
-                              if (playerProvider.error != null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(playerProvider.error!),
-                                    backgroundColor: Colors.redAccent,
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                                playerProvider.clearError();
-                              }
-                            },
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: AppDimens.xs,
-                            ),
-                            padding: const EdgeInsets.all(AppDimens.lg),
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              playerProvider.isPlaying
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              size: 48,
-                              color: theme.colorScheme.primary,
-                            ),
-                          ),
-                          NeumorphicInteractiveContainer(
-                            onTap: playerProvider.playNext,
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: AppDimens.xs,
-                            ),
-                            padding: const EdgeInsets.all(AppDimens.md),
-                            decoration: const BoxDecoration(
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              Icons.skip_next_rounded,
-                              size: 36,
-                              color: playerProvider.hasNext
-                                  ? theme.colorScheme.primary
-                                  : theme.disabledColor,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: AppDimens.xxl * 1.5),
-                    ],
-                  ),
+                _PlayerBottomSection(
+                  playerProvider: playerProvider,
+                  track: track,
+                  isCompactHeight: isCompactHeight,
+                  onPlayPause: () =>
+                      _handlePlayPause(context, playerProvider, track),
                 ),
               ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  void _handlePlayPause(
+    BuildContext context,
+    PlayerProvider playerProvider,
+    Track track,
+  ) {
+    if (playerProvider.isPlaying) {
+      playerProvider.pause();
+    } else {
+      if (playerProvider.currentTrack == null) {
+        playerProvider.playTrack(track);
+      } else {
+        playerProvider.resume();
+      }
+    }
+    if (playerProvider.error != null) {
+      final theme = Theme.of(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(playerProvider.error!),
+          backgroundColor: theme.colorScheme.error,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      playerProvider.clearError();
+    }
+  }
+}
+
+class _PlayerHeader extends StatelessWidget {
+  final bool isVoteRoom;
+  final ThemeData theme;
+
+  const _PlayerHeader({required this.isVoteRoom, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.md,
+        vertical: AppDimens.sm,
+      ),
+      child: Row(
+        children: [
+          NeumorphicInteractiveContainer(
+            onTap: () => context.safePop(fallbackRoute: routeHome),
+            padding: const EdgeInsets.all(AppDimens.sm),
+            decoration: const BoxDecoration(shape: BoxShape.circle),
+            child: Icon(
+              Icons.keyboard_arrow_down,
+              size: 32,
+              color: theme.colorScheme.primary,
             ),
           ),
+          Expanded(
+            child: Text(
+              isVoteRoom ? 'Live Voting Room' : 'Now Playing',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: AppTypography.bold,
+                letterSpacing: 1.2,
+                color: theme.disabledColor,
+              ),
+            ),
+          ),
+          // Symmetrical spacer replacing the removed MIDI button
+          const SizedBox(width: 48),
         ],
       ),
+    );
+  }
+}
+
+class _PlaybackControls extends StatelessWidget {
+  final bool isPlaying;
+  final bool hasPrevious;
+  final bool hasNext;
+  final VoidCallback onPrevious;
+  final VoidCallback onPlayPause;
+  final VoidCallback onNext;
+  final bool isCompact;
+
+  const _PlaybackControls({
+    required this.isPlaying,
+    required this.hasPrevious,
+    required this.hasNext,
+    required this.onPrevious,
+    required this.onPlayPause,
+    required this.onNext,
+    required this.isCompact,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final playPadding = isCompact ? AppDimens.md : AppDimens.lg;
+    final playIconSize = isCompact ? 38.0 : 48.0;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        NeumorphicInteractiveContainer(
+          onTap: onPrevious,
+          margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs),
+          padding: const EdgeInsets.all(AppDimens.md),
+          decoration: const BoxDecoration(shape: BoxShape.circle),
+          child: Icon(
+            Icons.skip_previous_rounded,
+            size: 36,
+            color: hasPrevious
+                ? theme.colorScheme.primary
+                : theme.disabledColor,
+          ),
+        ),
+        NeumorphicInteractiveContainer(
+          onTap: onPlayPause,
+          margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs),
+          padding: EdgeInsets.all(playPadding),
+          decoration: const BoxDecoration(shape: BoxShape.circle),
+          child: Icon(
+            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+            size: playIconSize,
+            color: theme.colorScheme.primary,
+          ),
+        ),
+        NeumorphicInteractiveContainer(
+          onTap: onNext,
+          margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs),
+          padding: const EdgeInsets.all(AppDimens.md),
+          decoration: const BoxDecoration(shape: BoxShape.circle),
+          child: Icon(
+            Icons.skip_next_rounded,
+            size: 36,
+            color: hasNext ? theme.colorScheme.primary : theme.disabledColor,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -379,7 +256,10 @@ class _NowPlayingCard extends StatelessWidget {
     final tokens = theme.extension<AppDesignTokens>();
 
     return Container(
-      margin: const EdgeInsets.all(AppDimens.lg),
+      margin: const EdgeInsets.symmetric(
+        horizontal: AppDimens.lg,
+        vertical: AppDimens.xs,
+      ),
       width: double.infinity,
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -392,17 +272,7 @@ class _NowPlayingCard extends StatelessWidget {
             tokens?.cardRadius ?? BorderRadius.circular(AppDimens.radiusLarge),
         child: Column(
           children: [
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                child: const Icon(
-                  Icons.music_note,
-                  size: 80,
-                  color: Colors.grey,
-                ),
-              ),
-            ),
+            Expanded(child: _NowPlayingArtwork(track: track)),
             Container(
               padding: const EdgeInsets.all(AppDimens.lg),
               width: double.infinity,
@@ -422,7 +292,7 @@ class _NowPlayingCard extends StatelessWidget {
                   Text(
                     track.artist,
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey,
+                      color: theme.disabledColor,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -432,6 +302,112 @@ class _NowPlayingCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _NowPlayingArtwork extends StatelessWidget {
+  final Track track;
+
+  const _NowPlayingArtwork({required this.track});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final artworkUrl = track.artworkUrl;
+
+    Widget fallbackIcon() => Container(
+      width: double.infinity,
+      height: double.infinity,
+      color: theme.colorScheme.primary.withValues(alpha: 0.1),
+      child: Icon(Icons.music_note, size: 80, color: theme.disabledColor),
+    );
+
+    if (artworkUrl != null && artworkUrl.isNotEmpty) {
+      return Image.network(
+        artworkUrl,
+        width: double.infinity,
+        height: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (ctx, err, stack) => fallbackIcon(),
+      );
+    }
+
+    return fallbackIcon();
+  }
+}
+
+class _PlayerTrackCard extends StatelessWidget {
+  final Track track;
+  final double cardHeight;
+  final bool isMobile;
+  final bool isVoteRoom;
+  final void Function(SwipeAction action) onVote;
+
+  const _PlayerTrackCard({
+    required this.track,
+    required this.cardHeight,
+    required this.isMobile,
+    required this.isVoteRoom,
+    required this.onVote,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeIn(
+      duration: const Duration(milliseconds: 600),
+      child: SizedBox(
+        height: cardHeight,
+        width: isMobile ? double.infinity : 400,
+        child: isVoteRoom
+            ? SwipeableTrackCard(
+                key: ValueKey(track.id),
+                trackTitle: track.title,
+                artistName: track.artist,
+                score: track.score,
+                imageUrl: track.artworkUrl ?? 'placeholder',
+                onSwiped: onVote,
+              )
+            : _NowPlayingCard(key: ValueKey(track.id), track: track),
+      ),
+    );
+  }
+}
+
+class _PlayerBottomSection extends StatelessWidget {
+  final PlayerProvider playerProvider;
+  final Track track;
+  final bool isCompactHeight;
+  final VoidCallback onPlayPause;
+
+  const _PlayerBottomSection({
+    required this.playerProvider,
+    required this.track,
+    required this.isCompactHeight,
+    required this.onPlayPause,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppDimens.xl),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const PlayerProgressBar(),
+          SizedBox(height: isCompactHeight ? AppDimens.md : AppDimens.xl),
+          _PlaybackControls(
+            isPlaying: playerProvider.isPlaying,
+            hasPrevious: playerProvider.hasPrevious,
+            hasNext: playerProvider.hasNext,
+            onPrevious: playerProvider.playPrevious,
+            onPlayPause: onPlayPause,
+            onNext: playerProvider.playNext,
+            isCompact: isCompactHeight,
+          ),
+          SizedBox(height: isCompactHeight ? AppDimens.sm : AppDimens.lg),
+        ],
       ),
     );
   }
