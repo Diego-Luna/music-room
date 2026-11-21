@@ -77,8 +77,9 @@ export class AuthService {
 
   // ── Registration ───────────────────────────────────────────────
   async register(dto: RegisterDto): Promise<{ message: string }> {
+    const email = this.normalizeEmail(dto.email);
     const existing = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+      where: { email },
     });
     if (existing) {
       throw new ConflictException('Email already registered');
@@ -88,7 +89,7 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
-        email: dto.email,
+        email,
         passwordHash,
         displayName: dto.displayName,
       },
@@ -122,7 +123,10 @@ export class AuthService {
     email: string,
     password: string,
   ): Promise<{ id: string; email: string; emailVerified: boolean }> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const normalized = this.normalizeEmail(email);
+    const user = await this.prisma.user.findUnique({
+      where: { email: normalized },
+    });
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -183,8 +187,9 @@ export class AuthService {
       );
     }
 
+    const socialEmail = this.normalizeEmail(profile.email);
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: profile.email },
+      where: { email: socialEmail },
     });
     if (existingUser) {
       await this.prisma.socialAccount.create({
@@ -199,7 +204,7 @@ export class AuthService {
 
     const user = await this.prisma.user.create({
       data: {
-        email: profile.email,
+        email: socialEmail,
         displayName: profile.name,
         avatarUrl: profile.picture,
         emailVerified: true,
@@ -279,7 +284,9 @@ export class AuthService {
   // Re-sends the verification email. Anti-enumeration: always succeeds
   // silently, whether or not the address maps to an unverified account.
   async resendVerification(email: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: this.normalizeEmail(email) },
+    });
     if (user && !user.emailVerified) {
       await this.issueEmailVerification(user.id, user.email);
     }
@@ -287,7 +294,9 @@ export class AuthService {
 
   // ── Forgot / reset password ────────────────────────────────────
   async forgotPassword(email: string): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.user.findUnique({
+      where: { email: this.normalizeEmail(email) },
+    });
     if (!user) return; // anti-enumeration
 
     const rawToken = this.generateRawToken();
@@ -486,6 +495,10 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
+  private normalizeEmail(email: string): string {
+    return email.trim().toLowerCase();
+  }
+
   private generateRawToken(): string {
     return crypto.randomBytes(32).toString('hex');
   }
@@ -660,14 +673,19 @@ export class AuthService {
     }
 
     const iss = payload.iss;
-    const allowedIssuers = ['https://www.facebook.com', 'https://limited.facebook.com', 'www.facebook.com', 'limited.facebook.com'];
-    if (!iss || !allowedIssuers.some(allowed => iss.includes(allowed))) {
+    const allowedIssuers = new Set([
+      'https://www.facebook.com',
+      'https://limited.facebook.com',
+      'www.facebook.com',
+      'limited.facebook.com',
+    ]);
+    if (!iss || !allowedIssuers.has(iss.replace(/\/$/, ''))) {
       this.logger.error(`Facebook JWT issuer mismatch. Got: ${iss}`);
       throw new UnauthorizedException('Facebook JWT issuer mismatch');
     }
 
-    if (payload.exp && payload.exp * 1000 < Date.now()) {
-      this.logger.error(`Facebook JWT expired. Exp time: ${payload.exp * 1000}, Current time: ${Date.now()}`);
+    if (!payload.exp || payload.exp * 1000 < Date.now()) {
+      this.logger.error(`Facebook JWT expired or missing exp. Exp: ${payload.exp}`);
       throw new UnauthorizedException('Facebook JWT expired');
     }
 
@@ -702,9 +720,15 @@ export class AuthService {
       pictureUrl = payload.picture.data?.url;
     }
 
+    if (!payload.sub || !payload.email) {
+      throw new BadRequestException(
+        'The facebook account did not provide an email address',
+      );
+    }
+
     return {
-      id: payload.sub ?? '',
-      email: payload.email ?? '',
+      id: payload.sub,
+      email: payload.email,
       name: payload.name ?? '',
       picture: pictureUrl,
     };
