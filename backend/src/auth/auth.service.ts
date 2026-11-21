@@ -513,6 +513,9 @@ export class AuthService {
   ): Promise<SocialProfile> {
     let url: string;
     if (provider === 'google') {
+      if (accessToken.startsWith('eyJ')) {
+        return this.verifyGoogleIdToken(accessToken);
+      }
       await this.verifyGoogleAudience(accessToken);
       url = 'https://www.googleapis.com/oauth2/v2/userinfo';
     } else if (provider === 'facebook') {
@@ -568,6 +571,53 @@ export class AuthService {
     return profile;
   }
 
+  private async verifyGoogleIdToken(idToken: string): Promise<SocialProfile> {
+    const response = await fetch(
+      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`,
+    );
+    if (!response.ok) {
+      const errorBody =
+        typeof response.text === 'function'
+          ? await response.text().catch(() => 'unknown')
+          : 'unknown';
+      this.logger.error(
+        `Google id_token verification failed. Status: ${response.status}, Response: ${errorBody}`,
+      );
+      throw new UnauthorizedException('Invalid google token');
+    }
+    const info = (await response.json()) as Record<string, unknown>;
+    const iss = info.iss as string | undefined;
+    if (iss !== 'https://accounts.google.com' && iss !== 'accounts.google.com') {
+      this.logger.error(`Google id_token invalid issuer: ${iss}`);
+      throw new UnauthorizedException('Invalid google token issuer');
+    }
+    this.assertGoogleAudience(info.aud as string | undefined);
+
+    if (info.email_verified !== true && info.email_verified !== 'true') {
+      this.logger.error(
+        `Google id_token email is not verified. sub=${String(info.sub)}`,
+      );
+      throw new UnauthorizedException('Google account email is not verified');
+    }
+
+    const id = info.sub as string | undefined;
+    const email = info.email as string | undefined;
+    if (!id || !email) {
+      this.logger.error(
+        `Google id_token missing sub or email. Data: ${JSON.stringify(info)}`,
+      );
+      throw new BadRequestException(
+        'The google account did not provide an email address',
+      );
+    }
+    return {
+      id,
+      email,
+      name: (info.name as string | undefined) || email.split('@')[0],
+      picture: info.picture as string | undefined,
+    };
+  }
+
   private async verifyGoogleAudience(accessToken: string): Promise<void> {
     const expectedAud = this.configService.get<string>('GOOGLE_CLIENT_ID');
     if (!expectedAud) return; // dev mode without real Google app — skip
@@ -581,21 +631,26 @@ export class AuthService {
       throw new UnauthorizedException('Invalid google token');
     }
     const info = (await response.json()) as Record<string, unknown>;
+    this.assertGoogleAudience(info.aud as string | undefined);
+  }
+
+  private assertGoogleAudience(audStr: string | undefined): void {
+    const expectedAud = this.configService.get<string>('GOOGLE_CLIENT_ID');
+    if (!expectedAud) return; // dev mode without real Google app — skip
 
     // * Extract the project number prefix (e.g. "310603183879") from the expected client ID
     const projectNumberMatch = expectedAud.match(/^(\d+)-/);
     if (!projectNumberMatch) {
-      if (info.aud !== expectedAud) {
-        this.logger.error(`Google token audience mismatch. Expected: ${expectedAud}, Got: ${info.aud}`);
+      if (audStr !== expectedAud) {
+        this.logger.error(`Google token audience mismatch. Expected: ${expectedAud}, Got: ${audStr}`);
         throw new UnauthorizedException('Google token audience mismatch');
       }
       return;
     }
 
     const projectNumber = projectNumberMatch[1];
-    const audStr = info.aud as string;
     if (!audStr || !audStr.startsWith(`${projectNumber}-`) || !audStr.endsWith('.apps.googleusercontent.com')) {
-      this.logger.error(`Google token audience mismatch. Expected project prefix: ${projectNumber}-*, Got: ${info.aud}`);
+      this.logger.error(`Google token audience mismatch. Expected project prefix: ${projectNumber}-*, Got: ${audStr}`);
       throw new UnauthorizedException('Google token audience mismatch');
     }
   }

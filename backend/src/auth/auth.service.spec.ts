@@ -865,5 +865,92 @@ describe('AuthService', () => {
         service.verifySocialToken('google', 'tok'),
       ).rejects.toThrow(UnauthorizedException);
     });
+
+    it('should verify a Google OIDC id_token JWT via tokeninfo?id_token=', async () => {
+      (configService.get as ReturnType<typeof vi.fn>).mockImplementation(
+        (k: string, d?: unknown) =>
+          k === 'GOOGLE_CLIENT_ID'
+            ? '310603183879-web.apps.googleusercontent.com'
+            : d,
+      );
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            sub: 'google-sub-123',
+            email: 'google.user@example.com',
+            email_verified: 'true',
+            iss: 'https://accounts.google.com',
+            name: 'Google User',
+            picture: 'https://example.com/pic.png',
+            aud: '310603183879-ios.apps.googleusercontent.com',
+          }),
+      });
+
+      const profile = await service.verifySocialToken(
+        'google',
+        'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ.sig',
+      );
+      expect(profile).toEqual({
+        id: 'google-sub-123',
+        email: 'google.user@example.com',
+        name: 'Google User',
+        picture: 'https://example.com/pic.png',
+      });
+    });
+
+    it('should reject a Google OIDC id_token when email_verified is false', async () => {
+      (configService.get as ReturnType<typeof vi.fn>).mockImplementation(
+        (k: string, d?: unknown) =>
+          k === 'GOOGLE_CLIENT_ID'
+            ? '310603183879-web.apps.googleusercontent.com'
+            : d,
+      );
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            sub: 'google-sub-123',
+            email: 'unverified@example.com',
+            email_verified: 'false',
+            iss: 'https://accounts.google.com',
+            aud: '310603183879-web.apps.googleusercontent.com',
+          }),
+      });
+
+      await expect(
+        service.verifySocialToken(
+          'google',
+          'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ.sig',
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should reject a Google OIDC id_token when audience mismatches', async () => {
+      (configService.get as ReturnType<typeof vi.fn>).mockImplementation(
+        (k: string, d?: unknown) =>
+          k === 'GOOGLE_CLIENT_ID'
+            ? '310603183879-web.apps.googleusercontent.com'
+            : d,
+      );
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            sub: 'google-sub-123',
+            email: 'google.user@example.com',
+            email_verified: 'true',
+            iss: 'https://accounts.google.com',
+            aud: '999999999999-evil.apps.googleusercontent.com',
+          }),
+      });
+
+      await expect(
+        service.verifySocialToken(
+          'google',
+          'eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjMifQ.sig',
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+    });
   });
 });
