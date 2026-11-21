@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
@@ -23,6 +24,15 @@ class _StartPageState extends State<StartPage> {
   @override
   void dispose() {
     super.dispose();
+  }
+
+  Future<void> _openCreditUrl(String url) async {
+    final uri = Uri.parse(url);
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('[StartPage] Could not launch $url: $e');
+    }
   }
 
   @override
@@ -133,7 +143,62 @@ class _StartPageState extends State<StartPage> {
                                     label: 'Get Started',
                                     onPressed: () => context.push(routeLogin),
                                   ),
-                                  const SizedBox(height: AppDimens.xl),
+                                  const SizedBox(height: AppDimens.md),
+                                  Text(
+                                    '3D Models by Sketchfab creators:',
+                                    textAlign: TextAlign.center,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.55),
+                                      fontWeight: AppTypography.semibold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: AppDimens.xs),
+                                  for (final credit in const [
+                                    (
+                                      label: 'saurabh.buradkar7',
+                                      url:
+                                          'https://sketchfab.com/saurabh.buradkar7',
+                                    ),
+                                    (
+                                      label: 'XenoFalcon',
+                                      url: 'https://sketchfab.com/XenoFalcon',
+                                    ),
+                                    (
+                                      label: 'hegoiurrutia',
+                                      url: 'https://sketchfab.com/hegoiurrutia',
+                                    ),
+                                  ])
+                                    MouseRegion(
+                                      cursor: SystemMouseCursors.click,
+                                      child: GestureDetector(
+                                        onTap: () => _openCreditUrl(credit.url),
+                                        child: Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 2,
+                                          ),
+                                          child: Text(
+                                            credit.url,
+                                            textAlign: TextAlign.center,
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  color: theme
+                                                      .colorScheme
+                                                      .primary
+                                                      .withValues(alpha: 0.75),
+                                                  fontSize: 11,
+                                                  decoration:
+                                                      TextDecoration.underline,
+                                                  decorationColor: theme
+                                                      .colorScheme
+                                                      .primary
+                                                      .withValues(alpha: 0.5),
+                                                ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  const SizedBox(height: AppDimens.lg),
                                 ],
                               ),
                             ),
