@@ -32,13 +32,17 @@ class _RemoteControlPageState extends State<RemoteControlPage> {
     super.initState();
     // Grab the provider once and target this delegation for every command.
     _player = context.read<PlayerProvider>();
-    _player.setActiveDelegation(widget.delegation.id);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _player.setActiveDelegation(widget.delegation.id);
+      }
+    });
   }
 
   @override
   void dispose() {
-    // Stop relaying once we leave, so the local player is back to itself.
-    _player.clearActiveDelegation();
+    // Stop relaying once we leave without notifying during widget teardown.
+    _player.clearActiveDelegation(notify: false);
     super.dispose();
   }
 

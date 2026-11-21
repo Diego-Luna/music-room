@@ -34,6 +34,12 @@ class SwipeableTrackCardState extends State<SwipeableTrackCard>
   late AnimationController _animationController;
   Offset _dragOffset = Offset.zero;
   double _dragAngle = 0.0;
+  Offset _animStartOffset = Offset.zero;
+  Offset _animTargetOffset = Offset.zero;
+  double _animStartAngle = 0.0;
+  bool _animIsEscaping = false;
+  SwipeAction _pendingAction = SwipeAction.none;
+  Curve _animCurve = Curves.easeOut;
 
   // Size of the screen determines limits
   Size _screenSize = Size.zero;
@@ -43,11 +49,41 @@ class SwipeableTrackCardState extends State<SwipeableTrackCard>
     super.initState();
     _animationController =
         AnimationController(
-          vsync: this,
-          duration: const Duration(milliseconds: 500),
-        )..addListener(() {
-          setState(() {});
-        });
+            vsync: this,
+            duration: const Duration(milliseconds: 500),
+          )
+          ..addListener(() {
+            final t = _animCurve.transform(_animationController.value);
+            setState(() {
+              _dragOffset = Offset.lerp(
+                _animStartOffset,
+                _animTargetOffset,
+                t,
+              )!;
+              _dragAngle =
+                  ui.lerpDouble(
+                    _animStartAngle,
+                    _animIsEscaping ? _animStartAngle : 0.0,
+                    t,
+                  ) ??
+                  0.0;
+            });
+          })
+          ..addStatusListener((status) {
+            if (status == AnimationStatus.completed) {
+              final completedAction = _pendingAction;
+              _pendingAction = SwipeAction.none;
+              if (completedAction != SwipeAction.none) {
+                widget.onSwiped(completedAction);
+                if (mounted) {
+                  setState(() {
+                    _dragOffset = Offset.zero;
+                    _dragAngle = 0.0;
+                  });
+                }
+              }
+            }
+          });
   }
 
   @override
@@ -90,45 +126,12 @@ class SwipeableTrackCardState extends State<SwipeableTrackCard>
   }
 
   void _animateTo(Offset targetOffset, SwipeAction action) {
-    final startOffset = _dragOffset;
-    final startAngle = _dragAngle;
-
-    //* Are we escaping the screen or snapping back to the center?
-    final isEscaping = targetOffset != Offset.zero;
-
-    final animation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(
-        parent: _animationController,
-        // If escaping (swipe successful), we use an easeOut for a smooth exit.
-        // If rebouncing (snap back), we use an elastic spring for a physics-based simulation feel!
-        curve: isEscaping ? Curves.easeOut : Curves.elasticOut,
-      ),
-    );
-
-    animation.addListener(() {
-      setState(() {
-        _dragOffset = Offset.lerp(startOffset, targetOffset, animation.value)!;
-        _dragAngle =
-            ui.lerpDouble(
-              startAngle,
-              isEscaping ? startAngle : 0.0,
-              animation.value,
-            ) ??
-            0.0;
-      });
-    });
-
-    animation.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        if (action != SwipeAction.none) {
-          widget.onSwiped(action);
-          // Optional: reset state if the card is to be reused immediately
-          _dragOffset = Offset.zero;
-          _dragAngle = 0.0;
-        }
-      }
-    });
-
+    _animStartOffset = _dragOffset;
+    _animTargetOffset = targetOffset;
+    _animStartAngle = _dragAngle;
+    _animIsEscaping = targetOffset != Offset.zero;
+    _pendingAction = action;
+    _animCurve = _animIsEscaping ? Curves.easeOut : Curves.elasticOut;
     _animationController.forward(from: 0);
   }
 
@@ -393,10 +396,11 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
     // * Show the first unvoted track in the voting interface
     final track = unvotedTracks.first;
 
-    void handleVote(SwipeAction action) {
+    Future<void> handleVote(SwipeAction action) async {
       final value = action == SwipeAction.like ? 1 : -1;
       final scaffoldMessenger = ScaffoldMessenger.of(context);
-      eventsProvider.voteForTrack(activeEvent.id, track.id, value).then((_) {
+      try {
+        await eventsProvider.voteForTrack(activeEvent.id, track.id, value);
         scaffoldMessenger.showSnackBar(
           SnackBar(
             content: Text(
@@ -407,7 +411,15 @@ class _DualModeVotingInterfaceState extends State<DualModeVotingInterface> {
             duration: const Duration(seconds: 1),
           ),
         );
-      });
+      } catch (_) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(eventsProvider.error ?? 'Could not cast vote.'),
+            backgroundColor: Colors.redAccent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
 
     return Column(
