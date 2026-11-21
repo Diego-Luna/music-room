@@ -63,6 +63,15 @@ class DefaultSocialAuthService implements SocialAuthService {
         '[GoogleSignIn] authenticate() OK — account: ${account.email}',
       );
 
+      // * Prefer idToken directly (no extra consent dialog on iOS/Android).
+      final idToken = account.authentication.idToken;
+      if (idToken != null && idToken.isNotEmpty) {
+        debugPrint(
+          '[GoogleSignIn] ID token obtained (length: ${idToken.length}).',
+        );
+        return idToken;
+      }
+
       debugPrint('[GoogleSignIn] Requesting scopes [email, profile]...');
       final clientAuth = await account.authorizationClient.authorizeScopes(
         const ['email', 'profile'],
@@ -72,14 +81,16 @@ class DefaultSocialAuthService implements SocialAuthService {
       final token = clientAuth.accessToken;
       debugPrint('[GoogleSignIn] Token obtained (length: ${token.length}).');
       return token;
-    } on Exception catch (e) {
-      // * Covers MissingPluginException, PlatformException (user cancelled),
-      // * and any other error thrown by the native layer.
-      debugPrint('[GoogleSignIn] Exception: ${e.runtimeType} — $e');
-      return null;
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        debugPrint('[GoogleSignIn] Cancelled by user.');
+        return null;
+      }
+      debugPrint('[GoogleSignIn] GoogleSignInException: ${e.code} — $e');
+      throw Exception(e.description ?? 'Google sign-in failed (${e.code.name})');
     } catch (e) {
       debugPrint('[GoogleSignIn] Unexpected error: ${e.runtimeType} — $e');
-      return null;
+      rethrow;
     }
   }
 
