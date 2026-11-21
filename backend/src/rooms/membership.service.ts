@@ -54,22 +54,37 @@ export class RoomMembershipService {
       throw new ConflictException('Already a member of this room');
     }
 
-    if (room.visibility === 'PRIVATE' && room.ownerId !== userId) {
-      const invite = await this.prisma.roomInvitation.findFirst({
+    const pendingInvite =
+      room.ownerId === userId
+        ? null
+        : await this.prisma.roomInvitation.findFirst({
+            where: {
+              roomId,
+              inviteeId: userId,
+              status: 'PENDING',
+              expiresAt: { gt: new Date() },
+            },
+          });
+
+    if (room.visibility === 'PRIVATE' && room.ownerId !== userId && !pendingInvite) {
+      throw new ForbiddenException(
+        'This room is private; you need an invitation',
+      );
+    }
+
+    if (pendingInvite) {
+      // * Clear any prior ACCEPTED row for (roomId, inviteeId) to avoid P2002
+      //   on @@unique([roomId, inviteeId, status]) when re-invited.
+      await this.prisma.roomInvitation.deleteMany?.({
         where: {
           roomId,
           inviteeId: userId,
-          status: 'PENDING',
-          expiresAt: { gt: new Date() },
+          status: 'ACCEPTED',
+          id: { not: pendingInvite.id },
         },
       });
-      if (!invite) {
-        throw new ForbiddenException(
-          'This room is private; you need an invitation',
-        );
-      }
       await this.prisma.roomInvitation.update({
-        where: { id: invite.id },
+        where: { id: pendingInvite.id },
         data: { status: 'ACCEPTED', respondedAt: new Date() },
       });
     }
@@ -219,6 +234,15 @@ export class RoomMembershipService {
     await this.prisma.roomMember.delete({
       where: { roomId_userId: { roomId, userId: targetUserId } },
     });
+    // ! Revoke prior invitations so a kicked member cannot keep voting/editing
+    //   in a PUBLIC room with INVITED_ONLY license.
+    await this.prisma.roomInvitation.deleteMany?.({
+      where: {
+        roomId,
+        inviteeId: targetUserId,
+        status: { in: ['PENDING', 'ACCEPTED'] },
+      },
+    });
     // Kick is anonymous — neither the room broadcast nor the targeted
     // user's toast reveals the acting admin's identity (privacy).
     this.emit(roomId, 'member:removed', {
@@ -289,6 +313,14 @@ export class RoomMembershipService {
       userId,
       invitationId,
     );
+    await this.prisma.roomInvitation.deleteMany?.({
+      where: {
+        roomId: invitation.roomId,
+        inviteeId: userId,
+        status: 'DECLINED',
+        id: { not: invitationId },
+      },
+    });
     const updated = await this.prisma.roomInvitation.update({
       where: { id: invitationId },
       data: { status: 'DECLINED', respondedAt: new Date() },
@@ -317,6 +349,14 @@ export class RoomMembershipService {
       const room = await this.requireRoom(invitation.roomId);
       await this.requireAdmin(invitation.roomId, room, actingUserId);
     }
+    await this.prisma.roomInvitation.deleteMany?.({
+      where: {
+        roomId: invitation.roomId,
+        inviteeId: invitation.inviteeId,
+        status: 'REVOKED',
+        id: { not: invitationId },
+      },
+    });
     const updated = await this.prisma.roomInvitation.update({
       where: { id: invitationId },
       data: { status: 'REVOKED', respondedAt: new Date() },

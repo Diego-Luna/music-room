@@ -77,7 +77,7 @@ export class PlaylistController {
 
   @Delete(':trackId')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Remove an item (author, owner or admin)' })
+  @ApiOperation({ summary: 'Remove an item from the playlist (editor license)' })
   @ApiOkResponse({ type: MessageResponseDto })
   async remove(
     @CurrentUser() user: JwtPayload,
