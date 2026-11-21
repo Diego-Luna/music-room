@@ -67,7 +67,10 @@ async function bootstrap() {
     .addTag('Auth')
     .addTag('Users')
     .addTag('Rooms')
+    .addTag('Delegation')
     .addTag('Search')
+    .addTag('Subscription')
+    .addTag('Sync')
     .addTag('Notifications')
     .addTag('Health')
     .build();
