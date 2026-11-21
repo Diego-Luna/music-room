@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_room_app/config/location_config.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/core/utils/api_error_handler.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 
@@ -78,7 +79,7 @@ class EventsProvider extends ChangeNotifier {
     }
   }
 
-  // * value 1 = upvote, 0 = remove vote
+  // * value 1 = upvote, -1 = downvote, 0 = remove vote
   // * V.2.1: attach lat/lng from LocationConfig (Settings) for geo-gated rooms.
   Future<void> voteForTrack(
     String roomId,
@@ -87,7 +88,13 @@ class EventsProvider extends ChangeNotifier {
     double? lat,
     double? lng,
   }) async {
-    _votedTrackIds.add(trackId);
+    final wasVoted = _votedTrackIds.contains(trackId);
+    if (value == 0) {
+      _votedTrackIds.remove(trackId);
+    } else {
+      _votedTrackIds.add(trackId);
+    }
+    _error = null;
     notifyListeners();
     try {
       final position = (lat != null && lng != null)
@@ -102,8 +109,14 @@ class EventsProvider extends ChangeNotifier {
       );
       await fetchEvents(force: true);
     } catch (e) {
-      _error = e.toString();
+      if (wasVoted) {
+        _votedTrackIds.add(trackId);
+      } else {
+        _votedTrackIds.remove(trackId);
+      }
+      _error = ApiErrorHandler.getMessage(e);
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -114,12 +127,14 @@ class EventsProvider extends ChangeNotifier {
   }
 
   Future<void> suggestTrack(String roomId, Track track) async {
+    _error = null;
     try {
       await _repository.addVoteTrack(roomId, track);
       await fetchEvents(force: true);
     } catch (e) {
-      _error = e.toString();
+      _error = ApiErrorHandler.getMessage(e);
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -215,8 +230,11 @@ class EventsProvider extends ChangeNotifier {
 
   // * Handler methods for socket events
   void handleTrackAdded(Track track) {
+    final targetId = track.roomId;
+    if (targetId == null) return;
     for (var i = 0; i < _events.length; i++) {
       final room = _events[i];
+      if (room.id != targetId) continue;
       if (room.tracks.any((t) => t.id == track.id)) continue;
       final updatedTracks = List<Track>.from(room.tracks)..add(track);
       _events[i] = room.copyWith(tracks: updatedTracks);
@@ -224,6 +242,16 @@ class EventsProvider extends ChangeNotifier {
         _selectedEvent = _events[i];
       }
     }
+    notifyListeners();
+  }
+
+  /// V.6: reset user-scoped state on logout.
+  void clear() {
+    _events = [];
+    _selectedEvent = null;
+    _votedTrackIds.clear();
+    _error = null;
+    _isLoading = false;
     notifyListeners();
   }
 

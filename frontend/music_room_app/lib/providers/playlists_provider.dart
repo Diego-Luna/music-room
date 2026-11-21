@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
+import 'package:music_room_app/core/utils/api_error_handler.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 
@@ -141,22 +142,26 @@ class PlaylistsProvider extends ChangeNotifier {
   }
 
   Future<void> addTrack(String roomId, Track track) async {
+    _error = null;
     try {
       await _repository.addPlaylistTrack(roomId, track);
       await fetchPlaylists(force: true);
     } catch (e) {
-      _error = e.toString();
+      _error = ApiErrorHandler.getMessage(e);
       notifyListeners();
+      rethrow;
     }
   }
 
   Future<void> removeTrack(String roomId, String trackId) async {
+    _error = null;
     try {
       await _repository.removePlaylistTrack(roomId, trackId);
       await fetchPlaylists(force: true);
     } catch (e) {
-      _error = e.toString();
+      _error = ApiErrorHandler.getMessage(e);
       notifyListeners();
+      rethrow;
     }
   }
 
@@ -226,6 +231,14 @@ class PlaylistsProvider extends ChangeNotifier {
         _playlists[i] = room.copyWith(tracks: updatedTracks);
       }
     }
+    notifyListeners();
+  }
+
+  /// V.6: reset user-scoped state on logout.
+  void clear() {
+    _playlists = [];
+    _error = null;
+    _isLoading = false;
     notifyListeners();
   }
 }

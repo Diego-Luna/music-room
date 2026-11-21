@@ -59,7 +59,7 @@ class RestApiRepository implements RoomRepository {
         if (voteEndsAt != null) 'voteEndsAt': voteEndsAt.toIso8601String(),
         'voteLocationLat': ?voteLocationLat,
         'voteLocationLng': ?voteLocationLng,
-        'voteLocationRadiusM': ?voteLocationRadiusM,
+        'voteLocationRadiusM': ?voteLocationRadiusM?.round(),
       },
     );
     return Room.fromJson(response.data);

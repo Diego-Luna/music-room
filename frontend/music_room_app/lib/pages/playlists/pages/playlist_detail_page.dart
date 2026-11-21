@@ -36,13 +36,10 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   bool _forceResync = false;
   bool _isLocalReorder = false;
 
-  // * newIndex is adjusted here for standard Flutter onReorder semantics.
+  // * onReorderItem already adjusts newIndex for the removed oldIndex.
   Future<void> _onReorder(Room playlist, int oldIndex, int newIndex) async {
     final canEdit = SubscriptionProvider.isPremiumOf(context, listen: false);
     if (!canEdit) return;
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
     if (newIndex == oldIndex) return;
 
     final reordered = List<Track>.from(_orderedTracks);
@@ -429,7 +426,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
           // The Tracks — long-press a row to drag and reorder (Premium).
           SliverReorderableList(
             itemCount: _orderedTracks.length,
-            onReorder: canEdit
+            onReorderItem: canEdit
                 ? (oldIndex, newIndex) =>
                       _onReorder(playlist, oldIndex, newIndex)
                 : (oldIndex, newIndex) {},
@@ -470,22 +467,34 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                               Icons.delete,
                               color: Colors.redAccent,
                             ),
-                            onPressed: () {
+                            onPressed: () async {
                               final scaffoldMessenger = ScaffoldMessenger.of(
                                 context,
                               );
-                              playlistsProvider
-                                  .removeTrack(playlist.id, track.id)
-                                  .then((_) {
-                                    scaffoldMessenger.showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          '${track.title} removed from playlist!',
-                                        ),
-                                        duration: const Duration(seconds: 1),
-                                      ),
-                                    );
-                                  });
+                              try {
+                                await playlistsProvider.removeTrack(
+                                  playlist.id,
+                                  track.id,
+                                );
+                                scaffoldMessenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      '${track.title} removed from playlist!',
+                                    ),
+                                    duration: const Duration(seconds: 1),
+                                  ),
+                                );
+                              } catch (_) {
+                                scaffoldMessenger.showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      playlistsProvider.error ??
+                                          'Could not remove track.',
+                                    ),
+                                    backgroundColor: Colors.redAccent,
+                                  ),
+                                );
+                              }
                             },
                           ),
                         if (canEdit)

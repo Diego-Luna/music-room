@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
+import 'package:music_room_app/core/utils/api_error_handler.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/widgets/neumorphic_form_field.dart';
 
@@ -66,14 +67,20 @@ class _TrackSearchSheetState extends State<TrackSearchSheet> {
   Future<void> _select(Track track) async {
     final navigator = Navigator.of(context);
     final messenger = ScaffoldMessenger.of(context);
-    await widget.onSelected(track);
-    navigator.pop();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(widget.confirmationBuilder(track)),
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    try {
+      await widget.onSelected(track);
+      if (!mounted) return;
+      navigator.pop();
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(widget.confirmationBuilder(track)),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorMsg = ApiErrorHandler.getMessage(e));
+    }
   }
 
   @override
