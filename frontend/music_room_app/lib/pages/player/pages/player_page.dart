@@ -22,12 +22,12 @@ class PlayerPage extends StatefulWidget {
 
 class _PlayerPageState extends State<PlayerPage> {
   // Cast a real vote for the current track (vote rooms only), then advance.
-  void _vote(
+  Future<void> _vote(
     BuildContext context,
     PlayerProvider player,
     Track track,
     SwipeAction action,
-  ) {
+  ) async {
     final roomId = player.voteRoomId;
     if (roomId == null) return;
     final value = action == SwipeAction.like
@@ -36,18 +36,28 @@ class _PlayerPageState extends State<PlayerPage> {
     if (value == 0) return;
 
     final messenger = ScaffoldMessenger.of(context);
-    context.read<EventsProvider>().voteForTrack(roomId, track.id, value);
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(
-          value > 0
-              ? 'Voted UP for ${track.title}'
-              : 'Voted DOWN for ${track.title}',
+    final eventsProvider = context.read<EventsProvider>();
+    try {
+      await eventsProvider.voteForTrack(roomId, track.id, value);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            value > 0
+                ? 'Voted UP for ${track.title}'
+                : 'Voted DOWN for ${track.title}',
+          ),
+          duration: const Duration(seconds: 1),
         ),
-        duration: const Duration(seconds: 1),
-      ),
-    );
-    player.playNext();
+      );
+      player.playNext();
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(eventsProvider.error ?? 'Could not cast vote.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
   @override

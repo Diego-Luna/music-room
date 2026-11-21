@@ -148,4 +148,9 @@ class OfflineFriendsRepository implements FriendsRepository {
     }
     return _remote.searchUsers(query: query, limit: limit, offset: offset);
   }
+
+  /// V.6: wipe cached friend lists on logout.
+  Future<void> clear() async {
+    await _box.clear();
+  }
 }

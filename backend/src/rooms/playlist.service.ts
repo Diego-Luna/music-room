@@ -117,6 +117,7 @@ export class PlaylistService {
       roomId,
       dto.afterTrackId,
       dto.beforeTrackId,
+      trackId,
     );
 
     const updated = await this.prisma.track.update({
@@ -187,7 +188,10 @@ export class PlaylistService {
       where: {
         roomId: room.id,
         inviteeId: userId,
-        status: { in: ['PENDING', 'ACCEPTED'] },
+        OR: [
+          { status: 'ACCEPTED' },
+          { status: 'PENDING', expiresAt: { gt: new Date() } },
+        ],
       },
     });
     if (!invitation) {
@@ -201,6 +205,7 @@ export class PlaylistService {
     roomId: string,
     afterTrackId?: string,
     beforeTrackId?: string,
+    excludeTrackId?: string,
   ): Promise<string> {
     const findPosition = async (id?: string): Promise<string | null> => {
       if (!id) return null;
@@ -215,13 +220,30 @@ export class PlaylistService {
 
     let after = await findPosition(afterTrackId);
     let before = await findPosition(beforeTrackId);
+    const excludeFilter = excludeTrackId ? { id: { not: excludeTrackId } } : {};
 
     if (!after && !before) {
       const last = (await this.prisma.track.findFirst({
-        where: { roomId, position: { not: null } },
+        where: { roomId, position: { not: null }, ...excludeFilter },
         orderBy: { position: 'desc' },
       })) as TrackRow | null;
       after = last?.position ?? null;
+    } else if (after && !before) {
+      // * Find the immediate successor so inserting after a middle track lands
+      //   strictly between `after` and the next track instead of colliding.
+      const next = (await this.prisma.track.findFirst({
+        where: { roomId, position: { gt: after }, ...excludeFilter },
+        orderBy: { position: 'asc' },
+      })) as TrackRow | null;
+      before = next?.position ?? null;
+    } else if (before && !after) {
+      // * Find the immediate predecessor so inserting before a middle track
+      //   lands strictly between the previous track and `before`.
+      const prev = (await this.prisma.track.findFirst({
+        where: { roomId, position: { lt: before }, ...excludeFilter },
+        orderBy: { position: 'desc' },
+      })) as TrackRow | null;
+      after = prev?.position ?? null;
     }
 
     return generateKeyBetween(after, before);

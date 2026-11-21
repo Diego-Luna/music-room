@@ -136,6 +136,8 @@ class SocketProvider extends ChangeNotifier {
       }
     } else if (!isSignedIn && _wasSignedIn) {
       _wasSignedIn = false;
+      _currentRoomId = null;
+      _eventBuffer.clear();
       _socket.disconnect();
     }
   }
@@ -176,8 +178,12 @@ class SocketProvider extends ChangeNotifier {
         });
 
     _socket.on('connect', (_) {
-      // * Connected – notify listeners for UI if needed
+      // * Connected – re-subscribe to active room if the user entered before
+      //   connect finished or after a reconnect, then notify listeners.
       debugPrint('[SocketProvider] Connected to WebSocket server');
+      if (_currentRoomId != null) {
+        _socket.emit('room:join', {'roomId': _currentRoomId});
+      }
       notifyListeners();
     });
 
@@ -355,7 +361,12 @@ class SocketProvider extends ChangeNotifier {
     // * Deezer/relay back never emits them.
     _socket.on('track:nowPlaying', (data) {
       _handleIncomingEvent(() {
-        final track = _trackFromJson(data['track']);
+        final rawTrack = data is Map ? data['track'] : null;
+        if (rawTrack == null) {
+          _playerProvider.handlePlaybackPaused();
+          return;
+        }
+        final track = _trackFromJson(rawTrack);
         _playerProvider.handlePlaybackPlayed(track);
       });
     });

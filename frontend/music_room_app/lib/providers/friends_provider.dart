@@ -142,4 +142,14 @@ class FriendsProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  /// V.6: reset user-scoped state on logout.
+  void clear() {
+    _friends = [];
+    _userCache.clear();
+    _error = null;
+    _isLoading = false;
+    _currentView = FriendsView.friends;
+    notifyListeners();
+  }
 }

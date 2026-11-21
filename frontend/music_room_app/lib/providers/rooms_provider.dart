@@ -52,4 +52,13 @@ class RoomsProvider extends ChangeNotifier {
     // TODO: Implement member removal when model supports it
     notifyListeners();
   }
+
+  /// V.6: reset user-scoped state on logout.
+  void clear() {
+    _rooms = [];
+    _currentActiveRoom = null;
+    _error = null;
+    _isLoading = false;
+    notifyListeners();
+  }
 }

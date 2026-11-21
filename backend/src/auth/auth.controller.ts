@@ -235,11 +235,11 @@ export class AuthController {
   @ApiOkResponse({ type: MessageResponseDto })
   async logout(
     @Req() req: FastifyRequest,
-    @Body() body: { refreshToken?: string },
+    @Body() body?: { refreshToken?: string },
   ): Promise<{ message: string }> {
     const authHeader = req.headers.authorization;
     const accessToken = authHeader?.replace('Bearer ', '') ?? '';
-    await this.authService.logout(accessToken, body.refreshToken);
+    await this.authService.logout(accessToken, body?.refreshToken);
     return { message: 'Logged out successfully' };
   }
 }

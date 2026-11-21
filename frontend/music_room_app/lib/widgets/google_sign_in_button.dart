@@ -70,20 +70,51 @@ class _WebGoogleButtonState extends State<_WebGoogleButton> {
     if (event is! GoogleSignInAuthenticationEventSignIn) return;
 
     try {
+      // * Prefer idToken directly from GIS sign-in — avoids a second
+      //   authorizeScopes() popup that browsers frequently block outside a
+      //   synchronous click gesture.
+      final idToken = event.user.authentication.idToken;
+      if (idToken != null && idToken.isNotEmpty) {
+        debugPrint(
+          '[GoogleSignIn][Web] ID token obtained, forwarding to provider.',
+        );
+        await widget.onTokenReceived(idToken);
+        return;
+      }
+
       debugPrint(
-        '[GoogleSignIn][Web] Requesting scopes for ${event.user.email}...',
+        '[GoogleSignIn][Web] No ID token; requesting scopes for ${event.user.email}...',
       );
       final clientAuth = await event.user.authorizationClient.authorizeScopes(
         const ['email', 'profile'],
       );
-      debugPrint('[GoogleSignIn][Web] Scopes granted.');
-
       final token = clientAuth.accessToken;
-
-      debugPrint('[GoogleSignIn][Web] Token obtained, forwarding to provider.');
+      debugPrint('[GoogleSignIn][Web] Access token obtained, forwarding.');
       await widget.onTokenReceived(token);
-    } on Exception catch (e) {
-      debugPrint('[GoogleSignIn][Web] Exception during scope request: $e');
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        debugPrint('[GoogleSignIn][Web] Cancelled by user.');
+        return;
+      }
+      debugPrint('[GoogleSignIn][Web] GoogleSignInException: ${e.code} — $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.description ?? 'Google sign-in failed.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[GoogleSignIn][Web] Auth error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Google sign-in failed. Please try again.'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
     }
   }
 
@@ -128,19 +159,26 @@ class _NativeGoogleButton extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
       ),
-      padding: const EdgeInsets.symmetric(vertical: AppDimens.md),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.g_mobiledata, size: 30),
-          const SizedBox(width: AppDimens.sm),
-          Text(
-            'Google',
-            style: (labelStyle ?? theme.textTheme.bodyLarge)?.copyWith(
-              fontWeight: AppTypography.semibold,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppDimens.sm,
+        vertical: AppDimens.md,
+      ),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.g_mobiledata, size: 30),
+            const SizedBox(width: AppDimens.sm),
+            Text(
+              'Google',
+              style: (labelStyle ?? theme.textTheme.bodyLarge)?.copyWith(
+                fontWeight: AppTypography.semibold,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

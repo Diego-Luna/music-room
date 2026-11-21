@@ -60,6 +60,7 @@ dependencies:
   flutter_facebook_auth: ^7.1.6
   google_sign_in_android: ^7.2.11
   google_sign_in_ios: ^6.3.0
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

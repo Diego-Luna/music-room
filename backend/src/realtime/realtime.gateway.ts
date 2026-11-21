@@ -18,6 +18,7 @@ import { JwtBlacklistService } from '../auth/jwt-blacklist.service';
 import { JwtPayload } from '../auth/auth.service';
 import { RoomsService } from '../rooms/rooms.service';
 import { RealtimeService, roomChannel, userChannel } from './realtime.service';
+import { isAllowedCorsOrigin } from '../common/cors-origin';
 
 interface AuthedSocket extends Socket {
   data: {
@@ -30,7 +31,15 @@ interface AuthedSocket extends Socket {
 }
 
 @Injectable()
-@WebSocketGateway({ cors: { origin: true } })
+@WebSocketGateway({
+  cors: {
+    origin: (
+      origin: string | undefined,
+      callback: (err: Error | null, allow?: boolean) => void,
+    ) => callback(null, isAllowedCorsOrigin(origin)),
+    credentials: true,
+  },
+})
 export class RealtimeGateway
   implements OnGatewayConnection, OnGatewayDisconnect, OnModuleInit
 {

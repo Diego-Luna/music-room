@@ -194,6 +194,7 @@ void main() {
 
       final track = Track(
         id: 'track-1',
+        roomId: 'room-1',
         providerId: 'p-1',
         provider: 'spotify',
         title: 'Song',

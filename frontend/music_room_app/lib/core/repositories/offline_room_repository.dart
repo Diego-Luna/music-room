@@ -1,4 +1,5 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
 import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/models/room.dart';
@@ -36,6 +37,16 @@ class OfflineRoomRepository implements RoomRepository {
     }
   }
 
+  // ! Only treat connectivity/timeout failures as offline; HTTP 4xx/5xx
+  //   responses are authoritative server rejections (e.g. 403 geo/window/
+  //   invite/premium gates, 409 duplicates) and MUST propagate to the UI.
+  bool _isOfflineError(Object error) {
+    if (error is DioException) {
+      return error.response == null;
+    }
+    return true;
+  }
+
   @override
   Future<List<Room>> getRooms({RoomKind? kind}) async {
     if (!await _isOnline()) {
@@ -48,7 +59,13 @@ class OfflineRoomRepository implements RoomRepository {
     }
     try {
       final rooms = await _remote.getRooms(kind: kind);
-      await _cache.saveRooms(rooms);
+      // * Preserve previously cached track lists — GET /rooms returns metadata only.
+      final merged = rooms.map((room) {
+        if (room.tracks.isNotEmpty) return room;
+        final cached = _cache.getRoomById(room.id);
+        return cached != null ? room.copyWith(tracks: cached.tracks) : room;
+      }).toList();
+      await _cache.saveRooms(merged);
       return rooms;
     } catch (_) {
       // * Offline fallback on exceptions (e.g. timeout or socket error)
@@ -116,6 +133,7 @@ class OfflineRoomRepository implements RoomRepository {
     try {
       await _remote.voteForTrack(roomId, trackId, value, lat: lat, lng: lng);
     } catch (e) {
+      if (!_isOfflineError(e)) rethrow;
       // * Optimistic vote update locally
       final room = _cache.getRoomById(roomId);
       if (room != null) {
@@ -167,6 +185,7 @@ class OfflineRoomRepository implements RoomRepository {
     try {
       return await _remote.addPlaylistTrack(roomId, track);
     } catch (e) {
+      if (!_isOfflineError(e)) rethrow;
       // * Optimistic add locally
       final room = _cache.getRoomById(roomId);
       if (room != null) {
@@ -338,7 +357,8 @@ class OfflineRoomRepository implements RoomRepository {
     }
     try {
       return await _remote.addVoteTrack(roomId, track);
-    } catch (_) {
+    } catch (e) {
+      if (!_isOfflineError(e)) rethrow;
       // * Optimistic add locally
       final room = _cache.getRoomById(roomId);
       if (room != null) {
@@ -421,7 +441,8 @@ class OfflineRoomRepository implements RoomRepository {
 
     try {
       await _remote.removePlaylistTrack(roomId, trackId);
-    } catch (_) {
+    } catch (e) {
+      if (!_isOfflineError(e)) rethrow;
       // * Optimistic removal locally
       final room = _cache.getRoomById(roomId);
       if (room != null) {

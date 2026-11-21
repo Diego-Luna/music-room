@@ -60,8 +60,8 @@ export class DeezerService {
       title: t.title,
       artist: t.artist?.name ?? 'Unknown',
       durationMs: (t.duration ?? 0) * 1000,
-      artworkUrl: t.album?.cover_medium ?? null,
-      previewUrl: t.preview ?? null,
+      artworkUrl: t.album?.cover_medium || null,
+      previewUrl: t.preview || null,
     }));
   }
 }

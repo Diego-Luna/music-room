@@ -114,14 +114,19 @@ export class TracksService {
     if (!track || track.roomId !== roomId) {
       throw new NotFoundException('Track not found');
     }
+    if (track.playedAt) {
+      throw new BadRequestException('Cannot vote on a played track');
+    }
 
-    const previous = await this.prisma.trackVote.findUnique({
-      where: { trackId_userId: { trackId, userId } },
-    });
-    const oldValue = previous?.value ?? 0;
-    const delta = dto.value - oldValue;
-
+    // ! Read previous vote and update score inside the same transaction to
+    //   prevent concurrent double-votes from corrupting track.score.
     const updated = await this.prisma.$transaction(async (tx) => {
+      const previous = await tx.trackVote.findUnique({
+        where: { trackId_userId: { trackId, userId } },
+      });
+      const oldValue = previous?.value ?? 0;
+      const delta = dto.value - oldValue;
+
       if (dto.value === 0) {
         if (previous) {
           await tx.trackVote.delete({
@@ -195,7 +200,10 @@ export class TracksService {
       where: {
         roomId: room.id,
         inviteeId: userId,
-        status: { in: ['PENDING', 'ACCEPTED'] },
+        OR: [
+          { status: 'ACCEPTED' },
+          { status: 'PENDING', expiresAt: { gt: new Date() } },
+        ],
       },
     });
     if (!invitation) {

@@ -150,6 +150,32 @@ export class FriendsService {
       // unfriend → fully delete
       await this.prisma.friendship.delete({ where: { id: friendshipId } });
       const otherUserId = isRequester ? f.addresseeId : f.requesterId;
+
+      // ! V.2.2 / V.6: unfriending must immediately revoke any active
+      //   MusicControlDelegation between the two users.
+      const delegations =
+        (await this.prisma.musicControlDelegation?.findMany?.({
+          where: {
+            OR: [
+              { ownerId: userId, delegateUserId: otherUserId },
+              { ownerId: otherUserId, delegateUserId: userId },
+            ],
+          },
+          select: { id: true, ownerId: true, deviceId: true, delegateUserId: true },
+        })) ?? [];
+      if (delegations.length > 0) {
+        await this.prisma.musicControlDelegation.deleteMany({
+          where: { id: { in: delegations.map((d) => d.id) } },
+        });
+        for (const d of delegations) {
+          this.realtime?.emitToUser(
+            d.delegateUserId,
+            'device:delegation:revoked',
+            { deviceId: d.deviceId, ownerId: d.ownerId },
+          );
+        }
+      }
+
       this.realtime?.emitToUser(otherUserId, 'friend:removed', {
         friendshipId,
         byUserId: userId,

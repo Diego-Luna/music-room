@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, kReleaseMode, defaultTargetPlatform;
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
+import 'package:music_room_app/core/repositories/offline_friends_repository.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
@@ -32,62 +35,60 @@ void _notifyRejectedSync(List<SyncDiscard> rejected) {
 }
 
 void main() async {
+  // * Silence client-side debugPrint logs in release builds (Web/mobile prod)
+  //   while keeping full logs in debug/profile and backend V.6 logs intact.
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
+
   setUrlStrategy(HashUrlStrategy());
   WidgetsFlutterBinding.ensureInitialized();
 
   // * Initialize Google Sign-In (v7+).
+  // ! initialize() MUST always be called — even when --dart-define values are
+  //   omitted — so Web reads <meta name="google-signin-client_id">, iOS reads
+  //   GIDClientID/GIDServerClientID from Info.plist, and Android initializes
+  //   via google-services / SHA-1 + serverClientId.
   // ! On Web, serverClientId must NOT be passed — the plugin asserts it is null.
-  // * On mobile, clientId is the platform-specific OAuth client ID.
-  // * serverClientId must be the WEB client ID so the backend can verify the
-  // * idToken audience against the correct OAuth app registration.
   const googleWebClientId = String.fromEnvironment('GOOGLE_WEB_CLIENT_ID');
   const googleIosClientId = String.fromEnvironment('GOOGLE_IOS_CLIENT_ID');
   const googleAndroidClientId = String.fromEnvironment(
     'GOOGLE_ANDROID_CLIENT_ID',
   );
 
-  final String? platformClientId;
-  if (kIsWeb) {
-    // * Web uses the web client ID; renderButton() handles the auth flow.
-    platformClientId = googleWebClientId.isNotEmpty ? googleWebClientId : null;
-  } else if (defaultTargetPlatform == TargetPlatform.iOS ||
-      defaultTargetPlatform == TargetPlatform.macOS) {
-    platformClientId = googleIosClientId.isNotEmpty ? googleIosClientId : null;
-  } else {
-    platformClientId = googleAndroidClientId.isNotEmpty
-        ? googleAndroidClientId
-        : null;
-  }
-
-  if (platformClientId != null) {
+  try {
     if (kIsWeb) {
-      await GoogleSignIn.instance.initialize(clientId: platformClientId);
+      await GoogleSignIn.instance.initialize(
+        clientId: googleWebClientId.isNotEmpty ? googleWebClientId : null,
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      await GoogleSignIn.instance.initialize(
+        clientId: googleIosClientId.isNotEmpty ? googleIosClientId : null,
+        serverClientId: googleWebClientId.isNotEmpty ? googleWebClientId : null,
+      );
     } else {
       await GoogleSignIn.instance.initialize(
-        clientId: platformClientId,
-        // * serverClientId is the web OAuth client — the backend validates
-        // * the idToken's audience (aud) against this ID.
+        clientId: googleAndroidClientId.isNotEmpty
+            ? googleAndroidClientId
+            : null,
         serverClientId: googleWebClientId.isNotEmpty ? googleWebClientId : null,
       );
     }
-  } else {
-    // ! Platform client ID is missing. Google OAuth flow will be disabled.
-    debugPrint(
-      '[GoogleSignIn] Platform client ID not configured — disabling OAuth.',
-    );
+  } catch (e) {
+    debugPrint('[GoogleSignIn] Initialization failed: $e');
   }
 
   if (kIsWeb) {
-    const facebookAppId = String.fromEnvironment(
-      'FACEBOOK_APP_ID',
-      defaultValue: '1028619539827089',
-    );
-    await FacebookAuth.i.webAndDesktopInitialize(
-      appId: facebookAppId,
-      cookie: true,
-      xfbml: true,
-      version: 'v15.0',
-    );
+    const facebookAppId = String.fromEnvironment('FACEBOOK_APP_ID');
+    if (facebookAppId.isNotEmpty) {
+      await FacebookAuth.i.webAndDesktopInitialize(
+        appId: facebookAppId,
+        cookie: true,
+        xfbml: true,
+        version: 'v15.0',
+      );
+    }
   }
 
   // * Persist settings + load backend URL / vote location BEFORE wiring clients.
@@ -116,6 +117,19 @@ void main() async {
       wasSignedIn = false;
       pushTokenService.reset();
       subscriptionProvider.clear();
+      // ! V.6: wipe all user-scoped local caches and providers on logout so
+      //   switching accounts on the same device never exposes prior user data.
+      eventsProvider.clear();
+      playlistsProvider.clear();
+      roomsProvider.clear();
+      friendsProvider.clear();
+      notificationsProvider.clear();
+      playerProvider.clear();
+      unawaited(offlineCache.clear());
+      final friendsRepo = friendsRepository;
+      if (friendsRepo is OfflineFriendsRepository) {
+        unawaited(friendsRepo.clear());
+      }
     }
   });
   if (authProvider.signedIn) {

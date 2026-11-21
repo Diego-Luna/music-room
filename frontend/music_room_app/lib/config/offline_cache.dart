@@ -73,4 +73,10 @@ class OfflineCache {
   Future<void> removeAction(String id) async {
     await _actionsBox.delete(id);
   }
+
+  /// V.6: wipe all cached rooms and pending offline actions on logout.
+  Future<void> clear() async {
+    await _roomsBox.clear();
+    await _actionsBox.clear();
+  }
 }

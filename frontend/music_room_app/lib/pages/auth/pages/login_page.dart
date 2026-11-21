@@ -199,20 +199,25 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                             padding: const EdgeInsets.symmetric(
+                              horizontal: AppDimens.sm,
                               vertical: AppDimens.md,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.facebook, color: Colors.blue),
-                                const SizedBox(width: AppDimens.sm),
-                                Text(
-                                  'Facebook',
-                                  style: theme.textTheme.bodyLarge?.copyWith(
-                                    fontWeight: AppTypography.semibold,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.facebook, color: Colors.blue),
+                                  const SizedBox(width: AppDimens.sm),
+                                  Text(
+                                    'Facebook',
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      fontWeight: AppTypography.semibold,
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),
@@ -220,8 +225,9 @@ class _LoginPageState extends State<LoginPage> {
                     ),
 
                     const SizedBox(height: AppDimens.xxl * 1.5),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           "Don't have an account? ",
