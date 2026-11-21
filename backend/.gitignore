@@ -6,8 +6,9 @@ dist/
 
 # Environment (CRITIQUE: ne JAMAIS commit .env)
 .env
-.env.local
-.env.*.local
+.env.*
+.env_*
+!.env.example
 
 # Coverage
 coverage/
