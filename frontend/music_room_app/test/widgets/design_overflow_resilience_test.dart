@@ -7,7 +7,13 @@ import 'package:music_room_app/core/repositories/friends_repository.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
+import 'package:music_room_app/pages/auth/pages/forgot_page.dart';
+import 'package:music_room_app/pages/auth/pages/signup_page.dart';
 import 'package:music_room_app/pages/events/widgets/invite_friend_dialog.dart';
+import 'package:music_room_app/pages/playlists/widgets/create_playlist_dialog.dart';
+import 'package:music_room_app/providers/auth_provider.dart';
+import 'package:music_room_app/widgets/google_sign_in_button.dart';
+import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/widgets/track_search_sheet.dart';
 
 class MockFriendsRepository extends Mock implements FriendsRepository {}
@@ -150,6 +156,94 @@ void main() {
 
         expect(find.byType(TrackSearchSheet), findsOneWidget);
         expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'PrimaryButton and GoogleSignInButton render without overflow at 320px and 1.5x text scale',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 568);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MediaQuery(
+              data: const MediaQueryData(
+                size: Size(320, 568),
+                textScaler: TextScaler.linear(1.5),
+              ),
+              child: Scaffold(
+                body: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      PrimaryButton(
+                        label: 'Resend Verification Link',
+                        onPressed: () {},
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: GoogleSignInButton(
+                              onPressed: () {},
+                              onTokenReceived: (_) async {},
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: GoogleSignInButton(
+                              onPressed: () {},
+                              onTokenReceived: (_) async {},
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'SignupPage, ForgotPasswordPage, and CreatePlaylistDialog render without overflow at 320x568 with 1.5x text scale',
+      (tester) async {
+        tester.view.physicalSize = const Size(320, 568);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        for (final widget in [
+          const SignupPage(),
+          const ForgotPasswordPage(),
+          const Scaffold(body: CreatePlaylistDialog()),
+        ]) {
+          await tester.pumpWidget(
+            ChangeNotifierProvider<AuthProvider>(
+              create: (_) => AuthProvider(),
+              child: MaterialApp(
+                home: MediaQuery(
+                  data: const MediaQueryData(
+                    size: Size(320, 568),
+                    textScaler: TextScaler.linear(1.5),
+                  ),
+                  child: widget,
+                ),
+              ),
+            ),
+          );
+          await tester.pump(const Duration(milliseconds: 500));
+          expect(tester.takeException(), isNull);
+        }
       },
     );
   });

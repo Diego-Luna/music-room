@@ -39,11 +39,14 @@ class PrimaryButton extends StatelessWidget {
                 leading!,
                 const SizedBox(width: AppDimens.sm),
               ],
-              Text(
-                label,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  fontWeight: AppTypography.bold,
-                  color: theme.colorScheme.primary,
+              Flexible(
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    fontWeight: AppTypography.bold,
+                    color: theme.colorScheme.primary,
+                  ),
                 ),
               ),
             ],

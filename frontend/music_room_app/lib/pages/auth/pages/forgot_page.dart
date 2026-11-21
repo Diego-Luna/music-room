@@ -130,8 +130,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     ),
 
                     const SizedBox(height: AppDimens.xxl * 1.5),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
                           "Already have an account? ",
