@@ -226,8 +226,26 @@ class PlayerProvider extends ChangeNotifier {
 
   // * Stops targeting a delegated device. Called when leaving the remote
   //   control surface so the local player no longer relays commands.
-  void clearActiveDelegation() {
+  void clearActiveDelegation({bool notify = true}) {
     activeDelegationId = null;
+    if (notify) notifyListeners();
+  }
+
+  /// V.6: reset user-scoped playback/device state on logout.
+  void clear() {
+    _delegationFetchDebounce?.cancel();
+    devices = [];
+    controlledDevices = [];
+    activeDelegationId = null;
+    _currentTrack = null;
+    _queue = [];
+    _queueIndex = -1;
+    _voteRoomId = null;
+    _isPlaying = false;
+    _position = Duration.zero;
+    _duration = Duration.zero;
+    _error = null;
+    unawaited(_audio.stop());
     notifyListeners();
   }
 

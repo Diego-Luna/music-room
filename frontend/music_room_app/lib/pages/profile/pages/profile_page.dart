@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
@@ -30,7 +31,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void initState() {
     super.initState();
     _ownsProfile = widget.profileProvider == null;
-    _profile = widget.profileProvider ?? ProfileProvider();
+    _profile = widget.profileProvider ?? ProfileProvider(apiClient: apiClient);
     if (_profile.profile == null) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _profile.loadProfile(),

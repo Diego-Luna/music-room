@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform;
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:provider/provider.dart';
+import 'package:music_room_app/core/repositories/offline_friends_repository.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
@@ -78,16 +80,15 @@ void main() async {
   }
 
   if (kIsWeb) {
-    const facebookAppId = String.fromEnvironment(
-      'FACEBOOK_APP_ID',
-      defaultValue: '1028619539827089',
-    );
-    await FacebookAuth.i.webAndDesktopInitialize(
-      appId: facebookAppId,
-      cookie: true,
-      xfbml: true,
-      version: 'v15.0',
-    );
+    const facebookAppId = String.fromEnvironment('FACEBOOK_APP_ID');
+    if (facebookAppId.isNotEmpty) {
+      await FacebookAuth.i.webAndDesktopInitialize(
+        appId: facebookAppId,
+        cookie: true,
+        xfbml: true,
+        version: 'v15.0',
+      );
+    }
   }
 
   // * Persist settings + load backend URL / vote location BEFORE wiring clients.
@@ -116,6 +117,19 @@ void main() async {
       wasSignedIn = false;
       pushTokenService.reset();
       subscriptionProvider.clear();
+      // ! V.6: wipe all user-scoped local caches and providers on logout so
+      //   switching accounts on the same device never exposes prior user data.
+      eventsProvider.clear();
+      playlistsProvider.clear();
+      roomsProvider.clear();
+      friendsProvider.clear();
+      notificationsProvider.clear();
+      playerProvider.clear();
+      unawaited(offlineCache.clear());
+      final friendsRepo = friendsRepository;
+      if (friendsRepo is OfflineFriendsRepository) {
+        unawaited(friendsRepo.clear());
+      }
     }
   });
   if (authProvider.signedIn) {

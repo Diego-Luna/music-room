@@ -214,4 +214,17 @@ class NotificationsProvider extends ChangeNotifier {
       rethrow;
     }
   }
+
+  /// V.6: reset user-scoped state on logout.
+  void clear() {
+    incomingFriendRequests = [];
+    roomInvitations = [];
+    outgoingFriendRequests = [];
+    sentRoomInvitations = [];
+    userCache.clear();
+    roomCache.clear();
+    error = null;
+    isLoading = false;
+    notifyListeners();
+  }
 }
