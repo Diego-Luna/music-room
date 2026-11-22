@@ -148,31 +148,44 @@ export class FriendsService {
     }
     if (f.status === 'ACCEPTED') {
       // unfriend → fully delete
-      await this.prisma.friendship.delete({ where: { id: friendshipId } });
       const otherUserId = isRequester ? f.addresseeId : f.requesterId;
 
-      // ! V.2.2 / V.6: unfriending must immediately revoke any active
-      //   MusicControlDelegation between the two users.
-      const delegations =
-        (await this.prisma.musicControlDelegation?.findMany?.({
-          where: {
-            OR: [
-              { ownerId: userId, delegateUserId: otherUserId },
-              { ownerId: otherUserId, delegateUserId: userId },
-            ],
-          },
-          select: { id: true, ownerId: true, deviceId: true, delegateUserId: true },
-        })) ?? [];
-      if (delegations.length > 0) {
-        await this.prisma.musicControlDelegation.deleteMany({
-          where: { id: { in: delegations.map((d) => d.id) } },
-        });
-        for (const d of delegations) {
-          this.realtime?.emitToUser(
-            d.delegateUserId,
-            'device:delegation:revoked',
-            { deviceId: d.deviceId, ownerId: d.ownerId },
-          );
+      // ! V.2.2 / V.6: friendship and delegations leave together. Sockets
+      //   fire only after commit, to the delegate and to the device owner.
+      const delegations = await this.prisma.$transaction(async (tx) => {
+        await tx.friendship.delete({ where: { id: friendshipId } });
+        const rows =
+          (await tx.musicControlDelegation?.findMany?.({
+            where: {
+              OR: [
+                { ownerId: userId, delegateUserId: otherUserId },
+                { ownerId: otherUserId, delegateUserId: userId },
+              ],
+            },
+            select: {
+              id: true,
+              ownerId: true,
+              deviceId: true,
+              delegateUserId: true,
+            },
+          })) ?? [];
+        if (rows.length > 0) {
+          await tx.musicControlDelegation.deleteMany({
+            where: { id: { in: rows.map((d) => d.id) } },
+          });
+        }
+        return rows;
+      });
+
+      for (const d of delegations) {
+        const payload = { deviceId: d.deviceId, ownerId: d.ownerId };
+        this.realtime?.emitToUser(
+          d.delegateUserId,
+          'device:delegation:revoked',
+          payload,
+        );
+        if (d.ownerId !== d.delegateUserId) {
+          this.realtime?.emitToUser(d.ownerId, 'device:delegation:revoked', payload);
         }
       }
 

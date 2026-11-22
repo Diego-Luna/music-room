@@ -11,6 +11,7 @@ import 'package:music_room_app/core/animations/neumorphic_interactive_container.
 import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/widgets/user_search_sheet.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
+import 'package:music_room_app/providers/player_provider.dart';
 
 class DevicesPage extends StatefulWidget {
   const DevicesPage({super.key});
@@ -26,14 +27,28 @@ class _DevicesPageState extends State<DevicesPage> {
 
   List<AccountDevice> _myDevices = [];
   List<MusicControlDelegation> _controlledDevices = [];
+  PlayerProvider? _player;
 
   @override
   void initState() {
     super.initState();
+    _player = playerProvider;
+    _player!.delegationRevision.addListener(_onDelegationRevoked);
     _loadData();
   }
 
+  void _onDelegationRevoked() {
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _player?.delegationRevision.removeListener(_onDelegationRevoked);
+    super.dispose();
+  }
+
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -45,12 +60,14 @@ class _DevicesPageState extends State<DevicesPage> {
         _deviceRepo.getControlledDevices(),
       ]);
 
+      if (!mounted) return;
       setState(() {
         _myDevices = results[0] as List<AccountDevice>;
         _controlledDevices = results[1] as List<MusicControlDelegation>;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = 'Failed to load devices: $e';
         _isLoading = false;

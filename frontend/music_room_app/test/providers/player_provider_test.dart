@@ -229,6 +229,7 @@ void main() {
           equals(['del-2']),
         );
         expect(playerProvider.activeDelegationId, isNull);
+        expect(playerProvider.delegationRevision.value, 1);
       },
     );
 

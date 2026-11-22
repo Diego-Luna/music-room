@@ -40,6 +40,13 @@ describe('FriendsService', () => {
         delete: vi.fn(),
       },
     };
+    Object.assign(prisma, {
+      $transaction: vi.fn(async (cb: unknown) =>
+        typeof cb === 'function'
+          ? (cb as (p: typeof prisma) => Promise<unknown>)(prisma)
+          : cb,
+      ),
+    });
     realtime = { emitToUser: vi.fn(), emitToRoom: vi.fn() };
     push = { sendToUser: vi.fn().mockResolvedValue(undefined) };
     const mod: TestingModule = await Test.createTestingModule({
@@ -392,6 +399,50 @@ describe('FriendsService', () => {
         'bob',
         'friend:request:canceled',
         expect.objectContaining({ friendshipId: 'fr-1', requesterId: 'alice' }),
+      );
+    });
+
+    it('unfriend deletes delegations in the same transaction and tells both sides', async () => {
+      prisma.friendship.findUnique.mockResolvedValue({
+        id: 'fr-1',
+        requesterId: 'alice',
+        addresseeId: 'bob',
+        status: 'ACCEPTED',
+      });
+      prisma.friendship.delete.mockResolvedValue({ id: 'fr-1' });
+      const delegation = {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            id: 'del-1',
+            ownerId: 'alice',
+            deviceId: 'dev-1',
+            delegateUserId: 'bob',
+          },
+        ]),
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
+      };
+      Object.assign(prisma, { musicControlDelegation: delegation });
+
+      await service.cancel('bob', 'fr-1');
+
+      expect(prisma.friendship.delete).toHaveBeenCalled();
+      expect(delegation.deleteMany).toHaveBeenCalledWith({
+        where: { id: { in: ['del-1'] } },
+      });
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'bob',
+        'device:delegation:revoked',
+        { deviceId: 'dev-1', ownerId: 'alice' },
+      );
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'alice',
+        'device:delegation:revoked',
+        { deviceId: 'dev-1', ownerId: 'alice' },
+      );
+      expect(realtime.emitToUser).toHaveBeenCalledWith(
+        'alice',
+        'friend:removed',
+        expect.objectContaining({ friendshipId: 'fr-1', byUserId: 'bob' }),
       );
     });
 

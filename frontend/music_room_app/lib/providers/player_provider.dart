@@ -21,6 +21,10 @@ class PlayerProvider extends ChangeNotifier {
   String? activeDelegationId;
   Timer? _delegationFetchDebounce;
 
+  // * Bumps only when a delegation is revoked, so Devices can reload its
+  //   own lists without reacting to playback ticks.
+  final ValueNotifier<int> delegationRevision = ValueNotifier(0);
+
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
 
@@ -272,6 +276,7 @@ class PlayerProvider extends ChangeNotifier {
     controlledDevices = controlledDevices
         .where((d) => !(d.deviceId == deviceId && d.ownerId == ownerId))
         .toList();
+    delegationRevision.value++;
     notifyListeners();
   }
 
@@ -431,6 +436,7 @@ class PlayerProvider extends ChangeNotifier {
   @override
   void dispose() {
     _delegationFetchDebounce?.cancel();
+    delegationRevision.dispose();
     for (final sub in _subscriptions) {
       sub.cancel();
     }
