@@ -118,9 +118,21 @@ export class TracksService {
       throw new BadRequestException('Cannot vote on a played track');
     }
 
-    // ! Read previous vote and update score inside the same transaction to
-    //   prevent concurrent double-votes from corrupting track.score.
+    // ! Lock the track, then read the previous vote and update the score in
+    //   the same transaction. A second vote from this user waits, sees the
+    //   row already written, and applies a zero delta instead of a 500.
     const updated = await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<Array<{ playedAt: Date | null }>>`
+        SELECT "playedAt" FROM "Track" WHERE "id" = ${trackId} FOR UPDATE
+      `;
+      const lockedTrack = locked[0];
+      if (!lockedTrack) {
+        throw new NotFoundException('Track not found');
+      }
+      if (lockedTrack.playedAt) {
+        throw new BadRequestException('Cannot vote on a played track');
+      }
+
       const previous = await tx.trackVote.findUnique({
         where: { trackId_userId: { trackId, userId } },
       });

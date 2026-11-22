@@ -32,6 +32,7 @@ describe('TracksService', () => {
       delete: Fn;
     };
     $transaction: Fn;
+    $queryRaw: Fn;
   };
   let realtime: { emitToRoom: Fn; emitToUser: Fn };
   let queue: { startIdle: Fn };
@@ -73,6 +74,7 @@ describe('TracksService', () => {
           ? (cb as (p: unknown) => Promise<unknown>)(prisma)
           : cb,
       ),
+      $queryRaw: vi.fn().mockResolvedValue([{ playedAt: null }]),
     };
     realtime = { emitToRoom: vi.fn(), emitToUser: vi.fn() };
     queue = { startIdle: vi.fn() };
@@ -241,6 +243,16 @@ describe('TracksService', () => {
       prisma.track.findUnique.mockResolvedValue({ id: 't1', roomId: 'r1' });
       // u1 is a member in vote tests
       prisma.roomMember.findUnique.mockResolvedValue({ role: 'MEMBER' });
+    });
+
+    it('rejects a track marked played under the row lock', async () => {
+      prisma.$queryRaw.mockResolvedValue([{ playedAt: new Date() }]);
+
+      await expect(service.vote('r1', 't1', 'u1', { value: 1 })).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(prisma.trackVote.create).not.toHaveBeenCalled();
+      expect(prisma.track.update).not.toHaveBeenCalled();
     });
 
     it('creates a +1 vote and increments the score', async () => {
