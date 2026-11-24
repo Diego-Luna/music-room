@@ -156,35 +156,32 @@ class _EventsPageState extends State<EventsPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            height: 76,
-            child: AppBar(
-              primary: false,
-              automaticallyImplyLeading: false,
-              centerTitle: true,
-              toolbarHeight: 76,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              backgroundColor: theme.scaffoldBackgroundColor,
-              surfaceTintColor: Colors.transparent,
-              title: const Text('Events'),
-              actions: [
-                Center(
-                  child: NeumorphicIconButton(
-                    icon: Icons.sensors,
-                    tooltip: 'Simulate walking into a nearby event',
-                    onTap: _enterProximityZoneDemo,
-                  ),
+          AppBar(
+            primary: true,
+            automaticallyImplyLeading: false,
+            centerTitle: true,
+            toolbarHeight: 76,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            backgroundColor: theme.scaffoldBackgroundColor,
+            surfaceTintColor: Colors.transparent,
+            title: const Text('Events'),
+            actions: [
+              Center(
+                child: NeumorphicIconButton(
+                  icon: Icons.sensors,
+                  tooltip: 'Simulate walking into a nearby event',
+                  onTap: _enterProximityZoneDemo,
                 ),
-                Center(
-                  child: NeumorphicIconButton(
-                    icon: Icons.add_box_outlined,
-                    tooltip: 'New Event',
-                    onTap: () => _showCreateEventDialog(context),
-                  ),
+              ),
+              Center(
+                child: NeumorphicIconButton(
+                  icon: Icons.add_box_outlined,
+                  tooltip: 'New Event',
+                  onTap: () => _showCreateEventDialog(context),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           _buildShelves(context),
           Padding(

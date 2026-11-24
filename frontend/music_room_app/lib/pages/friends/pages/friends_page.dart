@@ -118,19 +118,16 @@ class _FriendsPageState extends State<FriendsPage> {
   }
 
   Widget _buildPinnedHeader(BuildContext context, ThemeData theme) {
-    return SizedBox(
-      height: 76,
-      child: AppBar(
-        primary: false,
-        automaticallyImplyLeading: false,
-        centerTitle: true,
-        toolbarHeight: 76,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        backgroundColor: theme.scaffoldBackgroundColor,
-        surfaceTintColor: Colors.transparent,
-        title: const Text('Friends'),
-      ),
+    return AppBar(
+      primary: true,
+      automaticallyImplyLeading: false,
+      centerTitle: true,
+      toolbarHeight: 76,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      surfaceTintColor: Colors.transparent,
+      title: const Text('Friends'),
     );
   }
 

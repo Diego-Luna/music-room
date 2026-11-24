@@ -121,28 +121,25 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            height: 76,
-            child: AppBar(
-              primary: false,
-              automaticallyImplyLeading: false,
-              centerTitle: true,
-              toolbarHeight: 76,
-              elevation: 0,
-              scrolledUnderElevation: 0,
-              backgroundColor: theme.scaffoldBackgroundColor,
-              surfaceTintColor: Colors.transparent,
-              title: const Text('Playlists'),
-              actions: [
-                Center(
-                  child: NeumorphicIconButton(
-                    icon: Icons.playlist_add,
-                    tooltip: isPremium ? 'New Playlist' : 'Upgrade to Premium',
-                    onTap: () => _onCreateTap(context),
-                  ),
+          AppBar(
+            primary: true,
+            automaticallyImplyLeading: false,
+            centerTitle: true,
+            toolbarHeight: 76,
+            elevation: 0,
+            scrolledUnderElevation: 0,
+            backgroundColor: theme.scaffoldBackgroundColor,
+            surfaceTintColor: Colors.transparent,
+            title: const Text('Playlists'),
+            actions: [
+              Center(
+                child: NeumorphicIconButton(
+                  icon: Icons.playlist_add,
+                  tooltip: isPremium ? 'New Playlist' : 'Upgrade to Premium',
+                  onTap: () => _onCreateTap(context),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
           _buildShelves(context),
           Padding(
