@@ -27,6 +27,7 @@ void main() {
         name: 'Friday Rave',
         description: 'Electronic party session',
         ownerId: 'user1',
+        myRole: 'OWNER',
         kind: RoomKind.vote,
       ),
       Room(
@@ -34,6 +35,7 @@ void main() {
         name: 'Sunday Picnic',
         description: 'Chill lo-fi vibes',
         ownerId: 'user1',
+        myRole: 'OWNER',
         kind: RoomKind.vote,
       ),
     ];
@@ -80,5 +82,57 @@ void main() {
     expect(find.text('Friday Rave'), findsNothing);
     expect(find.text('Sunday Picnic'), findsNothing);
     expect(find.text('No results found'), findsOneWidget);
+  });
+
+  testWidgets('shelves split owned, joined and public events', (tester) async {
+    when(() => repository.getRooms(kind: RoomKind.vote)).thenAnswer(
+      (_) async => [
+        Room(
+          id: 'mine',
+          name: 'My Night',
+          ownerId: 'user1',
+          myRole: 'OWNER',
+          kind: RoomKind.vote,
+        ),
+        Room(
+          id: 'joined',
+          name: 'Shared Night',
+          ownerId: 'user2',
+          myRole: 'MEMBER',
+          kind: RoomKind.vote,
+        ),
+        Room(
+          id: 'public',
+          name: 'Open Night',
+          ownerId: 'user3',
+          kind: RoomKind.vote,
+        ),
+      ],
+    );
+    when(() => repository.getVoteTracks(any())).thenAnswer((_) async => []);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChangeNotifierProvider<EventsProvider>.value(
+          value: provider,
+          child: const EventsPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My Night'), findsOneWidget);
+    expect(find.text('Shared Night'), findsNothing);
+    expect(find.text('Open Night'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('events_tab_joined')));
+    await tester.pumpAndSettle();
+    expect(find.text('Shared Night'), findsOneWidget);
+    expect(find.text('My Night'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('events_tab_discover')));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Night'), findsOneWidget);
+    expect(find.text('Shared Night'), findsNothing);
   });
 }

@@ -29,6 +29,7 @@ void main() {
         name: 'Rock Classics',
         description: 'Old school anthems',
         ownerId: 'user1',
+        myRole: 'OWNER',
         kind: RoomKind.playlist,
       ),
       Room(
@@ -36,6 +37,7 @@ void main() {
         name: 'Jazz Beats',
         description: 'Smooth instrumental tunes',
         ownerId: 'user1',
+        myRole: 'OWNER',
         kind: RoomKind.playlist,
       ),
     ];
@@ -138,5 +140,59 @@ void main() {
 
     expect(find.text('Create Playlist'), findsOneWidget);
     expect(find.text('Upgrade to Premium'), findsNothing);
+  });
+
+  testWidgets('shelves split owned, joined and public playlists', (
+    tester,
+  ) async {
+    when(() => repository.getRooms(kind: RoomKind.playlist)).thenAnswer(
+      (_) async => [
+        Room(
+          id: 'mine',
+          name: 'My Mix',
+          ownerId: 'user1',
+          myRole: 'OWNER',
+          kind: RoomKind.playlist,
+        ),
+        Room(
+          id: 'joined',
+          name: 'Shared Mix',
+          ownerId: 'user2',
+          myRole: 'MEMBER',
+          kind: RoomKind.playlist,
+        ),
+        Room(
+          id: 'public',
+          name: 'Open Mix',
+          ownerId: 'user3',
+          kind: RoomKind.playlist,
+        ),
+      ],
+    );
+    when(() => repository.getPlaylistTracks(any())).thenAnswer((_) async => []);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: ChangeNotifierProvider<PlaylistsProvider>.value(
+          value: provider,
+          child: const PlaylistsPage(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('My Mix'), findsOneWidget);
+    expect(find.text('Shared Mix'), findsNothing);
+    expect(find.text('Open Mix'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('playlists_tab_joined')));
+    await tester.pumpAndSettle();
+    expect(find.text('Shared Mix'), findsOneWidget);
+    expect(find.text('My Mix'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('playlists_tab_discover')));
+    await tester.pumpAndSettle();
+    expect(find.text('Open Mix'), findsOneWidget);
+    expect(find.text('Shared Mix'), findsNothing);
   });
 }

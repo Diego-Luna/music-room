@@ -14,8 +14,12 @@ import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/pages/events/widgets/create_event_dialog.dart';
 import 'package:music_room_app/widgets/neumorphic_search_bar.dart';
+import 'package:music_room_app/widgets/shelf_chip.dart';
 
-//* Events list page — symmetric to PlaylistsPage. Tapping an event opens its
+enum _EventShelf { yours, joined, discover }
+
+//* Events list page. One list, split into the caller's own rooms, rooms they
+//* joined, and public rooms they have not joined. Tapping an event opens its
 //* live voting interface (EventDetailPage).
 class EventsPage extends StatefulWidget {
   const EventsPage({super.key});
@@ -26,6 +30,30 @@ class EventsPage extends StatefulWidget {
 
 class _EventsPageState extends State<EventsPage> {
   String _searchQuery = '';
+  _EventShelf _shelf = _EventShelf.yours;
+
+  bool _onShelf(Room event) {
+    switch (_shelf) {
+      case _EventShelf.yours:
+        return event.myRole == 'OWNER';
+      case _EventShelf.joined:
+        return event.myRole == 'MEMBER' || event.myRole == 'ADMIN';
+      case _EventShelf.discover:
+        return event.myRole == null;
+    }
+  }
+
+  String _relationLabel(Room event) {
+    switch (event.myRole) {
+      case 'OWNER':
+        return 'Yours';
+      case 'ADMIN':
+      case 'MEMBER':
+        return 'Member';
+      default:
+        return 'Public';
+    }
+  }
 
   @override
   void initState() {
@@ -121,6 +149,56 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
+  Widget _buildShelves(BuildContext context) {
+    const shelves = <(_EventShelf, String, Key)>[
+      (_EventShelf.yours, 'Yours', Key('events_tab_yours')),
+      (_EventShelf.joined, 'Joined', Key('events_tab_joined')),
+      (_EventShelf.discover, 'Discover', Key('events_tab_discover')),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.lg,
+        AppDimens.md,
+        AppDimens.lg,
+        0,
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < shelves.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppDimens.sm),
+            Expanded(
+              child: ShelfChip(
+                key: shelves[i].$3,
+                label: shelves[i].$2,
+                selected: _shelf == shelves[i].$1,
+                onTap: () => setState(() => _shelf = shelves[i].$1),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShelfEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+    final message = switch (_shelf) {
+      _EventShelf.yours => 'You have not created an event yet.',
+      _EventShelf.joined => 'You have not joined an event yet.',
+      _EventShelf.discover => 'No public events to discover.',
+    };
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.xl),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchEmptyState(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
@@ -153,6 +231,7 @@ class _EventsPageState extends State<EventsPage> {
     final eventsProvider = context.watch<EventsProvider>();
     final isEmpty = eventsProvider.events.isEmpty;
     final filteredEvents = eventsProvider.events.where((event) {
+      if (!_onShelf(event)) return false;
       final nameMatch = event.name.toLowerCase().contains(
         _searchQuery.toLowerCase(),
       );
@@ -164,6 +243,8 @@ class _EventsPageState extends State<EventsPage> {
       return nameMatch || descMatch;
     }).toList();
     final isSearchEmpty = _searchQuery.isNotEmpty && filteredEvents.isEmpty;
+    final isShelfEmpty =
+        _searchQuery.isEmpty && filteredEvents.isEmpty && !isEmpty;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -180,7 +261,7 @@ class _EventsPageState extends State<EventsPage> {
                   title: const Text('Events'),
                   centerTitle: true,
                   floating: true,
-                  toolbarHeight: 90.0,
+                  toolbarHeight: 76.0,
                   pinned: false,
                   backgroundColor: Theme.of(
                     context,
@@ -202,6 +283,7 @@ class _EventsPageState extends State<EventsPage> {
                     ),
                   ],
                 ),
+                SliverToBoxAdapter(child: _buildShelves(context)),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(AppDimens.lg),
@@ -226,6 +308,11 @@ class _EventsPageState extends State<EventsPage> {
                     hasScrollBody: false,
                     child: _buildSearchEmptyState(context),
                   )
+                else if (isShelfEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildShelfEmptyState(context),
+                  )
                 else
                   SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
@@ -242,8 +329,8 @@ class _EventsPageState extends State<EventsPage> {
                           child: PlaceholderCard(
                             title: event.name,
                             subtitle: event.isGeoGated
-                                ? 'Vote Session • geo • ${event.tracks.length} tracks'
-                                : 'Vote Session • ${event.tracks.length} tracks',
+                                ? '${_relationLabel(event)} • geo • ${event.tracks.length} tracks'
+                                : '${_relationLabel(event)} • ${event.tracks.length} tracks',
                             leading: Hero(
                               tag: 'event_cover_${event.id}',
                               child: Container(

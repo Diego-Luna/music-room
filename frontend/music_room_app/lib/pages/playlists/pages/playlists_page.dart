@@ -11,9 +11,14 @@ import 'package:music_room_app/widgets/primary_button.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/pages/playlists/widgets/create_playlist_dialog.dart';
 import 'package:music_room_app/widgets/neumorphic_search_bar.dart';
+import 'package:music_room_app/widgets/shelf_chip.dart';
 import 'package:music_room_app/providers/subscription_provider.dart';
+import 'package:music_room_app/models/room.dart';
 
-//* Playlists page skeleton with Staggered Animations and Background Floaters.
+enum _PlaylistShelf { yours, joined, discover }
+
+//* Playlists page. One list, split into the caller's own rooms, rooms they
+//* joined, and public rooms they have not joined.
 class PlaylistsPage extends StatefulWidget {
   const PlaylistsPage({super.key});
 
@@ -23,6 +28,30 @@ class PlaylistsPage extends StatefulWidget {
 
 class _PlaylistsPageState extends State<PlaylistsPage> {
   String _searchQuery = '';
+  _PlaylistShelf _shelf = _PlaylistShelf.yours;
+
+  bool _onShelf(Room playlist) {
+    switch (_shelf) {
+      case _PlaylistShelf.yours:
+        return playlist.myRole == 'OWNER';
+      case _PlaylistShelf.joined:
+        return playlist.myRole == 'MEMBER' || playlist.myRole == 'ADMIN';
+      case _PlaylistShelf.discover:
+        return playlist.myRole == null;
+    }
+  }
+
+  String _relationLabel(Room playlist) {
+    switch (playlist.myRole) {
+      case 'OWNER':
+        return 'Yours';
+      case 'ADMIN':
+      case 'MEMBER':
+        return 'Member';
+      default:
+        return 'Public';
+    }
+  }
 
   @override
   void initState() {
@@ -85,6 +114,56 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
     );
   }
 
+  Widget _buildShelves(BuildContext context) {
+    const shelves = <(_PlaylistShelf, String, Key)>[
+      (_PlaylistShelf.yours, 'Yours', Key('playlists_tab_yours')),
+      (_PlaylistShelf.joined, 'Joined', Key('playlists_tab_joined')),
+      (_PlaylistShelf.discover, 'Discover', Key('playlists_tab_discover')),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.lg,
+        AppDimens.md,
+        AppDimens.lg,
+        0,
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < shelves.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppDimens.sm),
+            Expanded(
+              child: ShelfChip(
+                key: shelves[i].$3,
+                label: shelves[i].$2,
+                selected: _shelf == shelves[i].$1,
+                onTap: () => setState(() => _shelf = shelves[i].$1),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShelfEmptyState(BuildContext context) {
+    final theme = Theme.of(context);
+    final message = switch (_shelf) {
+      _PlaylistShelf.yours => 'You have not created a playlist yet.',
+      _PlaylistShelf.joined => 'You have not joined a playlist yet.',
+      _PlaylistShelf.discover => 'No public playlists to discover.',
+    };
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppDimens.xl),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodyMedium,
+        ),
+      ),
+    );
+  }
+
   Widget _buildSearchEmptyState(BuildContext context) {
     final theme = Theme.of(context);
     return Center(
@@ -118,6 +197,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
     final isPremium = SubscriptionProvider.isPremiumOf(context);
     final isEmpty = playlistsProvider.playlists.isEmpty;
     final filteredPlaylists = playlistsProvider.playlists.where((playlist) {
+      if (!_onShelf(playlist)) return false;
       final nameMatch = playlist.name.toLowerCase().contains(
         _searchQuery.toLowerCase(),
       );
@@ -129,6 +209,8 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
       return nameMatch || descMatch;
     }).toList();
     final isSearchEmpty = _searchQuery.isNotEmpty && filteredPlaylists.isEmpty;
+    final isShelfEmpty =
+        _searchQuery.isEmpty && filteredPlaylists.isEmpty && !isEmpty;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -146,6 +228,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                   title: const Text('Playlists'),
                   centerTitle: true,
                   floating: true,
+                  toolbarHeight: 76.0,
                   pinned: false,
                   backgroundColor: Theme.of(
                     context,
@@ -162,6 +245,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                     ),
                   ],
                 ),
+                SliverToBoxAdapter(child: _buildShelves(context)),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(AppDimens.lg),
@@ -186,6 +270,11 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                     hasScrollBody: false,
                     child: _buildSearchEmptyState(context),
                   )
+                else if (isShelfEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildShelfEmptyState(context),
+                  )
                 else
                   SliverList(
                     delegate: SliverChildBuilderDelegate((context, index) {
@@ -204,7 +293,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                           child: PlaceholderCard(
                             title: playlist.name,
                             subtitle:
-                                'Collaborative Playlist • ${playlist.tracks.length} songs',
+                                '${_relationLabel(playlist)} • ${playlist.tracks.length} songs',
                             leading: Hero(
                               tag: 'playlist_cover_${playlist.id}',
                               child: Container(
