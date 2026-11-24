@@ -169,6 +169,38 @@ describe('QueueProgressionService', () => {
       expect(prisma.$transaction).toHaveBeenCalled();
     });
 
+    it('advances a long track once its 30s preview is over', async () => {
+      prisma.room.findMany.mockResolvedValue([
+        {
+          id: 'room-1',
+          currentTrackId: 'track-1',
+          currentTrackStartedAt: new Date(Date.now() - 31_000),
+          currentTrack: { id: 'track-1', durationMs: 200_000 },
+        },
+      ]);
+      prisma.track.findFirst.mockResolvedValue({
+        id: 'track-2',
+        durationMs: 180_000,
+        score: 4,
+      });
+      tx.room.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.tick();
+
+      expect(prisma.track.findFirst).toHaveBeenCalledWith({
+        where: { roomId: 'room-1', playedAt: null, id: { not: 'track-1' } },
+        orderBy: [{ score: 'desc' }, { addedAt: 'asc' }],
+      });
+      expect(prisma.$transaction).toHaveBeenCalled();
+      expect(realtime.emitToRoom).toHaveBeenCalledWith(
+        'room-1',
+        'track:nowPlaying',
+        expect.objectContaining({
+          track: expect.objectContaining({ id: 'track-2' }),
+        }),
+      );
+    });
+
     it('leaves a room alone while its track is still playing', async () => {
       prisma.room.findMany.mockResolvedValue([
         {
@@ -183,6 +215,21 @@ describe('QueueProgressionService', () => {
 
       expect(prisma.$transaction).not.toHaveBeenCalled();
       expect(realtime.emitToRoom).not.toHaveBeenCalled();
+    });
+
+    it('does not advance a long track during its preview', async () => {
+      prisma.room.findMany.mockResolvedValue([
+        {
+          id: 'room-1',
+          currentTrackId: 'track-1',
+          currentTrackStartedAt: new Date(Date.now() - 20_000),
+          currentTrack: { id: 'track-1', durationMs: 200_000 },
+        },
+      ]);
+
+      await service.tick();
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('starts an idle room that has a pending queue', async () => {

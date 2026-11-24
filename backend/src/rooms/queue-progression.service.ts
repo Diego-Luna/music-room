@@ -13,6 +13,13 @@ import { RedisService } from '../redis/redis.service';
 const TICK_MS = 1000;
 const TICK_LOCK_KEY = 'queue:progression:tick';
 const TICK_LOCK_TTL_S = 10;
+/** The room plays the Deezer preview, so a turn ends when that clip ends. */
+const PREVIEW_MS = 30_000;
+
+function turnMs(durationMs: number): number {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return PREVIEW_MS;
+  return Math.min(durationMs, PREVIEW_MS);
+}
 
 type RoomWithCurrent = {
   id: string;
@@ -24,9 +31,9 @@ type RoomWithCurrent = {
 
 /**
  * Drives VOTE-room playback. A VOTE room has no DJ: the queue advances on its
- * own. When the current track's duration elapses, the highest-voted pending
- * track becomes current. A paused room stays where it is. Idle rooms with a
- * pending queue start automatically.
+ * own. When the current preview ends, the highest-voted pending track becomes
+ * current and starts for everyone. Idle rooms with a pending queue start
+ * automatically.
  *
  * Durability comes from the DB (`Room.currentTrackStartedAt`), so progression
  * survives restarts. The Redis lock only ensures a single instance ticks when
@@ -78,7 +85,7 @@ export class QueueProgressionService implements OnModuleInit, OnModuleDestroy {
           room.currentTrackStartedAt &&
           now >=
             room.currentTrackStartedAt.getTime() +
-              room.currentTrack.durationMs
+              turnMs(room.currentTrack.durationMs)
         ) {
           await this.advance(room.id, room.currentTrack.id);
         } else if (!room.currentTrackId) {
