@@ -10,6 +10,9 @@ class Track {
   // * 30-second preview MP3 (Deezer `preview`) — what the in-app player plays
   final String? previewUrl;
   final int score;
+  // * 1 when the caller has voted for this track, otherwise 0.
+  // * Stored on the server, so a reload restores it.
+  final int myVote;
   final String? position;
   // * Present on socket/REST playlist payloads so live add targets one room.
   final String? roomId;
@@ -24,6 +27,7 @@ class Track {
     this.artworkUrl,
     this.previewUrl,
     this.score = 0,
+    this.myVote = 0,
     this.position,
     this.roomId,
   });
@@ -48,6 +52,7 @@ class Track {
       artworkUrl: json['artworkUrl'] as String?,
       previewUrl: json['previewUrl'] as String?,
       score: json['score'] as int? ?? 0,
+      myVote: (json['myVote'] as num?)?.toInt() ?? 0,
       position: json['position'] as String?,
       roomId: json['roomId'] as String?,
     );
@@ -63,11 +68,12 @@ class Track {
     if (artworkUrl != null) 'artworkUrl': artworkUrl,
     if (previewUrl != null) 'previewUrl': previewUrl,
     'score': score,
+    'myVote': myVote,
     if (position != null) 'position': position,
     if (roomId != null) 'roomId': roomId,
   };
 
-  Track copyWith({int? score, String? position, String? roomId}) {
+  Track copyWith({int? score, int? myVote, String? position, String? roomId}) {
     return Track(
       id: id,
       providerId: providerId,
@@ -78,6 +84,7 @@ class Track {
       artworkUrl: artworkUrl,
       previewUrl: previewUrl,
       score: score ?? this.score,
+      myVote: myVote ?? this.myVote,
       position: position ?? this.position,
       roomId: roomId ?? this.roomId,
     );

@@ -149,9 +149,13 @@ class PlayerProvider extends ChangeNotifier {
     unawaited(_startPlayback(preview));
   }
 
-  Future<void> _startPlayback(String url) async {
+  Future<void> _startPlayback(
+    String url, {
+    Duration position = Duration.zero,
+    bool autoplay = true,
+  }) async {
     try {
-      await _audio.play(url);
+      await _audio.play(url, position: position, autoplay: autoplay);
     } catch (_) {
       _isPlaying = false;
       _error = 'Could not play this track.';
@@ -406,15 +410,21 @@ class PlayerProvider extends ChangeNotifier {
 
   // * Handler methods for socket events — a remote controller drove playback,
   //   so we mirror the state and play the same preview locally when available.
-  void handlePlaybackPlayed(Track track) {
+  void handlePlaybackPlayed(
+    Track track, {
+    Duration position = Duration.zero,
+    bool autoplay = true,
+  }) {
     _currentTrack = track;
-    _isPlaying = true;
+    _isPlaying = autoplay;
     _error = null;
-    _position = Duration.zero;
+    _position = position;
     notifyListeners();
     final preview = track.previewUrl;
     if (preview != null && preview.isNotEmpty) {
-      unawaited(_startPlayback(preview));
+      unawaited(
+        _startPlayback(preview, position: position, autoplay: autoplay),
+      );
     }
   }
 

@@ -146,6 +146,9 @@ model Room {
   currentTrackId        String?   @unique
   currentTrack          Track?    @relation("CurrentTrack", fields: [currentTrackId], references: [id], onDelete: SetNull)
   currentTrackStartedAt DateTime?
+  // Set while an owner/admin has paused the room. The shared position stays
+  // frozen until they resume.
+  playbackPausedAt      DateTime?
 
   @@index([ownerId])
   @@index([visibility])

@@ -29,6 +29,11 @@ export class RoomDto {
   @ApiProperty({ nullable: true }) voteLocationRadiusM!: number | null;
   @ApiProperty({ nullable: true }) currentTrackId!: string | null;
   @ApiProperty({ nullable: true }) currentTrackStartedAt!: Date | null;
+  @ApiProperty({
+    nullable: true,
+    description: 'Set while the room playback is paused by an owner or admin',
+  })
+  playbackPausedAt!: Date | null;
   @ApiProperty() createdAt!: Date;
   @ApiProperty() updatedAt!: Date;
 }

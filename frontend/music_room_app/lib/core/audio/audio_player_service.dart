@@ -19,8 +19,13 @@ abstract class AudioPlayerService {
   /// Fires when the clip reaches its end.
   Stream<void> get completedStream;
 
-  /// Loads [url] and starts playback from the beginning.
-  Future<void> play(String url);
+  /// Loads [url]. Seeks to [position] first. Starts playback unless
+  /// [autoplay] is false (used when the room is paused).
+  Future<void> play(
+    String url, {
+    Duration position = Duration.zero,
+    bool autoplay = true,
+  });
   Future<void> pause();
   Future<void> resume();
   Future<void> stop();
@@ -50,7 +55,11 @@ class JustAudioPlayerService implements AudioPlayerService {
   );
 
   @override
-  Future<void> play(String url) async {
+  Future<void> play(
+    String url, {
+    Duration position = Duration.zero,
+    bool autoplay = true,
+  }) async {
     // Stop any in-flight playback/loading first. just_audio throws a
     // PlayerInterruptedException when setUrl() is called while a previous
     // source is still playing or loading; that exception was being swallowed
@@ -59,7 +68,10 @@ class JustAudioPlayerService implements AudioPlayerService {
     // player to idle (position back to zero) so the new URL loads cleanly.
     await _player.stop();
     await _player.setUrl(url);
-    await _player.play();
+    if (position > Duration.zero) {
+      await _player.seek(position);
+    }
+    if (autoplay) await _player.play();
   }
 
   @override

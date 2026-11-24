@@ -52,6 +52,7 @@ describe('QueueProgressionService', () => {
         data: {
           currentTrackId: 'track-2',
           currentTrackStartedAt: expect.any(Date),
+          playbackPausedAt: null,
         },
       });
       expect(tx.track.update).toHaveBeenCalledWith({
@@ -61,7 +62,11 @@ describe('QueueProgressionService', () => {
       expect(realtime.emitToRoom).toHaveBeenCalledWith(
         'room-1',
         'track:nowPlaying',
-        { roomId: 'room-1', track: { id: 'track-2', durationMs: 200_000 } },
+        expect.objectContaining({
+          roomId: 'room-1',
+          track: { id: 'track-2', durationMs: 200_000 },
+          pausedAt: null,
+        }),
       );
     });
 
@@ -73,12 +78,20 @@ describe('QueueProgressionService', () => {
 
       expect(tx.room.updateMany).toHaveBeenCalledWith({
         where: { id: 'room-1', currentTrackId: 'track-1' },
-        data: { currentTrackId: null, currentTrackStartedAt: null },
+        data: {
+          currentTrackId: null,
+          currentTrackStartedAt: null,
+          playbackPausedAt: null,
+        },
       });
       expect(realtime.emitToRoom).toHaveBeenCalledWith(
         'room-1',
         'track:nowPlaying',
-        { roomId: 'room-1', track: null },
+        expect.objectContaining({
+          roomId: 'room-1',
+          track: null,
+          pausedAt: null,
+        }),
       );
     });
 
@@ -111,12 +124,17 @@ describe('QueueProgressionService', () => {
         data: {
           currentTrackId: 'track-1',
           currentTrackStartedAt: expect.any(Date),
+          playbackPausedAt: null,
         },
       });
       expect(realtime.emitToRoom).toHaveBeenCalledWith(
         'room-1',
         'track:nowPlaying',
-        { roomId: 'room-1', track: { id: 'track-1', durationMs: 1000 } },
+        expect.objectContaining({
+          roomId: 'room-1',
+          track: { id: 'track-1', durationMs: 1000 },
+          pausedAt: null,
+        }),
       );
     });
 
@@ -189,8 +207,25 @@ describe('QueueProgressionService', () => {
         data: {
           currentTrackId: 'track-1',
           currentTrackStartedAt: expect.any(Date),
+          playbackPausedAt: null,
         },
       });
+    });
+
+    it('does not advance a room the owner has paused', async () => {
+      prisma.room.findMany.mockResolvedValue([
+        {
+          id: 'room-1',
+          currentTrackId: 'track-1',
+          currentTrackStartedAt: new Date(Date.now() - 10_000),
+          playbackPausedAt: new Date(),
+          currentTrack: { id: 'track-1', durationMs: 5000 },
+        },
+      ]);
+
+      await service.tick();
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
     });
   });
 });

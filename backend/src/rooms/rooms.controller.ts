@@ -62,6 +62,32 @@ export class RoomsController {
     return this.rooms.update(id, user.sub, dto);
   }
 
+  @Post(':id/playback/pause')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Pause the room for everyone (owner or admin)',
+  })
+  @ApiOkResponse({ type: RoomDto })
+  async pausePlayback(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.rooms.setPlayback(id, user.sub, true);
+  }
+
+  @Post(':id/playback/resume')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Resume the room for everyone (owner or admin)',
+  })
+  @ApiOkResponse({ type: RoomDto })
+  async resumePlayback(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+  ) {
+    return this.rooms.setPlayback(id, user.sub, false);
+  }
+
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a room (owner only)' })

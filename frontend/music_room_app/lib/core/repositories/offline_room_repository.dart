@@ -104,6 +104,14 @@ class OfflineRoomRepository implements RoomRepository {
   }
 
   @override
+  Future<Room> pauseRoomPlayback(String roomId) =>
+      _remote.pauseRoomPlayback(roomId);
+
+  @override
+  Future<Room> resumeRoomPlayback(String roomId) =>
+      _remote.resumeRoomPlayback(roomId);
+
+  @override
   Future<void> voteForTrack(
     String roomId,
     String trackId,
@@ -115,15 +123,9 @@ class OfflineRoomRepository implements RoomRepository {
       // * Optimistic vote update locally
       final room = _cache.getRoomById(roomId);
       if (room != null) {
-        final updatedTracks = room.tracks.map((t) {
-          if (t.id == trackId) {
-            final currentScore = t.score;
-            return t.copyWith(score: currentScore + value);
-          }
-          return t;
-        }).toList();
-        updatedTracks.sort((a, b) => b.score.compareTo(a.score));
-        await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
+        await _cache.saveRoom(
+          room.copyWith(tracks: _tracksAfterVote(room, trackId, value)),
+        );
       }
 
       // * Queue action
@@ -145,15 +147,9 @@ class OfflineRoomRepository implements RoomRepository {
       // * Optimistic vote update locally
       final room = _cache.getRoomById(roomId);
       if (room != null) {
-        final updatedTracks = room.tracks.map((t) {
-          if (t.id == trackId) {
-            final currentScore = t.score;
-            return t.copyWith(score: currentScore + value);
-          }
-          return t;
-        }).toList();
-        updatedTracks.sort((a, b) => b.score.compareTo(a.score));
-        await _cache.saveRoom(room.copyWith(tracks: updatedTracks));
+        await _cache.saveRoom(
+          room.copyWith(tracks: _tracksAfterVote(room, trackId, value)),
+        );
       }
 
       // * Queue action
@@ -166,6 +162,23 @@ class OfflineRoomRepository implements RoomRepository {
       );
       await _cache.enqueueAction(action);
     }
+  }
+
+  /// One vote per person. A new +1 clears every other waiting vote.
+  List<Track> _tracksAfterVote(Room room, String trackId, int value) {
+    final currentId = room.currentTrackId;
+    return [
+      for (final track in room.tracks)
+        if (track.id == trackId)
+          track.copyWith(
+            myVote: value,
+            score: track.score + (value - (track.myVote == 1 ? 1 : 0)),
+          )
+        else if (value == 1 && track.myVote == 1 && track.id != currentId)
+          track.copyWith(myVote: 0, score: track.score - 1)
+        else
+          track,
+    ]..sort((a, b) => b.score.compareTo(a.score));
   }
 
   @override

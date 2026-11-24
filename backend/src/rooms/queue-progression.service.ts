@@ -18,13 +18,15 @@ type RoomWithCurrent = {
   id: string;
   currentTrackId: string | null;
   currentTrackStartedAt: Date | null;
+  playbackPausedAt: Date | null;
   currentTrack: { id: string; durationMs: number } | null;
 };
 
 /**
  * Drives VOTE-room playback. A VOTE room has no DJ: the queue advances on its
  * own. When the current track's duration elapses, the highest-voted pending
- * track becomes current. Idle rooms with a pending queue start automatically.
+ * track becomes current. A paused room stays where it is. Idle rooms with a
+ * pending queue start automatically.
  *
  * Durability comes from the DB (`Room.currentTrackStartedAt`), so progression
  * survives restarts. The Redis lock only ensures a single instance ticks when
@@ -63,12 +65,14 @@ export class QueueProgressionService implements OnModuleInit, OnModuleDestroy {
           id: true,
           currentTrackId: true,
           currentTrackStartedAt: true,
+          playbackPausedAt: true,
           currentTrack: { select: { id: true, durationMs: true } },
         },
       })) as RoomWithCurrent[];
 
       const now = Date.now();
       for (const room of rooms) {
+        if (room.playbackPausedAt) continue;
         if (
           room.currentTrack &&
           room.currentTrackStartedAt &&
@@ -92,6 +96,7 @@ export class QueueProgressionService implements OnModuleInit, OnModuleDestroy {
   /** Current track finished → mark it played, promote the next one. */
   async advance(roomId: string, finishedTrackId: string): Promise<void> {
     const next = await this.pickNext(roomId, finishedTrackId);
+    const startedAt = next ? new Date() : null;
 
     const advanced = await this.prisma.$transaction(async (tx) => {
       // Conditional swap: only this caller wins if currentTrackId is unchanged.
@@ -99,7 +104,8 @@ export class QueueProgressionService implements OnModuleInit, OnModuleDestroy {
         where: { id: roomId, currentTrackId: finishedTrackId },
         data: {
           currentTrackId: next?.id ?? null,
-          currentTrackStartedAt: next ? new Date() : null,
+          currentTrackStartedAt: startedAt,
+          playbackPausedAt: null,
         },
       });
       if (claimed.count === 0) return false;
@@ -114,6 +120,8 @@ export class QueueProgressionService implements OnModuleInit, OnModuleDestroy {
       this.realtime?.emitToRoom(roomId, 'track:nowPlaying', {
         roomId,
         track: next ?? null,
+        startedAt: startedAt?.toISOString() ?? null,
+        pausedAt: null,
       });
     }
   }
@@ -123,14 +131,21 @@ export class QueueProgressionService implements OnModuleInit, OnModuleDestroy {
     const next = await this.pickNext(roomId);
     if (!next) return;
 
+    const startedAt = new Date();
     const started = await this.prisma.room.updateMany({
       where: { id: roomId, currentTrackId: null },
-      data: { currentTrackId: next.id, currentTrackStartedAt: new Date() },
+      data: {
+        currentTrackId: next.id,
+        currentTrackStartedAt: startedAt,
+        playbackPausedAt: null,
+      },
     });
     if (started.count > 0) {
       this.realtime?.emitToRoom(roomId, 'track:nowPlaying', {
         roomId,
         track: next,
+        startedAt: startedAt.toISOString(),
+        pausedAt: null,
       });
     }
   }

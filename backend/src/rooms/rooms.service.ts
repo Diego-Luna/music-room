@@ -251,6 +251,63 @@ export class RoomsService {
     }
   }
 
+  async setPlayback(roomId: string, userId: string, paused: boolean) {
+    const room = await this.prisma.room.findUnique({ where: { id: roomId } });
+    if (!room) throw new NotFoundException('Room not found');
+    if (room.kind !== 'VOTE') {
+      throw new BadRequestException('Room is not a VOTE room');
+    }
+    await this.requirePlaybackControl(room, userId);
+    if (!room.currentTrackId || !room.currentTrackStartedAt) {
+      throw new BadRequestException('Nothing is playing');
+    }
+
+    const now = new Date();
+    let startedAt = room.currentTrackStartedAt;
+    let pausedAt: Date | null = room.playbackPausedAt;
+    if (paused) {
+      pausedAt = pausedAt ?? now;
+    } else if (pausedAt) {
+      const elapsed = pausedAt.getTime() - startedAt.getTime();
+      startedAt = new Date(now.getTime() - Math.max(0, elapsed));
+      pausedAt = null;
+    }
+
+    const updated = await this.prisma.room.update({
+      where: { id: roomId },
+      data: {
+        currentTrackStartedAt: startedAt,
+        playbackPausedAt: pausedAt,
+      },
+    });
+    const positionMs = Math.max(
+      0,
+      (pausedAt ?? now).getTime() - startedAt.getTime(),
+    );
+    this.realtime?.emitToRoom(roomId, 'playback:state', {
+      roomId,
+      trackId: room.currentTrackId,
+      startedAt: startedAt.toISOString(),
+      pausedAt: pausedAt?.toISOString() ?? null,
+      positionMs,
+    });
+    return updated;
+  }
+
+  private async requirePlaybackControl(
+    room: { id: string; ownerId: string },
+    userId: string,
+  ) {
+    if (room.ownerId === userId) return;
+    const member = await this.prisma.roomMember.findUnique({
+      where: { roomId_userId: { roomId: room.id, userId } },
+    });
+    if (member && EDIT_ROLES.has(member.role)) return;
+    throw new ForbiddenException(
+      'Only the owner or an admin can control playback',
+    );
+  }
+
   private validateLocationSettings(dto: Partial<CreateRoomDto>) {
     const fields = [
       dto.voteLocationLat,

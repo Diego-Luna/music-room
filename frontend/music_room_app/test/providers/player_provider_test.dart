@@ -33,7 +33,11 @@ class FakeAudioPlayerService implements AudioPlayerService {
   @override
   Stream<void> get completedStream => completedController.stream;
   @override
-  Future<void> play(String url) async => calls.add('play:$url');
+  Future<void> play(
+    String url, {
+    Duration position = Duration.zero,
+    bool autoplay = true,
+  }) async => calls.add('play:$url');
   @override
   Future<void> pause() async => calls.add('pause');
   @override

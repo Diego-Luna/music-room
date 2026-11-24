@@ -64,11 +64,16 @@ abstract class RoomRepository {
     String roomId,
     String trackId,
 
-    // * value: 1 = upvote, -1 = downvote, 0 = remove vote
+    // * value: 1 = vote for the track, 0 = clear that vote
     int value, {
     double? lat,
     double? lng,
   });
+
+  // * Shared room playback. Owner or admin only. The returned room carries
+  //   the new clock (startedAt / pausedAt).
+  Future<Room> pauseRoomPlayback(String roomId);
+  Future<Room> resumeRoomPlayback(String roomId);
 
   // *PLAYLIST room
   Future<List<Track>> getPlaylistTracks(String roomId);

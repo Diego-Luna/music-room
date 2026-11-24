@@ -1,5 +1,7 @@
 import 'package:music_room_app/models/track.dart';
 
+const _keep = Object();
+
 // * The same like the backend `Room.kind`
 enum RoomKind {
   vote,
@@ -42,6 +44,13 @@ class Room {
   // * Tracks list is for used by VOTE and PLAYLIST rooms
   final List<Track> tracks;
 
+  // * Track the room is playing right now. Votes on it are locked.
+  final String? currentTrackId;
+
+  // * Shared clock. Position is now - startedAt, frozen while pausedAt is set.
+  final DateTime? currentTrackStartedAt;
+  final DateTime? playbackPausedAt;
+
   Room({
     required this.id,
     required this.name,
@@ -56,6 +65,9 @@ class Room {
     this.voteLocationLng,
     this.voteLocationRadiusM,
     this.tracks = const [],
+    this.currentTrackId,
+    this.currentTrackStartedAt,
+    this.playbackPausedAt,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
 
@@ -82,6 +94,13 @@ class Room {
       tracks: (json['tracks'] as List? ?? [])
           .map((t) => Track.fromJson(t))
           .toList(),
+      currentTrackId: json['currentTrackId'] as String?,
+      currentTrackStartedAt: json['currentTrackStartedAt'] != null
+          ? DateTime.parse(json['currentTrackStartedAt'] as String)
+          : null,
+      playbackPausedAt: json['playbackPausedAt'] != null
+          ? DateTime.parse(json['playbackPausedAt'] as String)
+          : null,
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : null,
@@ -103,6 +122,11 @@ class Room {
     if (voteLocationLng != null) 'voteLocationLng': voteLocationLng,
     if (voteLocationRadiusM != null) 'voteLocationRadiusM': voteLocationRadiusM,
     'tracks': tracks.map((t) => t.toJson()).toList(),
+    if (currentTrackId != null) 'currentTrackId': currentTrackId,
+    if (currentTrackStartedAt != null)
+      'currentTrackStartedAt': currentTrackStartedAt!.toIso8601String(),
+    if (playbackPausedAt != null)
+      'playbackPausedAt': playbackPausedAt!.toIso8601String(),
     'createdAt': createdAt.toIso8601String(),
   };
 
@@ -117,6 +141,9 @@ class Room {
     double? voteLocationLng,
     double? voteLocationRadiusM,
     List<Track>? tracks,
+    Object? currentTrackId = _keep,
+    Object? currentTrackStartedAt = _keep,
+    Object? playbackPausedAt = _keep,
   }) {
     return Room(
       id: id,
@@ -132,6 +159,15 @@ class Room {
       voteLocationLng: voteLocationLng ?? this.voteLocationLng,
       voteLocationRadiusM: voteLocationRadiusM ?? this.voteLocationRadiusM,
       tracks: tracks ?? this.tracks,
+      currentTrackId: identical(currentTrackId, _keep)
+          ? this.currentTrackId
+          : currentTrackId as String?,
+      currentTrackStartedAt: identical(currentTrackStartedAt, _keep)
+          ? this.currentTrackStartedAt
+          : currentTrackStartedAt as DateTime?,
+      playbackPausedAt: identical(playbackPausedAt, _keep)
+          ? this.playbackPausedAt
+          : playbackPausedAt as DateTime?,
       createdAt: createdAt,
     );
   }

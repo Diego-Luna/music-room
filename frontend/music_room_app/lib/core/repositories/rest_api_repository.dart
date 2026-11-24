@@ -128,6 +128,22 @@ class RestApiRepository implements RoomRepository {
   }
 
   @override
+  Future<Room> pauseRoomPlayback(String roomId) async {
+    final response = await _client.post(
+      '${ApiConfig.rooms}/$roomId/playback/pause',
+    );
+    return Room.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Room> resumeRoomPlayback(String roomId) async {
+    final response = await _client.post(
+      '${ApiConfig.rooms}/$roomId/playback/resume',
+    );
+    return Room.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  @override
   Future<void> voteForTrack(
     String roomId,
     String trackId,

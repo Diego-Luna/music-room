@@ -422,4 +422,50 @@ describe('RoomsService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
   });
+
+  describe('setPlayback', () => {
+    const playing = {
+      ...roomRow,
+      currentTrackId: 'track-1',
+      currentTrackStartedAt: new Date(Date.now() - 20_000),
+      playbackPausedAt: null,
+    };
+
+    it('lets the owner pause and tells the room', async () => {
+      prisma.room.findUnique.mockResolvedValue(playing);
+      prisma.room.update.mockResolvedValue({
+        ...playing,
+        playbackPausedAt: new Date(),
+      });
+
+      await service.setPlayback('room-1', 'user-1', true);
+
+      expect(prisma.room.update).toHaveBeenCalledWith({
+        where: { id: 'room-1' },
+        data: {
+          currentTrackStartedAt: playing.currentTrackStartedAt,
+          playbackPausedAt: expect.any(Date),
+        },
+      });
+      expect(realtime.emitToRoom).toHaveBeenCalledWith(
+        'room-1',
+        'playback:state',
+        expect.objectContaining({
+          roomId: 'room-1',
+          trackId: 'track-1',
+          pausedAt: expect.any(String),
+        }),
+      );
+    });
+
+    it('rejects a member who is not an admin', async () => {
+      prisma.room.findUnique.mockResolvedValue(playing);
+      prisma.roomMember.findUnique.mockResolvedValue({ role: 'MEMBER' });
+
+      await expect(
+        service.setPlayback('room-1', 'member-1', true),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.room.update).not.toHaveBeenCalled();
+    });
+  });
 });
