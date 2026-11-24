@@ -29,12 +29,14 @@ class EventsProvider extends ChangeNotifier {
   }
 
   Future<void>? _fetchEventsFuture;
+  int _fetchGeneration = 0;
 
   Future<void> fetchEvents({bool force = false}) async {
     if (_fetchEventsFuture != null && !force) {
       return _fetchEventsFuture!;
     }
-    final future = _doFetchEvents();
+    final generation = ++_fetchGeneration;
+    final future = _doFetchEvents(generation);
     _fetchEventsFuture = future;
     try {
       await future;
@@ -45,12 +47,14 @@ class EventsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _doFetchEvents() async {
+  Future<void> _doFetchEvents(int generation) async {
+    if (generation != _fetchGeneration) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
       final rooms = await _repository.getRooms(kind: RoomKind.vote);
+      if (generation != _fetchGeneration) return;
       final voteRooms = rooms
           .where((room) => room.kind == RoomKind.vote)
           .toList();
@@ -60,6 +64,7 @@ class EventsProvider extends ChangeNotifier {
           return room.copyWith(tracks: tracks);
         }),
       );
+      if (generation != _fetchGeneration) return;
       _events = populatedRooms;
       if (_selectedEvent == null && _events.isNotEmpty) {
         _selectedEvent = _events.first;
@@ -72,8 +77,10 @@ class EventsProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
+      if (generation != _fetchGeneration) return;
       _error = e.toString();
     } finally {
+      if (generation != _fetchGeneration) return;
       _isLoading = false;
       notifyListeners();
     }
@@ -213,6 +220,9 @@ class EventsProvider extends ChangeNotifier {
         voteLocationLng: voteLocationLng,
         voteLocationRadiusM: voteLocationRadiusM,
       );
+      _events = [room, ..._events.where((event) => event.id != room.id)];
+      _selectedEvent = room;
+      notifyListeners();
       await fetchEvents(force: true);
       final idx = _events.indexWhere((e) => e.id == room.id);
       if (idx != -1) {

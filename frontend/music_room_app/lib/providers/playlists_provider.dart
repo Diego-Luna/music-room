@@ -20,12 +20,14 @@ class PlaylistsProvider extends ChangeNotifier {
   String? get error => _error;
 
   Future<void>? _fetchPlaylistsFuture;
+  int _fetchGeneration = 0;
 
   Future<void> fetchPlaylists({bool force = false}) async {
     if (_fetchPlaylistsFuture != null && !force) {
       return _fetchPlaylistsFuture!;
     }
-    final future = _doFetchPlaylists();
+    final generation = ++_fetchGeneration;
+    final future = _doFetchPlaylists(generation);
     _fetchPlaylistsFuture = future;
     try {
       await future;
@@ -36,12 +38,14 @@ class PlaylistsProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _doFetchPlaylists() async {
+  Future<void> _doFetchPlaylists(int generation) async {
+    if (generation != _fetchGeneration) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
       final rooms = await _repository.getRooms(kind: RoomKind.playlist);
+      if (generation != _fetchGeneration) return;
       final playlistRooms = rooms
           .where((room) => room.kind == RoomKind.playlist)
           .toList();
@@ -51,10 +55,13 @@ class PlaylistsProvider extends ChangeNotifier {
           return playlistRoom.copyWith(tracks: tracks);
         }),
       );
+      if (generation != _fetchGeneration) return;
       _playlists = populatedRooms;
     } catch (e) {
+      if (generation != _fetchGeneration) return;
       _error = e.toString();
     } finally {
+      if (generation != _fetchGeneration) return;
       _isLoading = false;
       notifyListeners();
     }
@@ -79,6 +86,11 @@ class PlaylistsProvider extends ChangeNotifier {
         description: description,
         editAccess: editAccess,
       );
+      _playlists = [
+        room,
+        ..._playlists.where((playlist) => playlist.id != room.id),
+      ];
+      notifyListeners();
       await fetchPlaylists(force: true);
       return room;
     } catch (e) {

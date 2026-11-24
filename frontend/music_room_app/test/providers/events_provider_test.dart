@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
@@ -47,6 +49,56 @@ void main() {
       expect(eventsProvider.events.first.name, equals(voteRoom.name));
       expect(eventsProvider.isLoading, false);
       expect(eventsProvider.error, isNull);
+    });
+
+    test('a fetch started before create does not drop the new event', () async {
+      final created = Room(
+        id: 'event-new',
+        name: 'Just created',
+        ownerId: 'user-1',
+        kind: RoomKind.vote,
+      );
+      final firstList = Completer<List<Room>>();
+      var calls = 0;
+      when(() => mockRepository.getRooms(kind: RoomKind.vote)).thenAnswer((
+        _,
+      ) {
+        calls++;
+        if (calls == 1) return firstList.future;
+        return Future.value([created]);
+      });
+      when(
+        () => mockRepository.createRoom(
+          name: any(named: 'name'),
+          kind: RoomKind.vote,
+          isPublic: any(named: 'isPublic'),
+          description: any(named: 'description'),
+          voteAccess: any(named: 'voteAccess'),
+          voteWindow: any(named: 'voteWindow'),
+          voteStartsAt: any(named: 'voteStartsAt'),
+          voteEndsAt: any(named: 'voteEndsAt'),
+          voteLocationLat: any(named: 'voteLocationLat'),
+          voteLocationLng: any(named: 'voteLocationLng'),
+          voteLocationRadiusM: any(named: 'voteLocationRadiusM'),
+        ),
+      ).thenAnswer((_) async => created);
+
+      final initial = eventsProvider.fetchEvents();
+      await Future<void>.delayed(Duration.zero);
+
+      final creating = eventsProvider.createEvent(
+        name: 'Just created',
+        description: 'mine',
+        isPublic: true,
+        voteAccess: 'EVERYONE',
+        voteWindow: 'ALWAYS',
+      );
+      await creating;
+      expect(eventsProvider.events.map((event) => event.id), ['event-new']);
+
+      firstList.complete(<Room>[]);
+      await initial;
+      expect(eventsProvider.events.map((event) => event.id), ['event-new']);
     });
 
     test('fetchEvents sets error on failure', () async {
