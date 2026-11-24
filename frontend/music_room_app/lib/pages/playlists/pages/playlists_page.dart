@@ -321,9 +321,10 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
                       );
                     }, childCount: filteredPlaylists.length),
                   ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppDimens.xxl * 3),
-                ),
+                if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppDimens.xxl * 3),
+                  ),
               ],
             ),
         ],

@@ -357,9 +357,10 @@ class _EventsPageState extends State<EventsPage> {
                       );
                     }, childCount: filteredEvents.length),
                   ),
-                const SliverToBoxAdapter(
-                  child: SizedBox(height: AppDimens.xxl * 3),
-                ),
+                if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
+                  const SliverToBoxAdapter(
+                    child: SizedBox(height: AppDimens.xxl * 3),
+                  ),
               ],
             ),
         ],

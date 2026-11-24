@@ -25,6 +25,8 @@ class MainPage extends StatelessWidget {
       return Scaffold(
         appBar: AppBar(
           backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
           automaticallyImplyLeading: true,
           title: const SizedBox.shrink(),
           elevation: 0,
