@@ -15,6 +15,7 @@
     "test:cov": "vitest run --coverage",
     "test:e2e": "vitest run --config vitest.config.e2e.ts",
     "seed:users": "tsx prisma/seed-users.ts",
+    "seed:invitees": "tsx prisma/seed-invitees.ts",
     "lint": "eslint \"src/**/*.ts\" --fix"
   },
   "dependencies": {

@@ -1,5 +1,5 @@
 .PHONY: install dev build test test-e2e test-cov \
-	db-migrate db-generate db-seed \
+	db-migrate db-generate db-seed db-seed-invitees \
 	docker-up docker-down docker-build docker-rebuild docker-logs docker-sh up down logs \
 	loadtest measure \
 	clean
@@ -35,6 +35,9 @@ db-generate:
 
 db-seed:
 	npx tsx prisma/seed.ts
+
+db-seed-invitees:
+	npx tsx prisma/seed-invitees.ts
 
 # ─── Docker — infra services only (postgres + redis + mailpit) ────────────────
 docker-up:
