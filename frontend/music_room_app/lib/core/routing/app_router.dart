@@ -447,7 +447,11 @@ class AppRouter {
             ),
             routes: [
               GoRoute(
-                path: routeEventDetail,
+                path: 'detail',
+                redirect: (context, state) => routeEvents,
+              ),
+              GoRoute(
+                path: ':eventId',
                 pageBuilder: (context, state) => _buildPageWithTransition(
                   context: context,
                   state: state,

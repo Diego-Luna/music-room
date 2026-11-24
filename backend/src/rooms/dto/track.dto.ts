@@ -51,9 +51,9 @@ export class AddTrackDto {
 }
 
 export class VoteTrackDto {
-  @ApiProperty({ description: '+1 to boost, -1 to demote, 0 to clear' })
+  @ApiProperty({ description: '+1 to vote for the track, 0 to clear' })
   @IsInt()
-  @Min(-1)
+  @Min(0)
   @Max(1)
   value!: number;
 

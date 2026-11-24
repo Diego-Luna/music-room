@@ -12,7 +12,6 @@ class EventsProvider extends ChangeNotifier {
   Room? _selectedEvent;
   bool _isLoading = false;
   String? _error;
-  final Set<String> _votedTrackIds = {};
 
   EventsProvider({required RoomRepository repository})
     : _repository = repository;
@@ -21,11 +20,32 @@ class EventsProvider extends ChangeNotifier {
   Room? get selectedEvent => _selectedEvent;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  Set<String> get votedTrackIds => _votedTrackIds;
 
   void selectEvent(Room event) {
     _selectedEvent = event;
     notifyListeners();
+  }
+
+  /// Loads one event by id, including its queue. Used when the address is
+  /// opened directly, for example after a browser reload.
+  Future<Room> loadEvent(String roomId) async {
+    final room = await _repository.getRoomById(roomId);
+    if (room.kind != RoomKind.vote) {
+      throw Exception('This event is unavailable.');
+    }
+    final tracks = await _repository.getVoteTracks(roomId);
+    final full = room.copyWith(tracks: tracks);
+    final index = _events.indexWhere((event) => event.id == roomId);
+    if (index == -1) {
+      _events = [..._events, full];
+    } else {
+      final next = [..._events];
+      next[index] = full;
+      _events = next;
+    }
+    _selectedEvent = full;
+    notifyListeners();
+    return full;
   }
 
   Future<void>? _fetchEventsFuture;
@@ -86,7 +106,7 @@ class EventsProvider extends ChangeNotifier {
     }
   }
 
-  // * value 1 = upvote, -1 = downvote, 0 = remove vote
+  // * value 1 = vote for the track, 0 = clear that vote.
   // * V.2.1: attach lat/lng from LocationConfig (Settings) for geo-gated rooms.
   Future<void> voteForTrack(
     String roomId,
@@ -95,11 +115,26 @@ class EventsProvider extends ChangeNotifier {
     double? lat,
     double? lng,
   }) async {
-    final wasVoted = _votedTrackIds.contains(trackId);
-    if (value == 0) {
-      _votedTrackIds.remove(trackId);
-    } else {
-      _votedTrackIds.add(trackId);
+    if (value != 0 && value != 1) {
+      throw ArgumentError.value(value, 'value', 'Vote must be 1 or 0');
+    }
+    final room = _findRoom(roomId);
+    final snapshot = room == null ? null : List<Track>.from(room.tracks);
+    if (room != null && snapshot != null) {
+      final currentId = room.currentTrackId;
+      final nextTracks = [
+        for (final track in snapshot)
+          if (track.id == trackId)
+            track.copyWith(
+              myVote: value,
+              score: track.score + (value - (track.myVote == 1 ? 1 : 0)),
+            )
+          else if (value == 1 && track.myVote == 1 && track.id != currentId)
+            track.copyWith(myVote: 0, score: track.score - 1)
+          else
+            track,
+      ];
+      _setTracks(roomId, nextTracks);
     }
     _error = null;
     notifyListeners();
@@ -116,15 +151,32 @@ class EventsProvider extends ChangeNotifier {
       );
       await fetchEvents(force: true);
     } catch (e) {
-      if (wasVoted) {
-        _votedTrackIds.add(trackId);
-      } else {
-        _votedTrackIds.remove(trackId);
-      }
+      if (snapshot != null) _setTracks(roomId, snapshot);
       _error = ApiErrorHandler.getMessage(e);
       notifyListeners();
       rethrow;
     }
+  }
+
+  Room? _findRoom(String roomId) {
+    for (final room in _events) {
+      if (room.id == roomId) return room;
+    }
+    final selected = _selectedEvent;
+    if (selected?.id == roomId) return selected;
+    return null;
+  }
+
+  void _setTracks(String roomId, List<Track> tracks) {
+    final sorted = [...tracks]..sort((a, b) => b.score.compareTo(a.score));
+    Room update(Room room) {
+      if (room.id != roomId) return room;
+      return room.copyWith(tracks: sorted);
+    }
+
+    _events = _events.map(update).toList();
+    final selected = _selectedEvent;
+    if (selected?.id == roomId) _selectedEvent = update(selected!);
   }
 
   // * Invite a friend to a (private) room — POST /rooms/:id/invitations.
@@ -259,10 +311,56 @@ class EventsProvider extends ChangeNotifier {
   void clear() {
     _events = [];
     _selectedEvent = null;
-    _votedTrackIds.clear();
     _error = null;
     _isLoading = false;
     notifyListeners();
+  }
+
+  void handleNowPlaying(String roomId, String? trackId, {DateTime? startedAt}) {
+    var changed = false;
+    for (var i = 0; i < _events.length; i++) {
+      if (_events[i].id != roomId) continue;
+      _events[i] = _events[i].copyWith(
+        currentTrackId: trackId,
+        currentTrackStartedAt: startedAt,
+        playbackPausedAt: null,
+      );
+      if (_selectedEvent?.id == roomId) _selectedEvent = _events[i];
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  void applyPlayback(String roomId, DateTime? startedAt, DateTime? pausedAt) {
+    var changed = false;
+    for (var i = 0; i < _events.length; i++) {
+      if (_events[i].id != roomId) continue;
+      _events[i] = _events[i].copyWith(
+        currentTrackStartedAt: startedAt,
+        playbackPausedAt: pausedAt,
+      );
+      if (_selectedEvent?.id == roomId) _selectedEvent = _events[i];
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  Future<void> pausePlayback(String roomId) async {
+    final updated = await _repository.pauseRoomPlayback(roomId);
+    applyPlayback(
+      roomId,
+      updated.currentTrackStartedAt,
+      updated.playbackPausedAt,
+    );
+  }
+
+  Future<void> resumePlayback(String roomId) async {
+    final updated = await _repository.resumeRoomPlayback(roomId);
+    applyPlayback(
+      roomId,
+      updated.currentTrackStartedAt,
+      updated.playbackPausedAt,
+    );
   }
 
   void handleTrackVoted(String trackId, int score, int votesCount) {

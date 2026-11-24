@@ -60,9 +60,7 @@ void main() {
       );
       final firstList = Completer<List<Room>>();
       var calls = 0;
-      when(() => mockRepository.getRooms(kind: RoomKind.vote)).thenAnswer((
-        _,
-      ) {
+      when(() => mockRepository.getRooms(kind: RoomKind.vote)).thenAnswer((_) {
         calls++;
         if (calls == 1) return firstList.future;
         return Future.value([created]);
@@ -285,6 +283,51 @@ void main() {
 
       eventsProvider.handleTrackVoted('track-1', 5, 10);
       expect(eventsProvider.events.first.tracks.first.score, equals(5));
+    });
+
+    test('loadEvent opens one event and its queue from its id', () async {
+      final room = Room(
+        id: 'room-9',
+        name: 'Reload',
+        ownerId: 'user-1',
+        kind: RoomKind.vote,
+      );
+      final track = Track(
+        id: 'track-9',
+        providerId: 'p9',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 30000,
+      );
+      when(
+        () => mockRepository.getRoomById('room-9'),
+      ).thenAnswer((_) async => room);
+      when(
+        () => mockRepository.getVoteTracks('room-9'),
+      ).thenAnswer((_) async => [track]);
+
+      final loaded = await eventsProvider.loadEvent('room-9');
+
+      expect(loaded.tracks.single.id, 'track-9');
+      expect(eventsProvider.selectedEvent?.id, 'room-9');
+      expect(eventsProvider.events.single.name, 'Reload');
+    });
+
+    test('loadEvent rejects a room that is not an event', () async {
+      when(() => mockRepository.getRoomById('room-9')).thenAnswer(
+        (_) async => Room(
+          id: 'room-9',
+          name: 'Playlist',
+          ownerId: 'user-1',
+          kind: RoomKind.playlist,
+        ),
+      );
+
+      expect(
+        () => eventsProvider.loadEvent('room-9'),
+        throwsA(isA<Exception>()),
+      );
+      expect(eventsProvider.events, isEmpty);
     });
   });
 }

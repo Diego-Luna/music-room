@@ -75,7 +75,7 @@ violates them exits with a non-zero status, useful for CI gating.
 |------|---|
 | Shape  | `ramping-vus` 5 → 50 → 50 over 100 s |
 | Asserts | `http_req_failed < 1%`, `p(95) < 600 ms`, vote-checks `> 98%` |
-| Scope  | Register N voters, join a VOTE room, repeatedly POST `/rooms/:id/tracks/:tid/vote` with `+1`/`-1`/`0` flips |
+| Scope  | Register N voters, join a VOTE room, repeatedly POST `/rooms/:id/tracks/:tid/vote` with `+1` then `0` (clear) |
 | Why    | The subject explicitly calls out competition problems for vote ordering. This scenario is the canonical proof that two voters cannot both increment a stale score (atomic update via Postgres + Prisma transaction). |
 
 ### 3) `03_playlist_reorder.js` — concurrent fractional-index moves

@@ -27,9 +27,11 @@ describe('TracksService', () => {
     };
     trackVote: {
       findUnique: Fn;
+      findMany: Fn;
       create: Fn;
       update: Fn;
       delete: Fn;
+      deleteMany: Fn;
     };
     $transaction: Fn;
     $queryRaw: Fn;
@@ -65,9 +67,11 @@ describe('TracksService', () => {
       },
       trackVote: {
         findUnique: vi.fn(),
+        findMany: vi.fn().mockResolvedValue([]),
         create: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
+        deleteMany: vi.fn(),
       },
       $transaction: vi.fn(async (cb: unknown) =>
         typeof cb === 'function'
@@ -273,6 +277,51 @@ describe('TracksService', () => {
       );
     });
 
+    it('moves an existing vote onto the newly chosen track', async () => {
+      prisma.trackVote.findMany.mockResolvedValueOnce([
+        { trackId: 't2', value: 1, userId: 'u1', roomId: 'r1' },
+      ]);
+      prisma.trackVote.findUnique.mockResolvedValue(null);
+      prisma.track.update
+        .mockResolvedValueOnce({ id: 't2', score: 2 })
+        .mockResolvedValueOnce({ id: 't1', score: 4 });
+
+      const res = await service.vote('r1', 't1', 'u1', { value: 1 });
+
+      expect(prisma.trackVote.delete).toHaveBeenCalledWith({
+        where: { trackId_userId: { trackId: 't2', userId: 'u1' } },
+      });
+      expect(prisma.track.update).toHaveBeenNthCalledWith(1, {
+        where: { id: 't2' },
+        data: { score: { increment: -1 } },
+      });
+      expect(res.score).toBe(4);
+      expect(realtime.emitToRoom).toHaveBeenCalledWith('r1', 'track:voted', {
+        trackId: 't2',
+        score: 2,
+      });
+      expect(realtime.emitToRoom).toHaveBeenCalledWith('r1', 'track:voted', {
+        trackId: 't1',
+        score: 4,
+      });
+    });
+
+    it('does not move a vote off the track that is already playing', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        currentTrackId: 't2',
+      });
+      prisma.trackVote.findMany.mockResolvedValueOnce([
+        { trackId: 't2', value: 1, userId: 'u1', roomId: 'r1' },
+      ]);
+
+      await expect(service.vote('r1', 't1', 'u1', { value: 1 })).rejects.toThrow(
+        'already playing',
+      );
+      expect(prisma.trackVote.delete).not.toHaveBeenCalled();
+      expect(prisma.track.update).not.toHaveBeenCalled();
+    });
+
     it('track:voted broadcast does NOT leak the voter identity', async () => {
       prisma.trackVote.findUnique.mockResolvedValue(null);
       prisma.track.update.mockResolvedValue({ id: 't1', score: 1 });
@@ -288,7 +337,26 @@ describe('TracksService', () => {
       expect(payload).not.toHaveProperty('value');
     });
 
-    it('flipping -1 → +1 applies a delta of +2', async () => {
+    it('rejects a negative vote', async () => {
+      await expect(
+        service.vote('r1', 't1', 'u1', { value: -1 }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('rejects a vote once the track has started', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        currentTrackId: 't1',
+      });
+
+      await expect(
+        service.vote('r1', 't1', 'u1', { value: 1 }),
+      ).rejects.toThrow(BadRequestException);
+      expect(prisma.trackVote.create).not.toHaveBeenCalled();
+    });
+
+    it('correcting a stored -1 to +1 applies a delta of +2', async () => {
       prisma.trackVote.findUnique.mockResolvedValue({ value: -1 });
       prisma.track.update.mockResolvedValue({ id: 't1', score: 1 });
 
@@ -446,6 +514,23 @@ describe('TracksService', () => {
         orderBy: [{ score: 'desc' }, { addedAt: 'asc' }],
       });
       expect(list).toHaveLength(1);
+      expect(list[0].myVote).toBe(0);
+    });
+
+    it("attaches the caller's vote so a reload can restore it", async () => {
+      prisma.room.findUnique.mockResolvedValue(baseRoom);
+      prisma.track.findMany.mockResolvedValue([{ id: 't1', score: 2 }]);
+      prisma.trackVote.findMany.mockResolvedValue([
+        { trackId: 't1', value: 1 },
+      ]);
+
+      const list = await service.listRanked('r1', 'u1');
+
+      expect(list[0].myVote).toBe(1);
+      expect(prisma.trackVote.findMany).toHaveBeenCalledWith({
+        where: { roomId: 'r1', userId: 'u1' },
+        select: { trackId: true, value: true },
+      });
     });
 
     it('returns 404 for a PRIVATE room non-member', async () => {

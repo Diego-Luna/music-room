@@ -51,7 +51,7 @@ export class TracksController {
 
   @Post(':trackId/vote')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Vote on a track (+1 / -1 / 0 to clear)' })
+  @ApiOperation({ summary: 'Vote for a track (+1) or clear that vote (0)' })
   @ApiOkResponse({
     type: TrackDto,
     description: 'The track with its updated score',

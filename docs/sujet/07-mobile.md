@@ -11,7 +11,7 @@ L’app est la **télécommande** du back (REST Dio + Socket.IO). Adresse du bac
 | Vérif mail | `VerifyEmailPage` ; le mail pointe `APP_FRONTEND_URL/#/auth/verify-email?token=` (souvent **web**) |
 | Lier un réseau | Settings → Link Google / Facebook |
 | Profil 4 champs | `ProfilePage` (`publicInfo`, `friendsInfo`, `privateInfo`, `musicPreferences`) |
-| Vote : créer, licences, suggest, swipe, invite | Events → dialog + `EventDetailPage` |
+| Vote : créer, licences, suggest, vote sur la file, invite | Events → dialog + `EventDetailPage` |
 | Playlist : créer, licences, add / reorder / remove, invite | Playlists → `PlaylistDetailPage` |
 | Privé : trouver + accepter | Inbox (`FriendsPage`) — invitations |
 | Amis | Inbox : search + requests |

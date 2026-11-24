@@ -45,7 +45,7 @@ class _ProximityHostState extends State<ProximityHost> {
       onOpen: () {
         widget.events.selectEvent(hit.room);
         AppRouter.router.go(
-          '$routeEvents/$routeEventDetail',
+          eventPath(hit.room.id),
           extra: {'event': hit.room},
         );
       },

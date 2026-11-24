@@ -74,7 +74,7 @@ class _EventsPageState extends State<EventsPage> {
   void _openEvent(Room event) {
     final eventsProvider = context.read<EventsProvider>();
     eventsProvider.selectEvent(event);
-    context.go('$routeEvents/$routeEventDetail', extra: {'event': event});
+    context.go(eventPath(event.id), extra: {'event': event});
   }
 
   /// Desktop / school demo: teleport into the first public geo event's venue.

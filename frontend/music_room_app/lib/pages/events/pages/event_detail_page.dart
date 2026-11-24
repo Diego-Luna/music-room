@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:music_room_app/core/utils/api_error_handler.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
-import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/routing/safe_navigation.dart';
-import 'package:music_room_app/widgets/placeholder_card.dart';
-import 'package:music_room_app/pages/events/widgets/swipeable_track_card.dart';
+import 'package:music_room_app/pages/events/widgets/vote_queue.dart';
 import 'package:music_room_app/pages/events/widgets/suggest_track_dialog.dart';
 import 'package:music_room_app/pages/events/widgets/invite_friend_dialog.dart';
 import 'package:music_room_app/widgets/room_members_sheet.dart';
@@ -18,9 +17,8 @@ import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 
-// * Detail page for a single VOTE room: the live Tinder-style voting interface,
-// * the "Up Next" queue and the "Voted Tracks" list. Mirror of
-// * PlaylistDetailPage so both features feel symmetric.
+// * Detail page for a single VOTE room: the track the room is playing, then
+// * the shared queue. A tap votes for a waiting track; a second tap clears it.
 class EventDetailPage extends StatefulWidget {
   const EventDetailPage({super.key});
 
@@ -30,6 +28,10 @@ class EventDetailPage extends StatefulWidget {
 
 class _EventDetailPageState extends State<EventDetailPage> {
   String? _roomId;
+  String? _heardTrackId;
+  Room? _hint;
+  bool _loading = true;
+  String? _loadError;
   late SocketProvider _socketProvider;
   late EventsProvider _eventsProvider;
 
@@ -38,15 +40,53 @@ class _EventDetailPageState extends State<EventDetailPage> {
     super.initState();
     _socketProvider = context.read<SocketProvider>();
     _eventsProvider = context.read<EventsProvider>();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
-      final Room? event = extra?['event'] as Room?;
-      if (event != null) {
-        _roomId = event.id;
-        _eventsProvider.selectEvent(event);
-        _socketProvider.joinRoom(_roomId!);
-      }
-    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final id = GoRouterState.of(context).pathParameters['eventId'];
+    if (id == null || id.isEmpty || id == _roomId) return;
+    if (_roomId != null) _socketProvider.leaveRoom(_roomId!);
+    _roomId = id;
+    _heardTrackId = null;
+    _loadError = null;
+    final extra = GoRouterState.of(context).extra;
+    final hinted = extra is Map ? extra['event'] as Room? : null;
+    _hint = hinted != null && hinted.id == id ? hinted : null;
+    _loading = _visibleEvent(_eventsProvider, id) == null;
+    _socketProvider.joinRoom(id);
+    _refresh(id);
+  }
+
+  Future<void> _refresh(String id) async {
+    try {
+      await _eventsProvider.loadEvent(id);
+      if (!mounted || _roomId != id) return;
+      setState(() {
+        _loading = false;
+        _loadError = null;
+      });
+    } catch (error) {
+      if (!mounted || _roomId != id) return;
+      setState(() {
+        _loading = false;
+        _loadError = ApiErrorHandler.getMessage(
+          error,
+          defaultMessage: 'This event is unavailable.',
+        );
+      });
+    }
+  }
+
+  Room? _visibleEvent(EventsProvider provider, String? id) {
+    if (id == null) return null;
+    for (final event in provider.events) {
+      if (event.id == id) return event;
+    }
+    if (provider.selectedEvent?.id == id) return provider.selectedEvent;
+    if (_hint?.id == id) return _hint;
+    return null;
   }
 
   @override
@@ -167,29 +207,22 @@ class _EventDetailPageState extends State<EventDetailPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final eventsProvider = context.watch<EventsProvider>();
-    final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
-    final Room? initialEvent = extra?['event'] as Room?;
+    final id = GoRouterState.of(context).pathParameters['eventId'];
+    final Room? event = _visibleEvent(eventsProvider, id);
 
-    if (initialEvent == null) {
-      return const Scaffold(body: Center(child: Text('No event selected')));
+    if (event == null) {
+      if (_loading) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+      return _unavailable(context);
     }
-
-    final Room event = eventsProvider.events.firstWhere(
-      (e) => e.id == initialEvent.id,
-      orElse: () => initialEvent,
-    );
     final tag = 'event_cover_${event.id}';
 
     final currentUserId = context.watch<AuthProvider>().user?.id;
     final isOwner = currentUserId != null && event.ownerId == currentUserId;
-
-    final unvotedTracks = event.tracks
-        .where((t) => !eventsProvider.votedTrackIds.contains(t.id))
-        .toList();
-    final queueTracks = unvotedTracks.skip(1).toList();
-    final votedTracks = event.tracks
-        .where((t) => eventsProvider.votedTrackIds.contains(t.id))
-        .toList();
+    final canControl =
+        isOwner || event.myRole == 'ADMIN' || event.myRole == 'OWNER';
+    _scheduleRoomPlayback(event);
 
     return Scaffold(
       body: CustomScrollView(
@@ -283,67 +316,17 @@ class _EventDetailPageState extends State<EventDetailPage> {
             ),
           ),
 
-          // Voting area + "Up Next" header
           SliverToBoxAdapter(
-            child: Column(
-              children: [
-                const Padding(
-                  padding: EdgeInsets.only(top: AppDimens.sm),
-                  child: DualModeVotingInterface(),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppDimens.lg,
-                    vertical: AppDimens.sm,
-                  ),
-                  child: Divider(
-                    color: theme.disabledColor.withValues(alpha: 0.2),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: AppDimens.xl),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Up Next', style: theme.textTheme.titleLarge),
-                  ),
-                ),
-                const SizedBox(height: AppDimens.md),
-              ],
+            child: VoteQueue(
+              tracks: event.tracks,
+              currentTrackId: event.currentTrackId,
+              isPaused: event.playbackPausedAt != null,
+              canControl: canControl,
+              onToggle: (track) => _toggleVote(context, event, track),
+              onTogglePlayback: (track) =>
+                  _toggleRoomPlayback(context, event, track),
             ),
           ),
-
-          _buildTrackSliver(context, queueTracks, event.id),
-
-          // Voted tracks header
-          if (votedTracks.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppDimens.lg,
-                      vertical: AppDimens.sm,
-                    ),
-                    child: Divider(
-                      color: theme.disabledColor.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppDimens.xl,
-                    ),
-                    child: Text(
-                      'Voted Tracks',
-                      style: theme.textTheme.titleLarge,
-                    ),
-                  ),
-                  const SizedBox(height: AppDimens.md),
-                ],
-              ),
-            ),
-
-          _buildTrackSliver(context, votedTracks, event.id),
 
           const SliverToBoxAdapter(child: SizedBox(height: AppDimens.xxl * 3)),
         ],
@@ -351,45 +334,131 @@ class _EventDetailPageState extends State<EventDetailPage> {
     );
   }
 
-  Widget _buildTrackSliver(BuildContext context, List tracks, String roomId) {
-    final theme = Theme.of(context);
-    return SliverList(
-      delegate: SliverChildBuilderDelegate((context, index) {
-        if (index >= tracks.length) return null;
-        final track = tracks[index];
-        return Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppDimens.lg,
-            vertical: AppDimens.sm / 2,
-          ),
-          child: StaggeredList(
-            index: index,
-            child: PlaceholderCard(
-              title: track.title,
-              subtitle: '${track.artist} • ${track.score} votes',
-              leading: Container(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surface,
-                  borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
-                  boxShadow: theme
-                      .extension<AppDesignTokens>()
-                      ?.neumorphicPressedShadow,
-                ),
-                child: Icon(Icons.music_note, color: theme.colorScheme.primary),
+  Widget _unavailable(BuildContext context) {
+    final message = _loadError;
+    final text =
+        message == null ||
+            message.startsWith('Exception:') ||
+            message.startsWith('DioException')
+        ? 'This event is unavailable.'
+        : message;
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimens.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(text, textAlign: TextAlign.center),
+              const SizedBox(height: AppDimens.md),
+              TextButton(
+                onPressed: () => context.go(routeEvents),
+                child: const Text('Back to events'),
               ),
-              onTap: () {
-                context.read<PlayerProvider>().playTrack(
-                  track,
-                  queue: List<Track>.from(tracks),
-                  index: index,
-                  voteRoomId: roomId,
-                );
-                context.push(routePlayer);
-              },
-            ),
+            ],
           ),
-        );
-      }, childCount: tracks.length),
+        ),
+      ),
     );
+  }
+
+  Track? _currentRoomTrack(Room event) {
+    final id = event.currentTrackId;
+    if (id == null) return null;
+    for (final track in event.tracks) {
+      if (track.id == id) return track;
+    }
+    return null;
+  }
+
+  Duration _sharedElapsed(Room event) {
+    final started = event.currentTrackStartedAt;
+    if (started == null) return Duration.zero;
+    final end = event.playbackPausedAt ?? DateTime.now();
+    final elapsed = end.difference(started);
+    if (elapsed.isNegative) return Duration.zero;
+    return elapsed;
+  }
+
+  void _scheduleRoomPlayback(Room event) {
+    final track = _currentRoomTrack(event);
+    if (track == null || track.id == _heardTrackId) return;
+    final preview = track.previewUrl;
+    if (preview == null || preview.isEmpty) return;
+    if (event.currentTrackStartedAt == null) return;
+    final elapsed = _sharedElapsed(event);
+    const previewLength = Duration(seconds: 30);
+    final position = elapsed >= previewLength ? previewLength : elapsed;
+    final autoplay = event.playbackPausedAt == null && elapsed < previewLength;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _heardTrackId == track.id) return;
+      _heardTrackId = track.id;
+      context.read<PlayerProvider>().handlePlaybackPlayed(
+        track,
+        position: position,
+        autoplay: autoplay,
+      );
+    });
+  }
+
+  Future<void> _toggleRoomPlayback(
+    BuildContext context,
+    Room event,
+    Track track,
+  ) async {
+    final canControl =
+        event.ownerId == context.read<AuthProvider>().user?.id ||
+        event.myRole == 'ADMIN' ||
+        event.myRole == 'OWNER';
+    if (!canControl) return;
+    final events = context.read<EventsProvider>();
+    final player = context.read<PlayerProvider>();
+    final pausing = event.playbackPausedAt == null;
+    try {
+      if (pausing) {
+        await events.pausePlayback(event.id);
+        player.pause();
+      } else {
+        await events.resumePlayback(event.id);
+        if (player.currentTrack?.id == track.id) {
+          player.resume();
+        } else {
+          _heardTrackId = null;
+        }
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(events.error ?? 'Could not change playback.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleVote(
+    BuildContext context,
+    Room event,
+    Track track,
+  ) async {
+    if (track.id == event.currentTrackId) return;
+    final next = track.myVote == 1 ? 0 : 1;
+    final messenger = ScaffoldMessenger.of(context);
+    final events = context.read<EventsProvider>();
+    try {
+      await events.voteForTrack(event.id, track.id, next);
+    } catch (_) {
+      if (!context.mounted) return;
+      final message = events.error ?? 'Could not cast vote.';
+      if (message.contains('started')) {
+        _heardTrackId = null;
+        await events.fetchEvents(force: true);
+        return;
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.redAccent),
+      );
+    }
   }
 }

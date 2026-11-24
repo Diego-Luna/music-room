@@ -100,6 +100,10 @@ export class TracksService {
     userId: string,
     dto: VoteTrackDto,
   ) {
+    if (dto.value !== 0 && dto.value !== 1) {
+      throw new BadRequestException('Vote must be 1 or 0');
+    }
+
     const room = await this.requireRoom(roomId);
     if (room.kind !== 'VOTE') {
       throw new BadRequestException('Room is not a VOTE room');
@@ -117,6 +121,11 @@ export class TracksService {
     if (track.playedAt) {
       throw new BadRequestException('Cannot vote on a played track');
     }
+    if (room.currentTrackId === trackId) {
+      throw new BadRequestException(
+        'Cannot change a vote once the track has started',
+      );
+    }
 
     // ! Lock the track, then read the previous vote and update the score in
     //   the same transaction. A second vote from this user waits, sees the
@@ -131,6 +140,46 @@ export class TracksService {
       }
       if (lockedTrack.playedAt) {
         throw new BadRequestException('Cannot vote on a played track');
+      }
+      const playing = await tx.room.findUnique({
+        where: { id: roomId },
+        select: { currentTrackId: true },
+      });
+      if (playing?.currentTrackId === trackId) {
+        throw new BadRequestException(
+          'Cannot change a vote once the track has started',
+        );
+      }
+
+      // One vote per person. Choosing another track moves the vote.
+      const released: Array<{ trackId: string; score: number }> = [];
+      if (dto.value === 1) {
+        const others = await tx.trackVote.findMany({
+          where: { roomId, userId, NOT: { trackId } },
+        });
+        for (const other of others) {
+          if (!other.value) continue;
+          await tx.$queryRaw`
+            SELECT "id" FROM "Track" WHERE "id" = ${other.trackId} FOR UPDATE
+          `;
+          const stillPlaying = await tx.room.findUnique({
+            where: { id: roomId },
+            select: { currentTrackId: true },
+          });
+          if (stillPlaying?.currentTrackId === other.trackId) {
+            throw new BadRequestException(
+              'Your vote stays on the track that is already playing',
+            );
+          }
+          await tx.trackVote.delete({
+            where: { trackId_userId: { trackId: other.trackId, userId } },
+          });
+          const cleared = await tx.track.update({
+            where: { id: other.trackId },
+            data: { score: { increment: -other.value } },
+          });
+          released.push({ trackId: other.trackId, score: cleared.score });
+        }
       }
 
       const previous = await tx.trackVote.findUnique({
@@ -155,28 +204,41 @@ export class TracksService {
           data: { roomId, trackId, userId, value: dto.value },
         });
       }
-      return tx.track.update({
+      const updated = await tx.track.update({
         where: { id: trackId },
         data: { score: { increment: delta } },
       });
+      return { updated, released };
     });
 
     // Votes are anonymous in the broadcast — only the resulting score is
     // shared. The voter's identity stays server-side (the TrackVote row).
+    for (const moved of updated.released) {
+      this.realtime?.emitToRoom(roomId, 'track:voted', moved);
+    }
     this.realtime?.emitToRoom(roomId, 'track:voted', {
       trackId,
-      score: updated.score,
+      score: updated.updated.score,
     });
-    return updated;
+    return updated.updated;
   }
 
   async listRanked(roomId: string, userId: string) {
     const room = await this.requireRoom(roomId);
     await this.requireRoomAccess(room, userId);
-    return this.prisma.track.findMany({
+    const tracks = await this.prisma.track.findMany({
       where: { roomId, playedAt: null },
       orderBy: [{ score: 'desc' }, { addedAt: 'asc' }],
     });
+    const votes = await this.prisma.trackVote.findMany({
+      where: { roomId, userId },
+      select: { trackId: true, value: true },
+    });
+    const mine = new Map(votes.map((vote) => [vote.trackId, vote.value]));
+    return tracks.map((track) => ({
+      ...track,
+      myVote: mine.get(track.id) ?? 0,
+    }));
   }
 
   // ── helpers ─────────────────────────────────────────────────────

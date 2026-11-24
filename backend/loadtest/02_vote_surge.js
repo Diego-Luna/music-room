@@ -104,7 +104,7 @@ export default function () {
 
     const v2 = http.post(
       `${BASE_URL}/rooms/${roomId}/tracks/${trackId}/vote`,
-      JSON.stringify({ value: -1 }),
+      JSON.stringify({ value: 0 }),
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -112,7 +112,7 @@ export default function () {
         },
       },
     );
-    check(v2, { 'flip 200': (r) => r.status === 200 }, { tag: 'vote' });
+    check(v2, { 'clear 200': (r) => r.status === 200 }, { tag: 'vote' });
 
     sleep(0.05);
   }

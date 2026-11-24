@@ -17,7 +17,9 @@ const String routeForgotPassword = '/forgot-password';
 const String routeResetPassword = '/auth/reset-password';
 const String routeFriends = '/friends';
 const String routePlaylistDetail = 'detail'; //* Nested under /playlists/detail
-const String routeEventDetail = 'detail'; //* Nested under /events/detail
+
+/// `/events/<id>`. The id stays in the address, so a reload reopens that event.
+String eventPath(String eventId) => '$routeEvents/$eventId';
 const String routePlayer = '/player';
 const String routeVerifyEmail = '/auth/verify-email';
 const String routeNotFound = '/not-found';

@@ -17,6 +17,12 @@ export class TrackDto {
   @ApiProperty({ description: 'Net vote score (VOTE rooms)' })
   score!: number;
   @ApiProperty({
+    required: false,
+    description:
+      "Caller's vote on this track: 1 if they voted, otherwise 0. Present on vote-room lists.",
+  })
+  myVote?: number;
+  @ApiProperty({
     nullable: true,
     description: 'Fractional index for ordering (PLAYLIST rooms)',
   })

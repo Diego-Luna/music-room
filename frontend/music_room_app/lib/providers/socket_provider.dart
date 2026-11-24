@@ -361,13 +361,48 @@ class SocketProvider extends ChangeNotifier {
     // * Deezer/relay back never emits them.
     _socket.on('track:nowPlaying', (data) {
       _handleIncomingEvent(() {
-        final rawTrack = data is Map ? data['track'] : null;
+        final map = data is Map ? data : null;
+        final roomId = map?['roomId'] as String?;
+        final rawTrack = map?['track'];
+        if (roomId != null) {
+          final trackId = rawTrack is Map ? rawTrack['id'] as String? : null;
+          final startedRaw = map?['startedAt'] as String?;
+          _eventsProvider.handleNowPlaying(
+            roomId,
+            trackId,
+            startedAt: startedRaw == null
+                ? null
+                : DateTime.tryParse(startedRaw),
+          );
+          _eventsProvider.fetchEvents(force: true);
+        }
         if (rawTrack == null) {
           _playerProvider.handlePlaybackPaused();
           return;
         }
         final track = _trackFromJson(rawTrack);
         _playerProvider.handlePlaybackPlayed(track);
+      });
+    });
+
+    _socket.on('playback:state', (data) {
+      _handleIncomingEvent(() {
+        if (data is! Map) return;
+        final roomId = data['roomId'] as String?;
+        if (roomId == null) return;
+        final startedRaw = data['startedAt'] as String?;
+        final pausedRaw = data['pausedAt'] as String?;
+        _eventsProvider.applyPlayback(
+          roomId,
+          startedRaw == null ? null : DateTime.tryParse(startedRaw),
+          pausedRaw == null ? null : DateTime.tryParse(pausedRaw),
+        );
+        if (_currentRoomId != roomId) return;
+        if (pausedRaw != null) {
+          _playerProvider.pause();
+        } else {
+          _playerProvider.resume();
+        }
       });
     });
 

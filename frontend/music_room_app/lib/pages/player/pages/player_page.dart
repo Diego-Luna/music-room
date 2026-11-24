@@ -3,16 +3,14 @@ import 'package:provider/provider.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
-import 'package:music_room_app/pages/events/widgets/swipeable_track_card.dart';
 import 'package:music_room_app/pages/player/widgets/audio_visualizer.dart';
 import 'package:music_room_app/pages/player/widgets/player_progress_bar.dart';
 import 'package:music_room_app/providers/player_provider.dart';
-import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
 import 'package:music_room_app/core/routing/safe_navigation.dart';
 import 'package:music_room_app/models/track.dart';
 
-// * Full-screen Player with swipe for voting.
+// * Full-screen player for the track that is already playing.
 class PlayerPage extends StatefulWidget {
   const PlayerPage({super.key});
 
@@ -21,51 +19,11 @@ class PlayerPage extends StatefulWidget {
 }
 
 class _PlayerPageState extends State<PlayerPage> {
-  // Cast a real vote for the current track (vote rooms only), then advance.
-  Future<void> _vote(
-    BuildContext context,
-    PlayerProvider player,
-    Track track,
-    SwipeAction action,
-  ) async {
-    final roomId = player.voteRoomId;
-    if (roomId == null) return;
-    final value = action == SwipeAction.like
-        ? 1
-        : (action == SwipeAction.dislike ? -1 : 0);
-    if (value == 0) return;
-
-    final messenger = ScaffoldMessenger.of(context);
-    final eventsProvider = context.read<EventsProvider>();
-    try {
-      await eventsProvider.voteForTrack(roomId, track.id, value);
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            value > 0
-                ? 'Voted UP for ${track.title}'
-                : 'Voted DOWN for ${track.title}',
-          ),
-          duration: const Duration(seconds: 1),
-        ),
-      );
-      player.playNext();
-    } catch (_) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(eventsProvider.error ?? 'Could not cast vote.'),
-          backgroundColor: Colors.redAccent,
-        ),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isMobile = AppBreakpoints.isCompact(context);
     final playerProvider = context.watch<PlayerProvider>();
-    final isVoteRoom = playerProvider.voteRoomId != null;
 
     final track = playerProvider.currentTrack;
     if (track == null) {
@@ -87,16 +45,13 @@ class _PlayerPageState extends State<PlayerPage> {
             return Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _PlayerHeader(isVoteRoom: isVoteRoom, theme: theme),
+                _PlayerHeader(theme: theme),
                 AudioVisualizer(isPlaying: playerProvider.isPlaying),
                 const SizedBox(height: AppDimens.xs),
                 _PlayerTrackCard(
                   track: track,
                   cardHeight: cardHeight,
                   isMobile: isMobile,
-                  isVoteRoom: isVoteRoom,
-                  onVote: (action) =>
-                      _vote(context, playerProvider, track, action),
                 ),
                 _PlayerBottomSection(
                   playerProvider: playerProvider,
@@ -142,10 +97,9 @@ class _PlayerPageState extends State<PlayerPage> {
 }
 
 class _PlayerHeader extends StatelessWidget {
-  final bool isVoteRoom;
   final ThemeData theme;
 
-  const _PlayerHeader({required this.isVoteRoom, required this.theme});
+  const _PlayerHeader({required this.theme});
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +122,7 @@ class _PlayerHeader extends StatelessWidget {
           ),
           Expanded(
             child: Text(
-              isVoteRoom ? 'Live Voting Room' : 'Now Playing',
+              'Now Playing',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodySmall?.copyWith(
                 fontWeight: AppTypography.bold,
@@ -253,8 +207,7 @@ class _PlaybackControls extends StatelessWidget {
   }
 }
 
-// * Static "now playing" card used outside vote rooms (playlists, home), where
-// * a swipe-to-vote affordance would be misleading.
+// * Artwork and title of the track that is already playing.
 class _NowPlayingCard extends StatelessWidget {
   final Track track;
 
@@ -352,15 +305,11 @@ class _PlayerTrackCard extends StatelessWidget {
   final Track track;
   final double cardHeight;
   final bool isMobile;
-  final bool isVoteRoom;
-  final void Function(SwipeAction action) onVote;
 
   const _PlayerTrackCard({
     required this.track,
     required this.cardHeight,
     required this.isMobile,
-    required this.isVoteRoom,
-    required this.onVote,
   });
 
   @override
@@ -370,16 +319,7 @@ class _PlayerTrackCard extends StatelessWidget {
       child: SizedBox(
         height: cardHeight,
         width: isMobile ? double.infinity : 400,
-        child: isVoteRoom
-            ? SwipeableTrackCard(
-                key: ValueKey(track.id),
-                trackTitle: track.title,
-                artistName: track.artist,
-                score: track.score,
-                imageUrl: track.artworkUrl ?? 'placeholder',
-                onSwiped: onVote,
-              )
-            : _NowPlayingCard(key: ValueKey(track.id), track: track),
+        child: _NowPlayingCard(key: ValueKey(track.id), track: track),
       ),
     );
   }
