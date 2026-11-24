@@ -44,18 +44,21 @@ class _FloatingModelState extends State<FloatingModel> {
       );
     }
 
-    return SizedBox(
-      width: widget.size * 1.5,
-      height: widget.size * 1.5,
-      child: Flutter3DViewer(
-        controller: _controller,
-        src: kIsWeb ? 'assets/${widget.modelPath}' : widget.modelPath,
-        onLoad: (modelAddress) {
-          // * Start native rotation using the controller
-          _controller.startRotation(
-            rotationSpeed: widget.rotationSpeed.toInt(),
-          );
-        },
+    return IgnorePointer(
+      child: SizedBox(
+        width: widget.size * 1.5,
+        height: widget.size * 1.5,
+        child: Flutter3DViewer(
+          controller: _controller,
+          enableTouch: false,
+          src: kIsWeb ? 'assets/${widget.modelPath}' : widget.modelPath,
+          onLoad: (modelAddress) {
+            // * Start native rotation using the controller
+            _controller.startRotation(
+              rotationSpeed: widget.rotationSpeed.toInt(),
+            );
+          },
+        ),
       ),
     );
   }

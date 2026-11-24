@@ -175,6 +175,7 @@ class MyApp extends StatelessWidget {
             scaffoldMessengerKey: rootScaffoldMessengerKey,
             debugShowCheckedModeBanner: false,
             title: 'Music Room',
+            scrollBehavior: const _ClampedScrollBehavior(),
             routerConfig: AppRouter.router,
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
@@ -191,5 +192,16 @@ class MyApp extends StatelessWidget {
         },
       ),
     );
+  }
+}
+
+/// The page stops at its edges. macOS and iOS otherwise let a drag pull the
+/// whole screen past the content and spring it back.
+class _ClampedScrollBehavior extends MaterialScrollBehavior {
+  const _ClampedScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) {
+    return const ClampingScrollPhysics();
   }
 }
