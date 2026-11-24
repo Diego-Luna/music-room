@@ -1,3 +1,5 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:music_room_app/core/repositories/room_repository.dart';
@@ -11,10 +13,13 @@ class MockRoomRepository extends Mock implements RoomRepository {}
 
 class MockOfflineCache extends Mock implements OfflineCache {}
 
+class MockConnectivity extends Mock implements Connectivity {}
+
 void main() {
   late OfflineRoomRepository repo;
   late MockRoomRepository mockRemote;
   late MockOfflineCache mockCache;
+  late MockConnectivity connectivity;
 
   setUpAll(() {
     registerFallbackValue(Room(id: 'dummy', name: 'dummy', ownerId: 'dummy'));
@@ -41,9 +46,14 @@ void main() {
   setUp(() {
     mockRemote = MockRoomRepository();
     mockCache = MockOfflineCache();
+    connectivity = MockConnectivity();
+    when(
+      () => connectivity.checkConnectivity(),
+    ).thenAnswer((_) async => [ConnectivityResult.wifi]);
     repo = OfflineRoomRepository(
       remoteRepository: mockRemote,
       cache: mockCache,
+      connectivity: connectivity,
     );
   });
 
@@ -100,4 +110,30 @@ void main() {
       verify(() => mockCache.saveRoom(any())).called(1);
     },
   );
+
+  DioException _httpError(int statusCode) {
+    final options = RequestOptions(path: '/rooms');
+    return DioException(
+      requestOptions: options,
+      response: Response(requestOptions: options, statusCode: statusCode),
+    );
+  }
+
+  test('a 429 from the server is not replaced by the cache', () async {
+    when(
+      () => mockRemote.getRooms(kind: any(named: 'kind')),
+    ).thenThrow(_httpError(429));
+
+    await expectLater(repo.getRooms(), throwsA(isA<DioException>()));
+    verifyNever(() => mockCache.getRooms());
+  });
+
+  test('deleting a room the server already removed drops the local copy', () async {
+    when(() => mockRemote.deleteRoom('r1')).thenThrow(_httpError(404));
+    when(() => mockCache.deleteRoom('r1')).thenAnswer((_) async {});
+
+    await repo.deleteRoom('r1');
+
+    verify(() => mockCache.deleteRoom('r1')).called(1);
+  });
 }

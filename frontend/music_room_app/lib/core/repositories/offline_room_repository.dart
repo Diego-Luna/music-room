@@ -65,10 +65,13 @@ class OfflineRoomRepository implements RoomRepository {
         final cached = _cache.getRoomById(room.id);
         return cached != null ? room.copyWith(tracks: cached.tracks) : room;
       }).toList();
+      // * GET /rooms is the full visible set. Drop rooms the server no longer
+      // * returns so a later offline read does not resurrect a deleted playlist.
+      await _cache.deleteRoomsExcept(rooms.map((room) => room.id).toSet());
       await _cache.saveRooms(merged);
       return rooms;
-    } catch (_) {
-      // * Offline fallback on exceptions (e.g. timeout or socket error)
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
       final cached = _cache.getRooms();
       if (kind != null) {
         return cached.where((r) => r.kind == kind).toList();
@@ -88,7 +91,12 @@ class OfflineRoomRepository implements RoomRepository {
       final room = await _remote.getRoomById(id);
       await _cache.saveRoom(room);
       return room;
-    } catch (_) {
+    } catch (error) {
+      if (error is DioException && error.response?.statusCode == 404) {
+        await _cache.deleteRoom(id);
+        rethrow;
+      }
+      if (!_isOfflineError(error)) rethrow;
       final cached = _cache.getRoomById(id);
       if (cached != null) return cached;
       rethrow;
@@ -243,7 +251,14 @@ class OfflineRoomRepository implements RoomRepository {
   @override
   Future<void> deleteRoom(String id) async {
     await _requireOnline('Cannot delete a room while offline.');
-    return _remote.deleteRoom(id);
+    try {
+      await _remote.deleteRoom(id);
+    } on DioException catch (error) {
+      // * Already gone (deleted from another window). Treat as success so the
+      // * caller drops the local copy instead of leaving a ghost on screen.
+      if (error.response?.statusCode != 404) rethrow;
+    }
+    await _cache.deleteRoom(id);
   }
 
   // * Settings edits are online-only (owner/admin-authoritative).
@@ -329,7 +344,8 @@ class OfflineRoomRepository implements RoomRepository {
       final room = _cache.getRoomById(roomId);
       if (room != null) await _cache.saveRoom(room.copyWith(tracks: tracks));
       return tracks;
-    } catch (_) {
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
       return _cache.getRoomById(roomId)?.tracks ?? [];
     }
   }
@@ -389,7 +405,8 @@ class OfflineRoomRepository implements RoomRepository {
       final room = _cache.getRoomById(roomId);
       if (room != null) await _cache.saveRoom(room.copyWith(tracks: tracks));
       return tracks;
-    } catch (_) {
+    } catch (error) {
+      if (!_isOfflineError(error)) rethrow;
       return _cache.getRoomById(roomId)?.tracks ?? [];
     }
   }
