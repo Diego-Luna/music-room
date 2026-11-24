@@ -187,6 +187,69 @@ describe('TracksService', () => {
       ).rejects.toThrow(ConflictException);
     });
 
+    it('puts a track that already played back in the queue at score 0', async () => {
+      prisma.room.findUnique.mockResolvedValue(baseRoom);
+      prisma.track.findUnique.mockResolvedValue({
+        id: 't1',
+        playedAt: new Date('2020-01-01'),
+      });
+      prisma.track.update.mockResolvedValue({
+        id: 't1',
+        roomId: 'r1',
+        score: 0,
+        playedAt: null,
+      });
+
+      const track = await service.addTrack('r1', 'owner', {
+        providerId: 'p1',
+        title: 'Song',
+        artist: 'Artist',
+        durationMs: 180000,
+      });
+
+      expect(prisma.trackVote.deleteMany).toHaveBeenCalledWith({
+        where: { trackId: 't1' },
+      });
+      expect(prisma.track.update).toHaveBeenCalledWith({
+        where: { id: 't1' },
+        data: expect.objectContaining({
+          title: 'Song',
+          addedById: 'owner',
+          playedAt: null,
+          score: 0,
+        }),
+      });
+      expect(prisma.track.create).not.toHaveBeenCalled();
+      expect(realtime.emitToRoom).toHaveBeenCalledWith(
+        'r1',
+        'track:added',
+        expect.objectContaining({ id: 't1', score: 0 }),
+      );
+      expect(queue.startIdle).toHaveBeenCalledWith('r1');
+      expect(track.score).toBe(0);
+    });
+
+    it('rejects suggesting the track that is currently playing', async () => {
+      prisma.room.findUnique.mockResolvedValue({
+        ...baseRoom,
+        currentTrackId: 't1',
+      });
+      prisma.track.findUnique.mockResolvedValue({
+        id: 't1',
+        playedAt: new Date('2020-01-01'),
+      });
+
+      await expect(
+        service.addTrack('r1', 'owner', {
+          providerId: 'p1',
+          title: 'Song',
+          artist: 'Artist',
+          durationMs: 180000,
+        }),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.track.update).not.toHaveBeenCalled();
+    });
+
     it('creates a track and broadcasts track:added', async () => {
       prisma.room.findUnique.mockResolvedValue(baseRoom);
       prisma.track.findUnique.mockResolvedValue(null);

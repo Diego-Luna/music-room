@@ -68,8 +68,35 @@ export class TracksService {
         },
       },
     });
-    if (existing) {
+    if (existing && (!existing.playedAt || room.currentTrackId === existing.id)) {
       throw new ConflictException('Track already in the queue');
+    }
+
+    // A track that already played can be suggested again. It comes back at
+    // score 0, without the votes from its previous turn.
+    if (existing) {
+      const track = await this.prisma.$transaction(async (tx) => {
+        await tx.trackVote.deleteMany({ where: { trackId: existing.id } });
+        return tx.track.update({
+          where: { id: existing.id },
+          data: {
+            title: dto.title,
+            artist: dto.artist,
+            durationMs: dto.durationMs,
+            artworkUrl: dto.artworkUrl ?? null,
+            previewUrl: dto.previewUrl ?? null,
+            addedById: userId,
+            addedAt: new Date(),
+            playedAt: null,
+            score: 0,
+          },
+        });
+      });
+      this.realtime?.emitToRoom(roomId, 'track:added', track);
+      if (!room.currentTrackId) {
+        await this.queue?.startIdle(roomId);
+      }
+      return track;
     }
 
     const track = await this.prisma.track.create({
