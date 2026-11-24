@@ -79,21 +79,37 @@ class _FriendsPageState extends State<FriendsPage> {
           if (isInitialLoading)
             const Center(child: CircularProgressIndicator())
           else
-            CustomScrollView(
-              slivers: [
-                _buildAppBar(context, theme),
-                SliverToBoxAdapter(
-                  child: _buildShelves(context, provider, notificationsProv),
-                ),
-                if (provider.currentView == FriendsView.friends)
-                  FriendsListTab(provider: provider)
-                else if (provider.currentView == FriendsView.requests)
-                  ...RequestsListTab.buildSlivers(context, notificationsProv)
-                else
-                  AddFriendTab(
-                    provider: provider,
-                    onSearchByName: () => _openUserSearch(provider),
+            Column(
+              children: [
+                ColoredBox(
+                  color: theme.scaffoldBackgroundColor,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildPinnedHeader(context, theme),
+                      _buildShelves(context, provider, notificationsProv),
+                      const SizedBox(height: AppDimens.lg),
+                    ],
                   ),
+                ),
+                Expanded(
+                  child: CustomScrollView(
+                    slivers: [
+                      if (provider.currentView == FriendsView.friends)
+                        FriendsListTab(provider: provider)
+                      else if (provider.currentView == FriendsView.requests)
+                        ...RequestsListTab.buildSlivers(
+                          context,
+                          notificationsProv,
+                        )
+                      else
+                        AddFriendTab(
+                          provider: provider,
+                          onSearchByName: () => _openUserSearch(provider),
+                        ),
+                    ],
+                  ),
+                ),
               ],
             ),
         ],
@@ -101,15 +117,20 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
-  SliverAppBar _buildAppBar(BuildContext context, ThemeData theme) {
-    return SliverAppBar(
-      title: const Text('Friends'),
-      centerTitle: true,
-      floating: true,
-      toolbarHeight: 76.0,
-      pinned: false,
-      backgroundColor: theme.scaffoldBackgroundColor.withValues(alpha: 0.8),
-      elevation: 0,
+  Widget _buildPinnedHeader(BuildContext context, ThemeData theme) {
+    return SizedBox(
+      height: 76,
+      child: AppBar(
+        primary: false,
+        automaticallyImplyLeading: false,
+        centerTitle: true,
+        toolbarHeight: 76,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: theme.scaffoldBackgroundColor,
+        surfaceTintColor: Colors.transparent,
+        title: const Text('Friends'),
+      ),
     );
   }
 

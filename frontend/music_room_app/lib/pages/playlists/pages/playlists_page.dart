@@ -114,6 +114,54 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
     );
   }
 
+  Widget _buildPinnedHeader(BuildContext context, {required bool isPremium}) {
+    final theme = Theme.of(context);
+    return ColoredBox(
+      color: theme.scaffoldBackgroundColor,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 76,
+            child: AppBar(
+              primary: false,
+              automaticallyImplyLeading: false,
+              centerTitle: true,
+              toolbarHeight: 76,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              backgroundColor: theme.scaffoldBackgroundColor,
+              surfaceTintColor: Colors.transparent,
+              title: const Text('Playlists'),
+              actions: [
+                Center(
+                  child: NeumorphicIconButton(
+                    icon: Icons.playlist_add,
+                    tooltip: isPremium ? 'New Playlist' : 'Upgrade to Premium',
+                    onTap: () => _onCreateTap(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildShelves(context),
+          Padding(
+            padding: const EdgeInsets.all(AppDimens.lg),
+            child: NeumorphicSearchBar(
+              key: const Key('playlists_search_bar'),
+              hintText: 'Search playlists...',
+              onChanged: (val) {
+                setState(() {
+                  _searchQuery = val;
+                });
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildShelves(BuildContext context) {
     const shelves = <(_PlaylistShelf, String, Key)>[
       (_PlaylistShelf.yours, 'Yours', Key('playlists_tab_yours')),
@@ -222,109 +270,90 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
           if (playlistsProvider.isLoading)
             const Center(child: CircularProgressIndicator())
           else
-            CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  title: const Text('Playlists'),
-                  centerTitle: true,
-                  floating: true,
-                  toolbarHeight: 76.0,
-                  pinned: false,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).scaffoldBackgroundColor.withValues(alpha: 0.8),
-                  actions: [
-                    Center(
-                      child: NeumorphicIconButton(
-                        icon: Icons.playlist_add,
-                        tooltip: isPremium
-                            ? 'New Playlist'
-                            : 'Upgrade to Premium',
-                        onTap: () => _onCreateTap(context),
-                      ),
-                    ),
-                  ],
-                ),
-                SliverToBoxAdapter(child: _buildShelves(context)),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppDimens.lg),
-                    child: NeumorphicSearchBar(
-                      key: const Key('playlists_search_bar'),
-                      hintText: 'Search playlists...',
-                      onChanged: (val) {
-                        setState(() {
-                          _searchQuery = val;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                if (isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _buildEmptyState(context, isPremium: isPremium),
-                  )
-                else if (isSearchEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _buildSearchEmptyState(context),
-                  )
-                else if (isShelfEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _buildShelfEmptyState(context),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      if (index >= filteredPlaylists.length) {
-                        return null;
-                      }
-                      final playlist = filteredPlaylists[index];
+            Column(
+              children: [
+                _buildPinnedHeader(context, isPremium: isPremium),
+                Expanded(
+                  child: CustomScrollView(
+                    slivers: [
+                      if (isEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _buildEmptyState(
+                            context,
+                            isPremium: isPremium,
+                          ),
+                        )
+                      else if (isSearchEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _buildSearchEmptyState(context),
+                        )
+                      else if (isShelfEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _buildShelfEmptyState(context),
+                        )
+                      else
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            if (index >= filteredPlaylists.length) {
+                              return null;
+                            }
+                            final playlist = filteredPlaylists[index];
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppDimens.lg,
-                          vertical: AppDimens.sm / 2,
-                        ),
-                        child: StaggeredList(
-                          index: index,
-                          child: PlaceholderCard(
-                            title: playlist.name,
-                            subtitle:
-                                '${_relationLabel(playlist)} • ${playlist.tracks.length} songs',
-                            leading: Hero(
-                              tag: 'playlist_cover_${playlist.id}',
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(
-                                    AppDimens.radiusMedium,
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppDimens.lg,
+                                vertical: AppDimens.sm / 2,
+                              ),
+                              child: StaggeredList(
+                                index: index,
+                                child: PlaceholderCard(
+                                  title: playlist.name,
+                                  subtitle:
+                                      '${_relationLabel(playlist)} • ${playlist.tracks.length} songs',
+                                  leading: Hero(
+                                    tag: 'playlist_cover_${playlist.id}',
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surface,
+                                        borderRadius: BorderRadius.circular(
+                                          AppDimens.radiusMedium,
+                                        ),
+                                        boxShadow: Theme.of(context)
+                                            .extension<AppDesignTokens>()
+                                            ?.neumorphicPressedShadow,
+                                      ),
+                                      child: Icon(
+                                        Icons.playlist_play,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                    ),
                                   ),
-                                  boxShadow: Theme.of(context)
-                                      .extension<AppDesignTokens>()
-                                      ?.neumorphicPressedShadow,
-                                ),
-                                child: Icon(
-                                  Icons.playlist_play,
-                                  color: Theme.of(context).colorScheme.primary,
+                                  onTap: () => context.go(
+                                    '$routePlaylists/$routePlaylistDetail',
+                                    extra: {'playlist': playlist},
+                                  ),
                                 ),
                               ),
-                            ),
-                            onTap: () => context.go(
-                              '$routePlaylists/$routePlaylistDetail',
-                              extra: {'playlist': playlist},
-                            ),
-                          ),
+                            );
+                          }, childCount: filteredPlaylists.length),
                         ),
-                      );
-                    }, childCount: filteredPlaylists.length),
+                      if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: AppDimens.xxl * 3),
+                        ),
+                    ],
                   ),
-                if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: AppDimens.xxl * 3),
-                  ),
+                ),
               ],
             ),
         ],

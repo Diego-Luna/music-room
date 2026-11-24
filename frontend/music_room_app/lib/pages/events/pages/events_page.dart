@@ -149,6 +149,61 @@ class _EventsPageState extends State<EventsPage> {
     );
   }
 
+  Widget _buildPinnedHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    return ColoredBox(
+      color: theme.scaffoldBackgroundColor,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 76,
+            child: AppBar(
+              primary: false,
+              automaticallyImplyLeading: false,
+              centerTitle: true,
+              toolbarHeight: 76,
+              elevation: 0,
+              scrolledUnderElevation: 0,
+              backgroundColor: theme.scaffoldBackgroundColor,
+              surfaceTintColor: Colors.transparent,
+              title: const Text('Events'),
+              actions: [
+                Center(
+                  child: NeumorphicIconButton(
+                    icon: Icons.sensors,
+                    tooltip: 'Simulate walking into a nearby event',
+                    onTap: _enterProximityZoneDemo,
+                  ),
+                ),
+                Center(
+                  child: NeumorphicIconButton(
+                    icon: Icons.add_box_outlined,
+                    tooltip: 'New Event',
+                    onTap: () => _showCreateEventDialog(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _buildShelves(context),
+          Padding(
+            padding: const EdgeInsets.all(AppDimens.lg),
+            child: NeumorphicSearchBar(
+              key: const Key('events_search_bar'),
+              hintText: 'Search events...',
+              onChanged: (val) {
+                setState(() {
+                  _searchQuery = val;
+                });
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildShelves(BuildContext context) {
     const shelves = <(_EventShelf, String, Key)>[
       (_EventShelf.yours, 'Yours', Key('events_tab_yours')),
@@ -255,112 +310,85 @@ class _EventsPageState extends State<EventsPage> {
           if (eventsProvider.isLoading)
             const Center(child: CircularProgressIndicator())
           else
-            CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  title: const Text('Events'),
-                  centerTitle: true,
-                  floating: true,
-                  toolbarHeight: 76.0,
-                  pinned: false,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).scaffoldBackgroundColor.withValues(alpha: 0.8),
-                  actions: [
-                    Center(
-                      child: NeumorphicIconButton(
-                        icon: Icons.sensors,
-                        tooltip: 'Simulate walking into a nearby event',
-                        onTap: _enterProximityZoneDemo,
-                      ),
-                    ),
-                    Center(
-                      child: NeumorphicIconButton(
-                        icon: Icons.add_box_outlined,
-                        tooltip: 'New Event',
-                        onTap: () => _showCreateEventDialog(context),
-                      ),
-                    ),
-                  ],
-                ),
-                SliverToBoxAdapter(child: _buildShelves(context)),
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(AppDimens.lg),
-                    child: NeumorphicSearchBar(
-                      key: const Key('events_search_bar'),
-                      hintText: 'Search events...',
-                      onChanged: (val) {
-                        setState(() {
-                          _searchQuery = val;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                if (isEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _buildEmptyState(context),
-                  )
-                else if (isSearchEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _buildSearchEmptyState(context),
-                  )
-                else if (isShelfEmpty)
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _buildShelfEmptyState(context),
-                  )
-                else
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate((context, index) {
-                      if (index >= filteredEvents.length) return null;
-                      final event = filteredEvents[index];
+            Column(
+              children: [
+                _buildPinnedHeader(context),
+                Expanded(
+                  child: CustomScrollView(
+                    slivers: [
+                      if (isEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _buildEmptyState(context),
+                        )
+                      else if (isSearchEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _buildSearchEmptyState(context),
+                        )
+                      else if (isShelfEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _buildShelfEmptyState(context),
+                        )
+                      else
+                        SliverList(
+                          delegate: SliverChildBuilderDelegate((
+                            context,
+                            index,
+                          ) {
+                            if (index >= filteredEvents.length) return null;
+                            final event = filteredEvents[index];
 
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppDimens.lg,
-                          vertical: AppDimens.sm / 2,
-                        ),
-                        child: StaggeredList(
-                          index: index,
-                          child: PlaceholderCard(
-                            title: event.name,
-                            subtitle: event.isGeoGated
-                                ? '${_relationLabel(event)} • geo • ${event.tracks.length} tracks'
-                                : '${_relationLabel(event)} • ${event.tracks.length} tracks',
-                            leading: Hero(
-                              tag: 'event_cover_${event.id}',
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.surface,
-                                  borderRadius: BorderRadius.circular(
-                                    AppDimens.radiusMedium,
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppDimens.lg,
+                                vertical: AppDimens.sm / 2,
+                              ),
+                              child: StaggeredList(
+                                index: index,
+                                child: PlaceholderCard(
+                                  title: event.name,
+                                  subtitle: event.isGeoGated
+                                      ? '${_relationLabel(event)} • geo • ${event.tracks.length} tracks'
+                                      : '${_relationLabel(event)} • ${event.tracks.length} tracks',
+                                  leading: Hero(
+                                    tag: 'event_cover_${event.id}',
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surface,
+                                        borderRadius: BorderRadius.circular(
+                                          AppDimens.radiusMedium,
+                                        ),
+                                        boxShadow: Theme.of(context)
+                                            .extension<AppDesignTokens>()
+                                            ?.neumorphicPressedShadow,
+                                      ),
+                                      child: Icon(
+                                        event.isGeoGated
+                                            ? Icons.location_on
+                                            : Icons.how_to_vote,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                      ),
+                                    ),
                                   ),
-                                  boxShadow: Theme.of(context)
-                                      .extension<AppDesignTokens>()
-                                      ?.neumorphicPressedShadow,
-                                ),
-                                child: Icon(
-                                  event.isGeoGated
-                                      ? Icons.location_on
-                                      : Icons.how_to_vote,
-                                  color: Theme.of(context).colorScheme.primary,
+                                  onTap: () => _openEvent(event),
                                 ),
                               ),
-                            ),
-                            onTap: () => _openEvent(event),
-                          ),
+                            );
+                          }, childCount: filteredEvents.length),
                         ),
-                      );
-                    }, childCount: filteredEvents.length),
+                      if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
+                        const SliverToBoxAdapter(
+                          child: SizedBox(height: AppDimens.xxl * 3),
+                        ),
+                    ],
                   ),
-                if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
-                  const SliverToBoxAdapter(
-                    child: SizedBox(height: AppDimens.xxl * 3),
-                  ),
+                ),
               ],
             ),
         ],
