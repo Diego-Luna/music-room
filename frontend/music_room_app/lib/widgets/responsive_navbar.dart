@@ -41,11 +41,13 @@ class ResponsiveNavbar extends StatelessWidget implements PreferredSizeWidget {
     final theme = Theme.of(context);
     final tokens = theme.extension<AppDesignTokens>();
 
+    final bottomInset = MediaQuery.paddingOf(context).bottom;
+
     return Container(
-      padding: const EdgeInsets.only(
-        top: AppDimens.sm,
-        bottom: AppDimens.xl,
-      ), // Extra bottom padding for safe area
+      padding: EdgeInsets.only(
+        top: AppDimens.xs,
+        bottom: AppDimens.xs + bottomInset,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         boxShadow: tokens?.neumorphicShadow,
@@ -72,8 +74,8 @@ class ResponsiveNavbar extends StatelessWidget implements PreferredSizeWidget {
               onTap: () => nav.navigateToIndex(context, index),
               isForcedPressed: isActive,
               margin: const EdgeInsets.symmetric(
-                horizontal: AppDimens.xs,
-                vertical: AppDimens.sm,
+                horizontal: AppDimens.xs / 2,
+                vertical: AppDimens.xs,
               ),
               padding: const EdgeInsets.symmetric(vertical: AppDimens.sm),
               decoration: BoxDecoration(
