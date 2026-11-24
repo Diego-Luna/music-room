@@ -547,6 +547,39 @@ describe('Auth (e2e)', () => {
         findMany: vi.fn(() =>
           Promise.resolve(Object.values(roomInvitations)),
         ),
+        deleteMany: vi.fn(
+          ({
+            where,
+          }: {
+            where: {
+              roomId?: string;
+              inviteeId?: string;
+              status?: string | { in?: string[] };
+              id?: { not?: string };
+            };
+          }) => {
+            const statusIn =
+              typeof where.status === 'object' ? where.status.in : undefined;
+            let count = 0;
+            for (const [iid, inv] of Object.entries(roomInvitations)) {
+              if (where.roomId && inv.roomId !== where.roomId) continue;
+              if (where.inviteeId && inv.inviteeId !== where.inviteeId) {
+                continue;
+              }
+              if (
+                typeof where.status === 'string' &&
+                inv.status !== where.status
+              ) {
+                continue;
+              }
+              if (statusIn && !statusIn.includes(String(inv.status))) continue;
+              if (where.id?.not && iid === where.id.not) continue;
+              delete roomInvitations[iid];
+              count += 1;
+            }
+            return Promise.resolve({ count });
+          },
+        ),
       },
       friendship: {
         findMany: vi.fn(() => Promise.resolve([])),

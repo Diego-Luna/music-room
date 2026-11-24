@@ -72,25 +72,29 @@ export class RoomMembershipService {
       );
     }
 
-    if (pendingInvite) {
-      // * Clear any prior ACCEPTED row for (roomId, inviteeId) to avoid P2002
-      //   on @@unique([roomId, inviteeId, status]) when re-invited.
-      await this.prisma.roomInvitation.deleteMany?.({
-        where: {
-          roomId,
-          inviteeId: userId,
-          status: 'ACCEPTED',
-          id: { not: pendingInvite.id },
-        },
-      });
-      await this.prisma.roomInvitation.update({
-        where: { id: pendingInvite.id },
-        data: { status: 'ACCEPTED', respondedAt: new Date() },
-      });
-    }
+    // * Invitation accept and membership insert commit together. A failure
+    //   rolls the invitation back to PENDING. The broadcast waits until commit.
+    const member = await this.prisma.$transaction(async (tx) => {
+      if (pendingInvite) {
+        // * Clear any prior ACCEPTED row for (roomId, inviteeId) to avoid P2002
+        //   on @@unique([roomId, inviteeId, status]) when re-invited.
+        await tx.roomInvitation.deleteMany({
+          where: {
+            roomId,
+            inviteeId: userId,
+            status: 'ACCEPTED',
+            id: { not: pendingInvite.id },
+          },
+        });
+        await tx.roomInvitation.update({
+          where: { id: pendingInvite.id },
+          data: { status: 'ACCEPTED', respondedAt: new Date() },
+        });
+      }
 
-    const member = await this.prisma.roomMember.create({
-      data: { roomId, userId, role: 'MEMBER' },
+      return tx.roomMember.create({
+        data: { roomId, userId, role: 'MEMBER' },
+      });
     });
     this.emit(roomId, 'member:joined', { roomId, userId, role: 'MEMBER' });
     return member;

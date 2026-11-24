@@ -42,9 +42,17 @@ describe('RoomMembershipService', () => {
         findFirst: vi.fn(),
         findMany: vi.fn(),
         update: vi.fn(),
+        deleteMany: vi.fn(),
       },
       user: { findUnique: vi.fn() },
     };
+    Object.assign(prisma, {
+      $transaction: vi.fn(async (cb: unknown) =>
+        typeof cb === 'function'
+          ? (cb as (p: typeof prisma) => Promise<unknown>)(prisma)
+          : cb,
+      ),
+    });
 
     realtime = { emitToRoom: vi.fn(), emitToUser: vi.fn() };
 
