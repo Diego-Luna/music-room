@@ -4,7 +4,7 @@ import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/providers/notifications_provider.dart';
-import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
+import 'package:music_room_app/widgets/shelf_chip.dart';
 import 'package:music_room_app/widgets/user_search_sheet.dart';
 import 'package:music_room_app/pages/friends/widgets/friends_list_tab.dart';
 import 'package:music_room_app/pages/friends/widgets/requests_list_tab.dart';
@@ -81,7 +81,10 @@ class _FriendsPageState extends State<FriendsPage> {
           else
             CustomScrollView(
               slivers: [
-                _buildAppBar(context, provider, notificationsProv, theme),
+                _buildAppBar(context, theme),
+                SliverToBoxAdapter(
+                  child: _buildShelves(context, provider, notificationsProv),
+                ),
                 if (provider.currentView == FriendsView.friends)
                   FriendsListTab(provider: provider)
                 else if (provider.currentView == FriendsView.requests)
@@ -98,56 +101,59 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
-  SliverAppBar _buildAppBar(
+  SliverAppBar _buildAppBar(BuildContext context, ThemeData theme) {
+    return SliverAppBar(
+      title: const Text('Friends'),
+      centerTitle: true,
+      floating: true,
+      toolbarHeight: 76.0,
+      pinned: false,
+      backgroundColor: theme.scaffoldBackgroundColor.withValues(alpha: 0.8),
+      elevation: 0,
+    );
+  }
+
+  Widget _buildShelves(
     BuildContext context,
     FriendsProvider provider,
     NotificationsProvider notificationsProv,
-    ThemeData theme,
   ) {
     final pendingCount =
         notificationsProv.incomingFriendRequests.length +
         notificationsProv.roomInvitations.length;
-
-    return SliverAppBar(
-      expandedHeight: 120.0,
-      toolbarHeight: 76.0,
-      floating: true,
-      pinned: false,
-      backgroundColor: theme.scaffoldBackgroundColor.withValues(alpha: 0.8),
-      elevation: 0,
-      flexibleSpace: FlexibleSpaceBar(
-        titlePadding: const EdgeInsets.only(
-          left: AppDimens.lg,
-          bottom: AppDimens.md,
-        ),
-        title: Text(
-          'Friends',
-          style: theme.textTheme.displaySmall?.copyWith(
-            fontWeight: AppTypography.extraBold,
-          ),
-        ),
+    final shelves = <(FriendsView, String, Key, int)>[
+      (FriendsView.friends, 'Friends', const Key('friends_tab_friends'), 0),
+      (
+        FriendsView.requests,
+        'Requests',
+        const Key('friends_tab_requests'),
+        pendingCount,
       ),
-      actions: [
-        NeumorphicIconButton(
-          icon: Icons.people_outline_rounded,
-          tooltip: 'My Friends',
-          isForcedPressed: provider.currentView == FriendsView.friends,
-          onTap: () => provider.setView(FriendsView.friends),
-        ),
-        NeumorphicIconButton(
-          icon: Icons.notifications_none_rounded,
-          tooltip: 'Requests',
-          isForcedPressed: provider.currentView == FriendsView.requests,
-          badgeCount: pendingCount,
-          onTap: () => provider.setView(FriendsView.requests),
-        ),
-        NeumorphicIconButton(
-          icon: Icons.person_add_alt_1_rounded,
-          tooltip: 'Add Friend',
-          isForcedPressed: provider.currentView == FriendsView.add,
-          onTap: () => provider.setView(FriendsView.add),
-        ),
-      ],
+      (FriendsView.add, 'Add', const Key('friends_tab_add'), 0),
+    ];
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppDimens.lg,
+        AppDimens.md,
+        AppDimens.lg,
+        0,
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < shelves.length; i++) ...[
+            if (i > 0) const SizedBox(width: AppDimens.sm),
+            Expanded(
+              child: ShelfChip(
+                key: shelves[i].$3,
+                label: shelves[i].$2,
+                badgeCount: shelves[i].$4,
+                selected: provider.currentView == shelves[i].$1,
+                onTap: () => provider.setView(shelves[i].$1),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

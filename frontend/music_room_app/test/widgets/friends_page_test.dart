@@ -51,9 +51,18 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    expect(find.text('Friends'), findsOneWidget);
-    expect(find.byIcon(Icons.people_outline_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.notifications_none_rounded), findsOneWidget);
-    expect(find.byIcon(Icons.person_add_alt_1_rounded), findsOneWidget);
+    expect(find.text('Friends'), findsNWidgets(2));
+    expect(find.byKey(const Key('friends_tab_friends')), findsOneWidget);
+    expect(find.byKey(const Key('friends_tab_requests')), findsOneWidget);
+    expect(find.byKey(const Key('friends_tab_add')), findsOneWidget);
+    expect(find.text('No friends yet. Add some!'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('friends_tab_requests')));
+    await tester.pumpAndSettle();
+    expect(find.text('No pending requests.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('friends_tab_add')));
+    await tester.pumpAndSettle();
+    expect(find.text('Search by name'), findsOneWidget);
   });
 }
