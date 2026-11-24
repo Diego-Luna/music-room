@@ -9,6 +9,13 @@ export class RoomDto {
   @ApiProperty({ example: 'PUBLIC', description: 'PUBLIC | PRIVATE' })
   visibility!: string;
   @ApiProperty() ownerId!: string;
+  @ApiProperty({
+    nullable: true,
+    example: 'MEMBER',
+    description:
+      "Caller's role in this room: OWNER, ADMIN, MEMBER, or null when they only see it because it is public",
+  })
+  myRole!: string | null;
   @ApiProperty({ example: 'EVERYONE', description: 'EVERYONE | INVITED_ONLY' })
   editAccess!: string;
   @ApiProperty({ example: 'EVERYONE', description: 'EVERYONE | INVITED_ONLY' })

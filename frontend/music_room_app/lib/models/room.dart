@@ -21,6 +21,10 @@ class Room {
   final String id;
   final String name;
   final String ownerId;
+
+  // * Caller's membership on this room. Null when they only see a public room.
+  // * OWNER | ADMIN | MEMBER.
+  final String? myRole;
   final RoomKind kind;
   final bool isPublic;
   final DateTime createdAt;
@@ -42,6 +46,7 @@ class Room {
     required this.id,
     required this.name,
     required this.ownerId,
+    this.myRole,
     this.kind = RoomKind.vote,
     this.isPublic = true,
     this.description,
@@ -64,6 +69,7 @@ class Room {
       id: json['id'] as String,
       name: json['name'] as String,
       ownerId: json['ownerId'] as String,
+      myRole: json['myRole'] as String?,
       // * Backend sends 'PUBLIC' / 'PRIVATE' is a bool
       kind: RoomKind.fromString(json['kind'] as String?),
       isPublic: (json['visibility'] as String?) != 'PRIVATE',
@@ -86,6 +92,7 @@ class Room {
     'id': id,
     'name': name,
     'ownerId': ownerId,
+    if (myRole != null) 'myRole': myRole,
     'kind': kind.toJson(),
     // * Frontend bool maps to backend enum string
     'visibility': isPublic ? 'PUBLIC' : 'PRIVATE',
@@ -115,6 +122,7 @@ class Room {
       id: id,
       name: name ?? this.name,
       ownerId: ownerId,
+      myRole: myRole,
       kind: kind ?? this.kind,
       isPublic: isPublic ?? this.isPublic,
       description: description ?? this.description,

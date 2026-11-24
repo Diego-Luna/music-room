@@ -234,11 +234,26 @@ describe('RoomsService', () => {
 
   describe('list', () => {
     it('returns the public rooms + rooms the user owns + rooms the user is a member of', async () => {
-      prisma.room.findMany.mockResolvedValue([roomRow]);
+      prisma.room.findMany.mockResolvedValue([
+        { ...roomRow, members: [{ role: 'OWNER' }] },
+        {
+          ...roomRow,
+          id: 'room-2',
+          ownerId: 'user-2',
+          members: [{ role: 'MEMBER' }],
+        },
+        {
+          ...roomRow,
+          id: 'room-3',
+          ownerId: 'user-3',
+          members: [],
+        },
+      ]);
       const rooms = await service.list('user-1');
 
       const call = prisma.room.findMany.mock.calls[0][0] as {
         where: { OR: unknown[] };
+        include: { members: { where: { userId: string } } };
       };
       expect(call.where.OR).toEqual(
         expect.arrayContaining([
@@ -247,7 +262,13 @@ describe('RoomsService', () => {
           { members: { some: { userId: 'user-1' } } },
         ]),
       );
-      expect(rooms).toHaveLength(1);
+      expect(call.include.members.where.userId).toBe('user-1');
+      expect(rooms.map((room) => room.myRole)).toEqual([
+        'OWNER',
+        'MEMBER',
+        null,
+      ]);
+      expect(rooms[0]).not.toHaveProperty('members');
     });
   });
 

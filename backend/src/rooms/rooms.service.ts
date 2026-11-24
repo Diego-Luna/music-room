@@ -74,7 +74,7 @@ export class RoomsService {
   }
 
   async list(userId: string) {
-    return this.prisma.room.findMany({
+    const rooms = await this.prisma.room.findMany({
       where: {
         OR: [
           { visibility: 'PUBLIC' },
@@ -83,6 +83,21 @@ export class RoomsService {
         ],
       },
       orderBy: { createdAt: 'desc' },
+      include: {
+        members: {
+          where: { userId },
+          select: { role: true },
+          take: 1,
+        },
+      },
+    });
+    return rooms.map((room) => {
+      const { members, ...rest } = room;
+      const membership = members?.[0]?.role ?? null;
+      return {
+        ...rest,
+        myRole: membership ?? (room.ownerId === userId ? 'OWNER' : null),
+      };
     });
   }
 
