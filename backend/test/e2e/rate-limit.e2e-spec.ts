@@ -3,7 +3,7 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import { ValidationPipe } from '@nestjs/common';
+import { Controller, Get, ValidationPipe } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -14,11 +14,20 @@ import { RedisModule } from '@/redis/redis.module';
 import { RedisService } from '@/redis/redis.service';
 import { MailService } from '@/mail/mail.service';
 import { JwtAuthGuard } from '@/common/guards/jwt-auth.guard';
+import { skipAuthThrottler } from '@/common/throttler/skip-auth-throttler';
 import { createMockRedisService } from '@test/helpers/redis-test.helper';
 import {
   TEST_JWT_SECRET,
   TEST_JWT_REFRESH_SECRET,
 } from '@test/helpers/auth-test.helper';
+
+@Controller('probe')
+class ProbeController {
+  @Get()
+  ok() {
+    return { ok: true };
+  }
+}
 
 describe('Rate limit (e2e)', () => {
   let app: NestFastifyApplication;
@@ -90,12 +99,18 @@ describe('Rate limit (e2e)', () => {
         }),
         ThrottlerModule.forRoot([
           { name: 'default', ttl: 60000, limit: 100 },
-          { name: 'auth', ttl: 60000, limit: AUTH_LIMIT },
+          {
+            name: 'auth',
+            ttl: 60000,
+            limit: AUTH_LIMIT,
+            skipIf: skipAuthThrottler,
+          },
         ]),
         PrismaModule,
         RedisModule,
         AuthModule,
       ],
+      controllers: [ProbeController],
       providers: [
         { provide: APP_GUARD, useClass: ThrottlerGuard },
         { provide: APP_GUARD, useClass: JwtAuthGuard },
@@ -141,5 +156,22 @@ describe('Rate limit (e2e)', () => {
     // the ones after are 429.
     expect(statuses.slice(0, AUTH_LIMIT).every((s) => s === 401)).toBe(true);
     expect(statuses.slice(AUTH_LIMIT).every((s) => s === 429)).toBe(true);
+  });
+
+  it('does not apply the auth bucket to a non-auth route', async () => {
+    const statuses: number[] = [];
+
+    for (let i = 0; i < AUTH_LIMIT + 2; i++) {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/probe',
+        headers: { 'x-forwarded-for': '10.0.0.98' },
+      });
+      statuses.push(res.statusCode);
+    }
+
+    // No JWT, so the auth guard answers 401. The auth bucket must not turn
+    // those into 429 before the default limit.
+    expect(statuses.every((s) => s === 401)).toBe(true);
   });
 });

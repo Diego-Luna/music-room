@@ -21,6 +21,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { envValidationSchema } from './config/env.validation';
 import { AppController } from './app.controller';
+import { skipAuthThrottler } from './common/throttler/skip-auth-throttler';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { AppController } from './app.controller';
           name: 'auth',
           ttl: config.get<number>('AUTH_THROTTLE_TTL', 60000),
           limit: config.get<number>('AUTH_THROTTLE_LIMIT', 10),
+          skipIf: skipAuthThrottler,
         },
       ],
     }),
