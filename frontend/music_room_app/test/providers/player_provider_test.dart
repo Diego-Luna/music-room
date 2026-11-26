@@ -23,13 +23,19 @@ class FakeAudioPlayerService implements AudioPlayerService {
   final List<String> calls = [];
   final StreamController<void> completedController =
       StreamController<void>.broadcast();
+  final StreamController<Duration?> durationController =
+      StreamController<Duration?>.broadcast();
+  final StreamController<bool> playingController =
+      StreamController<bool>.broadcast();
+  final StreamController<Duration> positionController =
+      StreamController<Duration>.broadcast();
 
   @override
-  Stream<Duration> get positionStream => const Stream.empty();
+  Stream<Duration> get positionStream => positionController.stream;
   @override
-  Stream<Duration?> get durationStream => const Stream.empty();
+  Stream<Duration?> get durationStream => durationController.stream;
   @override
-  Stream<bool> get playingStream => const Stream.empty();
+  Stream<bool> get playingStream => playingController.stream;
   @override
   Stream<void> get completedStream => completedController.stream;
   @override
@@ -52,6 +58,9 @@ class FakeAudioPlayerService implements AudioPlayerService {
   @override
   Future<void> dispose() async {
     await completedController.close();
+    await durationController.close();
+    await playingController.close();
+    await positionController.close();
   }
 
   void triggerCompleted() {
@@ -589,7 +598,7 @@ void main() {
       });
 
       test(
-        'when playback completes or when resuming a track that completed, it seeks to 0 and plays',
+        'when playback completes, the bar stays at the end until play restarts it',
         () async {
           final track = Track(
             id: 't-comp-1',
@@ -602,29 +611,135 @@ void main() {
 
           when(() => mockRoomsProvider.currentActiveRoom).thenReturn(null);
 
-          // Start playing track
           playerProvider.playTrack(track);
           expect(playerProvider.isPlaying, isTrue);
           expect(playerProvider.currentTrack, equals(track));
 
-          // 1. Playback completes via completedStream
+          fakeAudio.durationController.add(const Duration(seconds: 30));
+          await Future<void>.delayed(Duration.zero);
+          fakeAudio.calls.clear();
+
           fakeAudio.triggerCompleted();
           await Future<void>.delayed(Duration.zero);
 
           expect(playerProvider.isPlaying, isFalse);
-          expect(playerProvider.position, equals(Duration.zero));
-
-          // 2. Resuming a track that reached >= 30 seconds
-          await playerProvider.seek(const Duration(seconds: 30));
           expect(playerProvider.position, equals(const Duration(seconds: 30)));
-          fakeAudio.calls.clear();
+          expect(fakeAudio.calls, ['pause']);
+
+          // A leftover "playing" tick and a position reset must not move the bar.
+          fakeAudio.playingController.add(true);
+          fakeAudio.positionController.add(Duration.zero);
+          await Future<void>.delayed(Duration.zero);
+          expect(playerProvider.isPlaying, isFalse);
+          expect(playerProvider.position, equals(const Duration(seconds: 30)));
 
           playerProvider.resume();
+          await Future<void>.delayed(Duration.zero);
+
           expect(playerProvider.position, equals(Duration.zero));
           expect(playerProvider.isPlaying, isTrue);
-          expect(fakeAudio.calls, containsAllInOrder(['seek:0', 'resume']));
+          expect(
+            fakeAudio.calls,
+            containsAllInOrder(['pause', 'seek:0', 'resume']),
+          );
         },
       );
+
+      test('when playback completes, the next queued track starts', () async {
+        final first = Track(
+          id: 't-1',
+          providerId: 'p1',
+          title: 'First',
+          artist: 'Artist',
+          durationMs: 30000,
+          previewUrl: 'https://example.com/1.mp3',
+        );
+        final second = Track(
+          id: 't-2',
+          providerId: 'p2',
+          title: 'Second',
+          artist: 'Artist',
+          durationMs: 30000,
+          previewUrl: 'https://example.com/2.mp3',
+        );
+        when(() => mockRoomsProvider.currentActiveRoom).thenReturn(null);
+
+        playerProvider.playTrack(first, queue: [first, second], index: 0);
+        fakeAudio.calls.clear();
+
+        fakeAudio.triggerCompleted();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(playerProvider.currentTrack?.id, 't-2');
+        expect(playerProvider.isPlaying, isTrue);
+        expect(fakeAudio.calls, contains('play:https://example.com/2.mp3'));
+        expect(fakeAudio.calls, isNot(contains('pause')));
+      });
+
+      test('repeat cycles and wraps the queue', () async {
+        final first = Track(
+          id: 't-1',
+          providerId: 'p1',
+          title: 'First',
+          artist: 'Artist',
+          durationMs: 30000,
+          previewUrl: 'https://example.com/1.mp3',
+        );
+        final second = Track(
+          id: 't-2',
+          providerId: 'p2',
+          title: 'Second',
+          artist: 'Artist',
+          durationMs: 30000,
+          previewUrl: 'https://example.com/2.mp3',
+        );
+        when(() => mockRoomsProvider.currentActiveRoom).thenReturn(null);
+
+        expect(playerProvider.repeatMode, PlaybackRepeat.off);
+        playerProvider.cycleRepeat();
+        expect(playerProvider.repeatMode, PlaybackRepeat.all);
+        playerProvider.playTrack(first, queue: [first, second], index: 1);
+        playerProvider.playNext();
+        expect(playerProvider.currentTrack?.id, 't-1');
+
+        playerProvider.cycleRepeat();
+        expect(playerProvider.repeatMode, PlaybackRepeat.one);
+        fakeAudio.calls.clear();
+        fakeAudio.triggerCompleted();
+        await Future<void>.delayed(Duration.zero);
+        expect(playerProvider.currentTrack?.id, 't-1');
+        expect(fakeAudio.calls, contains('play:https://example.com/1.mp3'));
+
+        playerProvider.cycleRepeat();
+        expect(playerProvider.repeatMode, PlaybackRepeat.off);
+      });
+
+      test('shuffle visits every other track before the queue ends', () {
+        final tracks = [
+          for (var i = 0; i < 3; i++)
+            Track(
+              id: 't-$i',
+              providerId: 'p$i',
+              title: 'Track $i',
+              artist: 'Artist',
+              durationMs: 30000,
+              previewUrl: 'https://example.com/$i.mp3',
+            ),
+        ];
+        when(() => mockRoomsProvider.currentActiveRoom).thenReturn(null);
+
+        playerProvider.playTrack(tracks[0], queue: tracks, index: 0);
+        playerProvider.toggleShuffle();
+        expect(playerProvider.shuffleEnabled, isTrue);
+
+        final seen = <String>{tracks[0].id};
+        playerProvider.playNext();
+        seen.add(playerProvider.currentTrack!.id);
+        playerProvider.playNext();
+        seen.add(playerProvider.currentTrack!.id);
+        expect(seen, {'t-0', 't-1', 't-2'});
+        expect(playerProvider.hasNext, isFalse);
+      });
     });
   });
 }

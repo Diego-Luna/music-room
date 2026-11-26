@@ -143,18 +143,26 @@ class _PlaybackControls extends StatelessWidget {
   final bool isPlaying;
   final bool hasPrevious;
   final bool hasNext;
+  final bool shuffleEnabled;
+  final PlaybackRepeat repeatMode;
   final VoidCallback onPrevious;
   final VoidCallback onPlayPause;
   final VoidCallback onNext;
+  final VoidCallback onShuffle;
+  final VoidCallback onCycleRepeat;
   final bool isCompact;
 
   const _PlaybackControls({
     required this.isPlaying,
     required this.hasPrevious,
     required this.hasNext,
+    required this.shuffleEnabled,
+    required this.repeatMode,
     required this.onPrevious,
     required this.onPlayPause,
     required this.onNext,
+    required this.onShuffle,
+    required this.onCycleRepeat,
     required this.isCompact,
   });
 
@@ -163,46 +171,127 @@ class _PlaybackControls extends StatelessWidget {
     final theme = Theme.of(context);
     final playPadding = isCompact ? AppDimens.md : AppDimens.lg;
     final playIconSize = isCompact ? 38.0 : 48.0;
+    final skipSize = isCompact ? 30.0 : 36.0;
+    final repeatIcon = repeatMode == PlaybackRepeat.one
+        ? Icons.repeat_one_rounded
+        : Icons.repeat_rounded;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        NeumorphicInteractiveContainer(
-          onTap: onPrevious,
-          margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs),
-          padding: const EdgeInsets.all(AppDimens.md),
-          decoration: const BoxDecoration(shape: BoxShape.circle),
-          child: Icon(
-            Icons.skip_previous_rounded,
-            size: 36,
-            color: hasPrevious
-                ? theme.colorScheme.primary
-                : theme.disabledColor,
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _ModeButton(
+            tooltip: shuffleEnabled ? 'Shuffle on' : 'Shuffle off',
+            icon: Icons.shuffle_rounded,
+            active: shuffleEnabled,
+            onTap: onShuffle,
           ),
-        ),
-        NeumorphicInteractiveContainer(
-          onTap: onPlayPause,
-          margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs),
-          padding: EdgeInsets.all(playPadding),
-          decoration: const BoxDecoration(shape: BoxShape.circle),
-          child: Icon(
-            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-            size: playIconSize,
-            color: theme.colorScheme.primary,
+          _SkipButton(
+            tooltip: 'Previous',
+            icon: Icons.skip_previous_rounded,
+            size: skipSize,
+            enabled: hasPrevious,
+            onTap: onPrevious,
           ),
-        ),
-        NeumorphicInteractiveContainer(
-          onTap: onNext,
-          margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs),
-          padding: const EdgeInsets.all(AppDimens.md),
-          decoration: const BoxDecoration(shape: BoxShape.circle),
-          child: Icon(
-            Icons.skip_next_rounded,
-            size: 36,
-            color: hasNext ? theme.colorScheme.primary : theme.disabledColor,
+          NeumorphicInteractiveContainer(
+            onTap: onPlayPause,
+            margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs),
+            padding: EdgeInsets.all(playPadding),
+            decoration: const BoxDecoration(shape: BoxShape.circle),
+            child: Icon(
+              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              size: playIconSize,
+              color: theme.colorScheme.primary,
+            ),
           ),
+          _SkipButton(
+            tooltip: 'Next',
+            icon: Icons.skip_next_rounded,
+            size: skipSize,
+            enabled: hasNext,
+            onTap: onNext,
+          ),
+          _ModeButton(
+            tooltip: switch (repeatMode) {
+              PlaybackRepeat.off => 'Repeat off',
+              PlaybackRepeat.all => 'Repeat all',
+              PlaybackRepeat.one => 'Repeat one',
+            },
+            icon: repeatIcon,
+            active: repeatMode != PlaybackRepeat.off,
+            onTap: onCycleRepeat,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModeButton extends StatelessWidget {
+  const _ModeButton({
+    required this.tooltip,
+    required this.icon,
+    required this.active,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final bool active;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: NeumorphicInteractiveContainer(
+        onTap: onTap,
+        margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs),
+        padding: const EdgeInsets.all(AppDimens.sm),
+        decoration: const BoxDecoration(shape: BoxShape.circle),
+        child: Icon(
+          icon,
+          size: 22,
+          color: active ? theme.colorScheme.primary : theme.disabledColor,
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _SkipButton extends StatelessWidget {
+  const _SkipButton({
+    required this.tooltip,
+    required this.icon,
+    required this.size,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final double size;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Tooltip(
+      message: tooltip,
+      child: NeumorphicInteractiveContainer(
+        onTap: onTap,
+        margin: const EdgeInsets.symmetric(horizontal: AppDimens.xs),
+        padding: const EdgeInsets.all(AppDimens.md),
+        decoration: const BoxDecoration(shape: BoxShape.circle),
+        child: Icon(
+          icon,
+          size: size,
+          color: enabled ? theme.colorScheme.primary : theme.disabledColor,
+        ),
+      ),
     );
   }
 }
@@ -349,11 +438,15 @@ class _PlayerBottomSection extends StatelessWidget {
           SizedBox(height: isCompactHeight ? AppDimens.md : AppDimens.xl),
           _PlaybackControls(
             isPlaying: playerProvider.isPlaying,
-            hasPrevious: playerProvider.hasPrevious,
-            hasNext: playerProvider.hasNext,
-            onPrevious: playerProvider.playPrevious,
+            hasPrevious: true,
+            hasNext: true,
+            shuffleEnabled: playerProvider.shuffleEnabled,
+            repeatMode: playerProvider.repeatMode,
+            onPrevious: playerProvider.skipBackward,
             onPlayPause: onPlayPause,
             onNext: playerProvider.playNext,
+            onShuffle: playerProvider.toggleShuffle,
+            onCycleRepeat: playerProvider.cycleRepeat,
             isCompact: isCompactHeight,
           ),
           SizedBox(height: isCompactHeight ? AppDimens.sm : AppDimens.lg),

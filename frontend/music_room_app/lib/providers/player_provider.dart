@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:music_room_app/config/token_storage.dart';
@@ -9,6 +10,9 @@ import 'package:music_room_app/models/music_control_delegation.dart';
 import 'package:music_room_app/core/repositories/device_repository.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/rooms_provider.dart';
+
+/// Off, then the whole queue, then the current track only.
+enum PlaybackRepeat { off, all, one }
 
 class PlayerProvider extends ChangeNotifier {
   final AuthProvider _authProvider;
@@ -28,6 +32,11 @@ class PlayerProvider extends ChangeNotifier {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
 
+  // * Set when the current clip has finished and nothing follows. Freezes the
+  //   bar at the end and ignores the engine's leftover "still playing" ticks
+  //   until the user presses play, which restarts the clip from the beginning.
+  bool _playbackCompleted = false;
+
   Track? _currentTrack;
   bool _isPlaying = false;
   String? _error;
@@ -45,6 +54,7 @@ class PlayerProvider extends ChangeNotifier {
            getLocalDeviceId ?? TokenStorage().getOrCreateDeviceId {
     _subscriptions.addAll([
       _audio.positionStream.listen((p) {
+        if (_playbackCompleted) return;
         _position = p;
         notifyListeners();
       }),
@@ -55,19 +65,38 @@ class PlayerProvider extends ChangeNotifier {
         }
       }),
       _audio.playingStream.listen((p) {
+        // * just_audio stays "playing" after completion. Seeking back to zero
+        //   in that state advances the bar with no sound. Ignore it until pause
+        //   has landed and the user explicitly starts again.
+        if (_playbackCompleted) return;
         _isPlaying = p;
         notifyListeners();
       }),
       _audio.completedStream.listen((_) {
+        if (_repeat == PlaybackRepeat.one && _currentTrack != null) {
+          _loadAndPlay(_currentTrack!);
+          return;
+        }
+        if (hasNext) {
+          playNext();
+          return;
+        }
+        _playbackCompleted = true;
         _isPlaying = false;
-        _position = Duration.zero;
-        unawaited(_audio.seek(Duration.zero));
+        if (_duration > Duration.zero) _position = _duration;
         notifyListeners();
+        unawaited(_audio.pause());
       }),
     ]);
   }
 
   final List<StreamSubscription> _subscriptions = [];
+  final Random _random = Random();
+
+  bool _shuffle = false;
+  PlaybackRepeat _repeat = PlaybackRepeat.off;
+  List<int> _shuffleOrder = [];
+  int _shuffleCursor = 0;
 
   Track? get currentTrack => _currentTrack;
   bool get isPlaying => _isPlaying;
@@ -89,8 +118,71 @@ class PlayerProvider extends ChangeNotifier {
   String? _voteRoomId;
 
   String? get voteRoomId => _voteRoomId;
-  bool get hasNext => _queueIndex >= 0 && _queueIndex < _queue.length - 1;
-  bool get hasPrevious => _queueIndex > 0;
+  bool get shuffleEnabled => _shuffle;
+  PlaybackRepeat get repeatMode => _repeat;
+
+  bool get hasNext {
+    if (_queue.isEmpty || _queueIndex < 0) return false;
+    if (_repeat == PlaybackRepeat.all) return true;
+    if (_shuffle) return _shuffleCursor < _shuffleOrder.length - 1;
+    return _queueIndex < _queue.length - 1;
+  }
+
+  bool get hasPrevious {
+    if (_queue.isEmpty || _queueIndex < 0) return false;
+    if (_shuffle) return _shuffleCursor > 0;
+    return _queueIndex > 0;
+  }
+
+  void toggleShuffle() {
+    _shuffle = !_shuffle;
+    if (_shuffle) _rebuildShuffle(keepCurrent: true);
+    notifyListeners();
+  }
+
+  void cycleRepeat() {
+    _repeat = switch (_repeat) {
+      PlaybackRepeat.off => PlaybackRepeat.all,
+      PlaybackRepeat.all => PlaybackRepeat.one,
+      PlaybackRepeat.one => PlaybackRepeat.off,
+    };
+    notifyListeners();
+  }
+
+  // * Upcoming tracks, current one kept in place. A fresh pass (repeat all)
+  // * starts anywhere in the queue.
+  void _rebuildShuffle({required bool keepCurrent}) {
+    if (_queue.isEmpty) {
+      _shuffleOrder = [];
+      _shuffleCursor = 0;
+      return;
+    }
+    final current = keepCurrent ? _queueIndex : -1;
+    final rest = <int>[
+      for (var i = 0; i < _queue.length; i++)
+        if (i != current) i,
+    ]..shuffle(_random);
+    if (current >= 0 && current < _queue.length) {
+      _shuffleOrder = [current, ...rest];
+      _shuffleCursor = 0;
+      return;
+    }
+    _shuffleOrder = rest;
+    _shuffleCursor = 0;
+    _queueIndex = _shuffleOrder.first;
+  }
+
+  // * Under 3s, the left arrow goes to the previous track. At 3s or later it
+  //   restarts the one that is playing.
+  static const Duration previousSkipThreshold = Duration(seconds: 3);
+
+  void skipBackward() {
+    if (_position < previousSkipThreshold && hasPrevious) {
+      playPrevious();
+      return;
+    }
+    unawaited(seek(Duration.zero));
+  }
 
   // Play a track and optionally adopt the list it belongs to as the queue.
   // Pass voteRoomId when the track comes from a vote room (enables real voting).
@@ -108,23 +200,52 @@ class PlayerProvider extends ChangeNotifier {
       _queueIndex = 0;
     }
     _voteRoomId = voteRoomId;
+    _playbackCompleted = false;
+    if (_shuffle) _rebuildShuffle(keepCurrent: true);
     _loadAndPlay(track);
   }
 
   // Advance/rewind within the current queue (no-op at the bounds).
   void playNext() {
-    if (!hasNext) return;
-    _queueIndex++;
-    _loadAndPlay(_queue[_queueIndex]);
+    if (_shuffle) {
+      if (_shuffleCursor < _shuffleOrder.length - 1) {
+        _shuffleCursor++;
+        _queueIndex = _shuffleOrder[_shuffleCursor];
+        _loadAndPlay(_queue[_queueIndex]);
+        return;
+      }
+      if (_repeat == PlaybackRepeat.all && _queue.isNotEmpty) {
+        _rebuildShuffle(keepCurrent: false);
+        _loadAndPlay(_queue[_queueIndex]);
+      }
+      return;
+    }
+    if (_queueIndex < _queue.length - 1) {
+      _queueIndex++;
+      _loadAndPlay(_queue[_queueIndex]);
+      return;
+    }
+    if (_repeat == PlaybackRepeat.all && _queue.isNotEmpty) {
+      _queueIndex = 0;
+      _loadAndPlay(_queue[_queueIndex]);
+    }
   }
 
   void playPrevious() {
-    if (!hasPrevious) return;
+    if (_shuffle) {
+      if (_shuffleCursor <= 0) return;
+      _shuffleCursor--;
+      _queueIndex = _shuffleOrder[_shuffleCursor];
+      _loadAndPlay(_queue[_queueIndex]);
+      return;
+    }
+    if (_queueIndex <= 0) return;
     _queueIndex--;
     _loadAndPlay(_queue[_queueIndex]);
   }
 
   void _loadAndPlay(Track track) {
+    _playbackCompleted = false;
     _error = null;
     if (!hasControlPermission) {
       _error = 'You do not have permission to control the player in this room.';
@@ -171,14 +292,24 @@ class PlayerProvider extends ChangeNotifier {
       return;
     }
     if (_currentTrack != null) {
-      if (_position >= const Duration(seconds: 30)) {
-        _position = Duration.zero;
-        unawaited(_audio.seek(Duration.zero));
-      }
-      _isPlaying = true;
-      notifyListeners();
-      unawaited(_audio.resume());
+      final restart =
+          _playbackCompleted || _position >= const Duration(seconds: 30);
+      unawaited(_resumeFrom(restart: restart));
     }
+  }
+
+  // * A finished clip (or a playhead parked on the 30s cap) must be seeked
+  //   back to zero before play(). Doing both at once leaves just_audio
+  //   "playing" a completed source: the bar moves and the preview stays silent.
+  Future<void> _resumeFrom({required bool restart}) async {
+    if (restart) {
+      await _audio.seek(Duration.zero);
+      _position = Duration.zero;
+    }
+    _playbackCompleted = false;
+    _isPlaying = true;
+    notifyListeners();
+    await _audio.resume();
   }
 
   void pause() {
@@ -248,8 +379,13 @@ class PlayerProvider extends ChangeNotifier {
     _currentTrack = null;
     _queue = [];
     _queueIndex = -1;
+    _shuffle = false;
+    _repeat = PlaybackRepeat.off;
+    _shuffleOrder = [];
+    _shuffleCursor = 0;
     _voteRoomId = null;
     _isPlaying = false;
+    _playbackCompleted = false;
     _position = Duration.zero;
     _duration = Duration.zero;
     _error = null;

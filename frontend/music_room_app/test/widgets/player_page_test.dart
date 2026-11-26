@@ -261,6 +261,30 @@ void main() {
       expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
     });
 
+    testWidgets('shuffle and repeat buttons cycle their modes', (tester) async {
+      playerProvider.playTrack(testTrack);
+
+      await tester.pumpWidget(buildTestApp(child: const PlayerPage()));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byIcon(Icons.shuffle_rounded), findsOneWidget);
+      expect(find.byIcon(Icons.repeat_rounded), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.shuffle_rounded));
+      await tester.pump();
+      expect(playerProvider.shuffleEnabled, isTrue);
+
+      await tester.tap(find.byIcon(Icons.repeat_rounded));
+      await tester.pump();
+      expect(playerProvider.repeatMode, PlaybackRepeat.all);
+
+      await tester.tap(find.byIcon(Icons.repeat_rounded));
+      await tester.pump();
+      expect(find.byIcon(Icons.repeat_one_rounded), findsOneWidget);
+      expect(playerProvider.repeatMode, PlaybackRepeat.one);
+    });
+
     testWidgets('renders Image.network when track.artworkUrl is present', (
       tester,
     ) async {
