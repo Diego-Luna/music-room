@@ -140,7 +140,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Tap on Requests tab button
-      final requestsTabButton = find.byTooltip('Requests');
+      final requestsTabButton = find.text('Requests');
       expect(requestsTabButton, findsOneWidget);
       await tester.tap(requestsTabButton);
       await tester.pumpAndSettle();
@@ -168,7 +168,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Switch to requests
-      await tester.tap(find.byTooltip('Requests'));
+      await tester.tap(find.text('Requests'));
       await tester.pumpAndSettle();
 
       // After accepting, incoming requests return empty
@@ -200,7 +200,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Switch to requests
-      await tester.tap(find.byTooltip('Requests'));
+      await tester.tap(find.text('Requests'));
       await tester.pumpAndSettle();
 
       // After accepting, invitations return empty
@@ -223,7 +223,7 @@ void main() {
     await tester.pumpWidget(buildTestWidget());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Requests'));
+    await tester.tap(find.text('Requests'));
     await tester.pumpAndSettle();
 
     final cancelButtons = find.byIcon(Icons.cancel_rounded);
