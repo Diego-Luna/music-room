@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
+import 'package:music_room_app/widgets/mini_player.dart';
 import 'package:music_room_app/widgets/responsive_body.dart';
 import 'package:music_room_app/widgets/responsive_navbar.dart';
 import 'package:music_room_app/core/animations/fade_animation.dart';
@@ -24,13 +25,21 @@ class MainPage extends StatelessWidget {
     if (isMobile) {
       return Scaffold(
         body: bodyContent,
-        bottomNavigationBar: const ResponsiveNavbar(),
+        bottomNavigationBar: const Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [MiniPlayer(), ResponsiveNavbar()],
+        ),
       );
     }
 
     return Scaffold(
       appBar: const ResponsiveNavbar(),
-      body: ClipRect(child: bodyContent),
+      body: Column(
+        children: [
+          Expanded(child: ClipRect(child: bodyContent)),
+          const MiniPlayer(),
+        ],
+      ),
     );
   }
 }
