@@ -1,6 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
+import 'package:music_room_app/providers/events_provider.dart';
+import 'package:music_room_app/providers/playlists_provider.dart';
 
 class NavDestination {
   final String label;
@@ -52,7 +56,24 @@ class NavigationProvider extends ChangeNotifier {
   /// Called by the responsive navbar when a tab is tapped.
   void navigateToIndex(BuildContext context, int index) {
     if (index < 0 || index >= destinations.length) return;
+    final route = destinations[index].route;
     setIndex(index);
-    context.go(destinations[index].route);
+    context.go(route);
+
+    // * StatefulShellRoute keeps tabs mounted so initState() does not re-run
+    // * on tab switch; refresh lists so deleted rooms do not linger as ghosts.
+    if (route == routePlaylists) {
+      try {
+        unawaited(context.read<PlaylistsProvider>().fetchPlaylists());
+      } on ProviderNotFoundException catch (e) {
+        debugPrint('Skipping playlists refresh on tab switch: $e');
+      }
+    } else if (route == routeEvents) {
+      try {
+        unawaited(context.read<EventsProvider>().fetchEvents());
+      } on ProviderNotFoundException catch (e) {
+        debugPrint('Skipping events refresh on tab switch: $e');
+      }
+    }
   }
 }
