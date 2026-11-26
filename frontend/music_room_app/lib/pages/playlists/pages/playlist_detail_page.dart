@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,7 @@ import 'package:music_room_app/widgets/track_search_sheet.dart';
 import 'package:music_room_app/widgets/room_members_sheet.dart';
 import 'package:music_room_app/widgets/edit_room_dialog.dart';
 import 'package:music_room_app/pages/events/widgets/invite_friend_dialog.dart';
+import 'package:music_room_app/pages/playlists/widgets/track_reorder_gesture.dart';
 
 class PlaylistDetailPage extends StatefulWidget {
   const PlaylistDetailPage({super.key});
@@ -35,6 +38,7 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   List<Track> _orderedTracks = [];
   bool _forceResync = false;
   bool _isLocalReorder = false;
+  bool _isDraggingTrack = false;
 
   // * onReorderItem already adjusts newIndex for the removed oldIndex.
   Future<void> _onReorder(Room playlist, int oldIndex, int newIndex) async {
@@ -81,6 +85,31 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
     } finally {
       if (mounted) setState(() => _isLocalReorder = false);
     }
+  }
+
+  // * Lifts the grabbed track above the list while it is dragged.
+  Widget _liftDraggedTrack(
+    Widget child,
+    int index,
+    Animation<double> animation,
+  ) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final elevation = lerpDouble(
+          0,
+          6,
+          Curves.easeInOut.transform(animation.value),
+        )!;
+        return Material(
+          elevation: elevation,
+          color: Colors.transparent,
+          shadowColor: Colors.black54,
+          child: child,
+        );
+      },
+      child: child,
+    );
   }
 
   @override
@@ -423,16 +452,23 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
               ),
             ),
 
-          // The Tracks — long-press a row to drag and reorder (Premium).
+          // Premium: grab a row with the mouse, or press and drag with a finger.
           SliverReorderableList(
             itemCount: _orderedTracks.length,
             onReorderItem: canEdit
                 ? (oldIndex, newIndex) =>
                       _onReorder(playlist, oldIndex, newIndex)
                 : (oldIndex, newIndex) {},
+            onReorderStart: canEdit
+                ? (_) => setState(() => _isDraggingTrack = true)
+                : null,
+            onReorderEnd: canEdit
+                ? (_) => setState(() => _isDraggingTrack = false)
+                : null,
+            proxyDecorator: _liftDraggedTrack,
             itemBuilder: (context, i) {
               final track = _orderedTracks[i];
-              return ReorderableDelayedDragStartListener(
+              return TrackReorderGesture(
                 key: ValueKey(track.id),
                 index: i,
                 enabled: canEdit,
@@ -443,72 +479,84 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                     AppDimens.lg,
                     AppDimens.sm,
                   ),
-                  child: PlaceholderCard(
-                    title: track.title,
-                    subtitle: track.artist,
-                    leading: Container(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(
-                          AppDimens.radiusSmall,
+                  child: MouseRegion(
+                    cursor: !canEdit
+                        ? MouseCursor.defer
+                        : _isDraggingTrack
+                        ? SystemMouseCursors.grabbing
+                        : SystemMouseCursors.grab,
+                    child: PlaceholderCard(
+                      title: track.title,
+                      subtitle: track.artist,
+                      leading: Container(
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.1,
+                          ),
+                          borderRadius: BorderRadius.circular(
+                            AppDimens.radiusSmall,
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.music_note,
+                          color: theme.colorScheme.primary,
                         ),
                       ),
-                      child: Icon(
-                        Icons.music_note,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (canEdit)
-                          IconButton(
-                            icon: const Icon(
-                              Icons.delete,
-                              color: Colors.redAccent,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (canEdit)
+                            IconButton(
+                              icon: const Icon(
+                                Icons.delete,
+                                color: Colors.redAccent,
+                              ),
+                              onPressed: () async {
+                                final scaffoldMessenger = ScaffoldMessenger.of(
+                                  context,
+                                );
+                                try {
+                                  await playlistsProvider.removeTrack(
+                                    playlist.id,
+                                    track.id,
+                                  );
+                                  scaffoldMessenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        '${track.title} removed from playlist!',
+                                      ),
+                                      duration: const Duration(seconds: 1),
+                                    ),
+                                  );
+                                } catch (_) {
+                                  scaffoldMessenger.showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        playlistsProvider.error ??
+                                            'Could not remove track.',
+                                      ),
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                  );
+                                }
+                              },
                             ),
-                            onPressed: () async {
-                              final scaffoldMessenger = ScaffoldMessenger.of(
-                                context,
-                              );
-                              try {
-                                await playlistsProvider.removeTrack(
-                                  playlist.id,
-                                  track.id,
-                                );
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '${track.title} removed from playlist!',
-                                    ),
-                                    duration: const Duration(seconds: 1),
-                                  ),
-                                );
-                              } catch (_) {
-                                scaffoldMessenger.showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      playlistsProvider.error ??
-                                          'Could not remove track.',
-                                    ),
-                                    backgroundColor: Colors.redAccent,
-                                  ),
-                                );
-                              }
-                            },
-                          ),
-                        if (canEdit)
-                          Icon(Icons.drag_handle, color: theme.disabledColor),
-                      ],
+                          if (canEdit)
+                            const Tooltip(
+                              message: 'Drag to reorder',
+                              child: Icon(Icons.drag_handle),
+                            ),
+                        ],
+                      ),
+                      onTap: () {
+                        context.read<PlayerProvider>().playTrack(
+                          track,
+                          queue: _orderedTracks,
+                          index: i,
+                        );
+                        context.push(routePlayer);
+                      },
                     ),
-                    onTap: () {
-                      context.read<PlayerProvider>().playTrack(
-                        track,
-                        queue: _orderedTracks,
-                        index: i,
-                      );
-                      context.push(routePlayer);
-                    },
                   ),
                 ),
               );
