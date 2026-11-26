@@ -67,16 +67,21 @@ class _FloatingModelState extends State<FloatingModel> {
 /// A simple Stack wrapping my multiple music models.
 /// I use this to add depth to any background screen.
 class BackgroundFloaters extends StatelessWidget {
-  const BackgroundFloaters({super.key});
+  /// Vertical offset of the musical note. Pages with a tall pinned header
+  /// pass a smaller value so the note sits in that header, above the search
+  /// field, and only the shelf tabs paint over it.
+  final double noteTop;
+
+  const BackgroundFloaters({super.key, this.noteTop = 100});
 
   @override
   Widget build(BuildContext context) {
     return Stack(
-      children: const [
+      children: [
         Positioned(
-          top: 100,
+          top: noteTop,
           left: 30,
-          child: FloatingModel(
+          child: const FloatingModel(
             modelPath: 'assets/models/background/musical_note.glb',
             size: 80,
             rotationSpeed: 15.0,

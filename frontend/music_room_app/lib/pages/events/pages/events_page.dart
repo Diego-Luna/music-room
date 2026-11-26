@@ -150,54 +150,51 @@ class _EventsPageState extends State<EventsPage> {
   }
 
   Widget _buildPinnedHeader(BuildContext context) {
-    final theme = Theme.of(context);
-    return ColoredBox(
-      color: theme.scaffoldBackgroundColor,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AppBar(
-            primary: true,
-            automaticallyImplyLeading: false,
-            centerTitle: true,
-            toolbarHeight: 76,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            backgroundColor: theme.scaffoldBackgroundColor,
-            surfaceTintColor: Colors.transparent,
-            title: const Text('Events'),
-            actions: [
-              Center(
-                child: NeumorphicIconButton(
-                  icon: Icons.sensors,
-                  tooltip: 'Simulate walking into a nearby event',
-                  onTap: _enterProximityZoneDemo,
-                ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppBar(
+          primary: true,
+          automaticallyImplyLeading: false,
+          centerTitle: true,
+          toolbarHeight: 76,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          forceMaterialTransparency: true,
+          title: const Text('Events'),
+          actions: [
+            Center(
+              child: NeumorphicIconButton(
+                icon: Icons.sensors,
+                tooltip: 'Simulate walking into a nearby event',
+                onTap: _enterProximityZoneDemo,
               ),
-              Center(
-                child: NeumorphicIconButton(
-                  icon: Icons.add_box_outlined,
-                  tooltip: 'New Event',
-                  onTap: () => _showCreateEventDialog(context),
-                ),
-              ),
-            ],
-          ),
-          _buildShelves(context),
-          Padding(
-            padding: const EdgeInsets.all(AppDimens.lg),
-            child: NeumorphicSearchBar(
-              key: const Key('events_search_bar'),
-              hintText: 'Search events...',
-              onChanged: (val) {
-                setState(() {
-                  _searchQuery = val;
-                });
-              },
             ),
+            Center(
+              child: NeumorphicIconButton(
+                icon: Icons.add_box_outlined,
+                tooltip: 'New Event',
+                onTap: () => _showCreateEventDialog(context),
+              ),
+            ),
+          ],
+        ),
+        _buildShelves(context),
+        Padding(
+          padding: const EdgeInsets.all(AppDimens.lg),
+          child: NeumorphicSearchBar(
+            key: const Key('events_search_bar'),
+            hintText: 'Search events...',
+            onChanged: (val) {
+              setState(() {
+                _searchQuery = val;
+              });
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -302,7 +299,7 @@ class _EventsPageState extends State<EventsPage> {
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Stack(
         children: [
-          const Opacity(opacity: 0.4, child: BackgroundFloaters()),
+          const Opacity(opacity: 0.4, child: BackgroundFloaters(noteTop: 8)),
 
           if (eventsProvider.isLoading)
             const Center(child: CircularProgressIndicator())

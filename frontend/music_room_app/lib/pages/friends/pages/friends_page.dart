@@ -63,7 +63,6 @@ class _FriendsPageState extends State<FriendsPage> {
   Widget build(BuildContext context) {
     final provider = context.watch<FriendsProvider>();
     final notificationsProv = context.watch<NotificationsProvider>();
-    final theme = Theme.of(context);
 
     final isInitialLoading =
         (provider.isLoading || notificationsProv.isLoading) &&
@@ -75,23 +74,15 @@ class _FriendsPageState extends State<FriendsPage> {
     return Scaffold(
       body: Stack(
         children: [
-          const Opacity(opacity: 0.4, child: BackgroundFloaters()),
+          const Opacity(opacity: 0.4, child: BackgroundFloaters(noteTop: 8)),
           if (isInitialLoading)
             const Center(child: CircularProgressIndicator())
           else
             Column(
               children: [
-                ColoredBox(
-                  color: theme.scaffoldBackgroundColor,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _buildPinnedHeader(context, theme),
-                      _buildShelves(context, provider, notificationsProv),
-                      const SizedBox(height: AppDimens.lg),
-                    ],
-                  ),
-                ),
+                _buildPinnedHeader(context),
+                _buildShelves(context, provider, notificationsProv),
+                const SizedBox(height: AppDimens.lg),
                 Expanded(
                   child: CustomScrollView(
                     slivers: [
@@ -117,7 +108,7 @@ class _FriendsPageState extends State<FriendsPage> {
     );
   }
 
-  Widget _buildPinnedHeader(BuildContext context, ThemeData theme) {
+  Widget _buildPinnedHeader(BuildContext context) {
     return AppBar(
       primary: true,
       automaticallyImplyLeading: false,
@@ -125,8 +116,9 @@ class _FriendsPageState extends State<FriendsPage> {
       toolbarHeight: 76,
       elevation: 0,
       scrolledUnderElevation: 0,
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
+      forceMaterialTransparency: true,
       title: const Text('Friends'),
     );
   }

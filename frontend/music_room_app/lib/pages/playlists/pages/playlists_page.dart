@@ -115,47 +115,44 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
   }
 
   Widget _buildPinnedHeader(BuildContext context, {required bool isPremium}) {
-    final theme = Theme.of(context);
-    return ColoredBox(
-      color: theme.scaffoldBackgroundColor,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AppBar(
-            primary: true,
-            automaticallyImplyLeading: false,
-            centerTitle: true,
-            toolbarHeight: 76,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            backgroundColor: theme.scaffoldBackgroundColor,
-            surfaceTintColor: Colors.transparent,
-            title: const Text('Playlists'),
-            actions: [
-              Center(
-                child: NeumorphicIconButton(
-                  icon: Icons.playlist_add,
-                  tooltip: isPremium ? 'New Playlist' : 'Upgrade to Premium',
-                  onTap: () => _onCreateTap(context),
-                ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AppBar(
+          primary: true,
+          automaticallyImplyLeading: false,
+          centerTitle: true,
+          toolbarHeight: 76,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          forceMaterialTransparency: true,
+          title: const Text('Playlists'),
+          actions: [
+            Center(
+              child: NeumorphicIconButton(
+                icon: Icons.playlist_add,
+                tooltip: isPremium ? 'New Playlist' : 'Upgrade to Premium',
+                onTap: () => _onCreateTap(context),
               ),
-            ],
-          ),
-          _buildShelves(context),
-          Padding(
-            padding: const EdgeInsets.all(AppDimens.lg),
-            child: NeumorphicSearchBar(
-              key: const Key('playlists_search_bar'),
-              hintText: 'Search playlists...',
-              onChanged: (val) {
-                setState(() {
-                  _searchQuery = val;
-                });
-              },
             ),
+          ],
+        ),
+        _buildShelves(context),
+        Padding(
+          padding: const EdgeInsets.all(AppDimens.lg),
+          child: NeumorphicSearchBar(
+            key: const Key('playlists_search_bar'),
+            hintText: 'Search playlists...',
+            onChanged: (val) {
+              setState(() {
+                _searchQuery = val;
+              });
+            },
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -262,7 +259,7 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
       body: Stack(
         children: [
           // 3D Background entities (Floating tape/guitar, etc.)
-          const Opacity(opacity: 0.4, child: BackgroundFloaters()),
+          const Opacity(opacity: 0.4, child: BackgroundFloaters(noteTop: 8)),
 
           if (playlistsProvider.isLoading)
             const Center(child: CircularProgressIndicator())
