@@ -198,30 +198,33 @@ class _UserSearchSheetState extends State<UserSearchSheet> {
     if (_items.isEmpty) {
       return const Center(child: Text('No users found.'));
     }
-    return ListView.builder(
-      controller: _scrollController,
-      itemCount: _items.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, i) {
-        if (i >= _items.length) {
-          return const Padding(
-            padding: EdgeInsets.all(AppDimens.md),
-            child: Center(child: CircularProgressIndicator()),
+    return Material(
+      type: MaterialType.transparency,
+      child: ListView.builder(
+        controller: _scrollController,
+        itemCount: _items.length + (_hasMore ? 1 : 0),
+        itemBuilder: (context, i) {
+          if (i >= _items.length) {
+            return const Padding(
+              padding: EdgeInsets.all(AppDimens.md),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          final user = _items[i];
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundImage: user.avatarUrl != null
+                  ? NetworkImage(user.avatarUrl!)
+                  : null,
+              child: user.avatarUrl == null ? const Icon(Icons.person) : null,
+            ),
+            title: Text(user.displayName),
+            subtitle: Text(_visibilityLabel(user.visibility)),
+            trailing: const Icon(Icons.add_circle_outline),
+            onTap: () => _select(user),
           );
-        }
-        final user = _items[i];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: user.avatarUrl != null
-                ? NetworkImage(user.avatarUrl!)
-                : null,
-            child: user.avatarUrl == null ? const Icon(Icons.person) : null,
-          ),
-          title: Text(user.displayName),
-          subtitle: Text(_visibilityLabel(user.visibility)),
-          trailing: const Icon(Icons.add_circle_outline),
-          onTap: () => _select(user),
-        );
-      },
+        },
+      ),
     );
   }
 
