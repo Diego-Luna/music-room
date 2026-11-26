@@ -51,7 +51,7 @@ export class RoomsService {
       await tx.roomMember.create({
         data: { roomId: room.id, userId, role: 'OWNER' },
       });
-      return room;
+      return { ...room, myRole: 'OWNER' as const };
     });
   }
 
