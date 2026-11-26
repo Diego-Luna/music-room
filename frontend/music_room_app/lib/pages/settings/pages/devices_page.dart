@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:music_room_app/core/repositories/device_repository.dart';
 import 'package:music_room_app/core/routing/app_router.dart';
 import 'package:music_room_app/core/routing/route_names.dart';
@@ -9,8 +10,8 @@ import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/staggered_list.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
-import 'package:music_room_app/widgets/user_search_sheet.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
+import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 
 class DevicesPage extends StatefulWidget {
@@ -76,16 +77,15 @@ class _DevicesPageState extends State<DevicesPage> {
   }
 
   void _delegateControl(String deviceId) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => UserSearchSheet(
-        title: 'Delegate Control To',
-        onSelected: (user) async {
+      builder: (_) => _FriendDelegationSheet(
+        onSelected: (friendId, displayName) async {
           try {
-            await _deviceRepo.delegateControl(deviceId, user.id);
-            _showResult(true, 'Delegated to ${user.displayName}');
+            await _deviceRepo.delegateControl(deviceId, friendId);
+            _showResult(true, 'Delegated to $displayName');
             _loadData();
           } catch (e) {
             _showResult(false, e.toString());
@@ -208,6 +208,55 @@ class _DevicesPageState extends State<DevicesPage> {
     );
   }
 
+  String _formatDeviceName(String? userAgent) {
+    if (userAgent == null || userAgent.trim().isEmpty) {
+      return 'Unknown Device';
+    }
+    final ua = userAgent.trim();
+
+    String? browser;
+    if (ua.contains('Edg/') || ua.contains('Edge/')) {
+      browser = 'Edge';
+    } else if (ua.contains('OPR/') || ua.contains('Opera')) {
+      browser = 'Opera';
+    } else if (ua.contains('Firefox/')) {
+      browser = 'Firefox';
+    } else if (ua.contains('Chrome/') || ua.contains('CriOS/')) {
+      browser = 'Chrome';
+    } else if (ua.contains('Safari/')) {
+      browser = 'Safari';
+    } else if (ua.contains('Dart/')) {
+      browser = 'Music Room App';
+    }
+
+    String? os;
+    if (ua.contains('Android')) {
+      os = 'Android';
+    } else if (ua.contains('iPhone') ||
+        ua.contains('iPad') ||
+        ua.contains('iPod')) {
+      os = 'iOS';
+    } else if (ua.contains('Macintosh') || ua.contains('Mac OS X')) {
+      os = 'macOS';
+    } else if (ua.contains('Windows')) {
+      os = 'Windows';
+    } else if (ua.contains('Linux')) {
+      os = 'Linux';
+    }
+
+    if (browser != null && os != null) return '$browser on $os';
+    if (os != null) return '$os Device';
+    if (browser != null) return browser;
+    return ua.length > 40 ? '${ua.substring(0, 37)}...' : ua;
+  }
+
+  String _formatTimestamp(DateTime dt) {
+    final local = dt.toLocal();
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${local.year}-${two(local.month)}-${two(local.day)} '
+        '${two(local.hour)}:${two(local.minute)}';
+  }
+
   Widget _buildDeviceCard(ThemeData theme, AccountDevice device) {
     final hasDelegation = device.delegation != null;
 
@@ -224,7 +273,7 @@ class _DevicesPageState extends State<DevicesPage> {
                 const SizedBox(width: AppDimens.md),
                 Expanded(
                   child: Text(
-                    device.userAgent ?? 'Unknown Device',
+                    _formatDeviceName(device.userAgent),
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: AppTypography.bold,
                     ),
@@ -239,7 +288,7 @@ class _DevicesPageState extends State<DevicesPage> {
             ),
             if (device.lastSeenAt != null)
               Text(
-                'Last seen: ${device.lastSeenAt!.toLocal()}',
+                'Last seen: ${_formatTimestamp(device.lastSeenAt!)}',
                 style: theme.textTheme.bodySmall,
               ),
 
@@ -353,7 +402,7 @@ class _DevicesPageState extends State<DevicesPage> {
               style: theme.textTheme.bodySmall ?? const TextStyle(),
             ),
             Text(
-              'Granted At: ${delegation.grantedAt.toLocal()}',
+              'Granted At: ${_formatTimestamp(delegation.grantedAt)}',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: AppDimens.md),
@@ -392,6 +441,115 @@ class _DevicesPageState extends State<DevicesPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// * V.2.2: Friends-only picker for delegating device playback control.
+class _FriendDelegationSheet extends StatefulWidget {
+  final Future<void> Function(String friendId, String displayName) onSelected;
+
+  const _FriendDelegationSheet({required this.onSelected});
+
+  @override
+  State<_FriendDelegationSheet> createState() => _FriendDelegationSheetState();
+}
+
+class _FriendDelegationSheetState extends State<_FriendDelegationSheet> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final friendsProvider = context.read<FriendsProvider>();
+      if (friendsProvider.friends.isEmpty && !friendsProvider.isLoading) {
+        friendsProvider.fetchFriendsData();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final friendsProvider = context.watch<FriendsProvider>();
+
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.6,
+      padding: const EdgeInsets.all(AppDimens.lg),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(AppDimens.radiusLarge),
+          topRight: Radius.circular(AppDimens.radiusLarge),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Delegate Control To',
+                  style: theme.textTheme.titleLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppDimens.md),
+          Expanded(child: _buildBody(theme, friendsProvider)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(ThemeData theme, FriendsProvider friendsProvider) {
+    if (friendsProvider.isLoading && friendsProvider.friends.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (friendsProvider.friends.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppDimens.lg),
+          child: Text(
+            'Add friends first to delegate playback control.',
+            textAlign: TextAlign.center,
+            style: theme.textTheme.bodyMedium,
+          ),
+        ),
+      );
+    }
+    return ListView.builder(
+      itemCount: friendsProvider.friends.length,
+      itemBuilder: (context, index) {
+        final friend = friendsProvider.friends[index];
+        final user = friendsProvider.userCache[friend.friendId];
+        final displayName = user?.displayName ?? friend.friendId;
+        final avatarUrl = user?.avatarUrl;
+
+        return ListTile(
+          leading: CircleAvatar(
+            backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                ? NetworkImage(avatarUrl)
+                : null,
+            child: avatarUrl == null || avatarUrl.isEmpty
+                ? Text(
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                  )
+                : null,
+          ),
+          title: Text(displayName),
+          onTap: () {
+            Navigator.of(context).pop();
+            widget.onSelected(friend.friendId, displayName);
+          },
+        );
+      },
     );
   }
 }
