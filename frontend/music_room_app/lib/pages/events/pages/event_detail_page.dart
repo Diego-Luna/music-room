@@ -280,36 +280,47 @@ class _EventDetailPageState extends State<EventDetailPage> {
                       end: Alignment.bottomRight,
                     ),
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: AppDimens.xl),
-                      const Icon(
-                        Icons.how_to_vote,
-                        size: 72,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(height: AppDimens.sm),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppDimens.lg,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth,
                         ),
-                        child: Text(
-                          event.name,
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: AppTypography.extraBold,
-                          ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: AppDimens.xl),
+                            const Icon(
+                              Icons.how_to_vote,
+                              size: 72,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(height: AppDimens.sm),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppDimens.lg,
+                              ),
+                              child: Text(
+                                event.name,
+                                textAlign: TextAlign.center,
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: AppTypography.extraBold,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              '${event.tracks.length} ${event.tracks.length == 1 ? 'track' : 'tracks'}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: Colors.white70,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      Text(
-                        '${event.tracks.length} tracks',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
               ),
