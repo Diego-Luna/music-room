@@ -45,11 +45,10 @@ async function seedUsers(passwordHash: string) {
 		},
 	});
 
-	const diegoPasswordHash = await bcrypt.hash('Diego1@#', 12);
 	const diegoUser = await prisma.user.create({
 		data: {
 			email: 'diego@42.fr',
-			passwordHash: diegoPasswordHash,
+			passwordHash,
 			displayName: 'Diego Luna',
 			emailVerified: true,
 			subscriptionTier: 'PREMIUM',
