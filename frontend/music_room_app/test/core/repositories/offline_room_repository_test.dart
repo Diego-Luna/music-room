@@ -111,7 +111,7 @@ void main() {
     },
   );
 
-  DioException _httpError(int statusCode) {
+  DioException httpError(int statusCode) {
     final options = RequestOptions(path: '/rooms');
     return DioException(
       requestOptions: options,
@@ -143,7 +143,7 @@ void main() {
   test('a 429 from the server is not replaced by the cache', () async {
     when(
       () => mockRemote.getRooms(kind: any(named: 'kind')),
-    ).thenThrow(_httpError(429));
+    ).thenThrow(httpError(429));
 
     await expectLater(repo.getRooms(), throwsA(isA<DioException>()));
     verifyNever(() => mockCache.getRooms());
@@ -152,7 +152,7 @@ void main() {
   test(
     'deleting a room the server already removed drops the local copy',
     () async {
-      when(() => mockRemote.deleteRoom('r1')).thenThrow(_httpError(404));
+      when(() => mockRemote.deleteRoom('r1')).thenThrow(httpError(404));
       when(() => mockCache.deleteRoom('r1')).thenAnswer((_) async {});
 
       await repo.deleteRoom('r1');

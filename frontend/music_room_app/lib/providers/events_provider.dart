@@ -104,9 +104,10 @@ class EventsProvider extends ChangeNotifier {
       if (generation != _fetchGeneration) return;
       _error = e.toString();
     } finally {
-      if (generation != _fetchGeneration) return;
-      _isLoading = false;
-      notifyListeners();
+      if (generation == _fetchGeneration) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
