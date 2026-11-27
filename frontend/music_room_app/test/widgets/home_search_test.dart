@@ -149,8 +149,10 @@ void main() {
       mockPlayer = MockPlayerProvider();
 
       when(() => mockPlaylists.playlists).thenReturn([]);
+      when(() => mockPlaylists.isLoading).thenReturn(false);
       when(() => mockPlaylists.fetchPlaylists()).thenAnswer((_) async {});
       when(() => mockEvents.events).thenReturn([]);
+      when(() => mockEvents.isLoading).thenReturn(false);
       when(() => mockEvents.fetchEvents()).thenAnswer((_) async {});
     });
 
