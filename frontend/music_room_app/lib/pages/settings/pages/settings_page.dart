@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/pages/settings/widgets/active_sessions_section.dart';
 import 'package:music_room_app/pages/settings/widgets/appearance_section.dart';
 import 'package:music_room_app/widgets/backend_url_section.dart';
+import 'package:music_room_app/widgets/google_sign_in_button.dart';
 import 'package:music_room_app/widgets/vote_location_section.dart';
 import 'package:music_room_app/core/theme/app_theme.dart';
 import 'package:music_room_app/core/animations/neumorphic_interactive_container.dart';
@@ -25,12 +27,32 @@ class SettingsPage extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final ok = await auth.linkSocial(provider);
     if (!context.mounted) return;
+    _showLinkFeedback(messenger, provider, ok, auth.error);
+  }
+
+  Future<void> _linkGoogleWithToken(BuildContext context, String token) async {
+    final auth = context.read<AuthProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await auth.linkSocialWithToken(
+      SocialProvider.google.apiValue,
+      token,
+    );
+    if (!context.mounted) return;
+    _showLinkFeedback(messenger, SocialProvider.google, ok, auth.error);
+  }
+
+  void _showLinkFeedback(
+    ScaffoldMessengerState messenger,
+    SocialProvider provider,
+    bool ok,
+    String? error,
+  ) {
     messenger.showSnackBar(
       SnackBar(
         content: Text(
           ok
               ? '${provider.label} account linked.'
-              : (auth.error ?? 'Could not link ${provider.label}.'),
+              : (error ?? 'Could not link ${provider.label}.'),
         ),
         backgroundColor: ok ? Colors.green : Colors.redAccent,
       ),
@@ -110,28 +132,47 @@ class SettingsPage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: AppDimens.md),
-              NeumorphicInteractiveContainer(
-                onTap: () => _linkAccount(context, SocialProvider.google),
-                padding: const EdgeInsets.all(AppDimens.md),
-                child: Row(
+              if (kIsWeb)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(Icons.g_mobiledata, size: 30),
-                    const SizedBox(width: AppDimens.md),
-                    Expanded(
-                      child: Text(
-                        'Link Google account',
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: AppTypography.bold,
-                        ),
+                    Text(
+                      'Link Google account',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: AppTypography.semibold,
                       ),
                     ),
-                    Icon(
-                      Icons.chevron_right,
-                      color: theme.colorScheme.onSurface,
+                    const SizedBox(height: AppDimens.sm),
+                    GoogleSignInButton(
+                      continueLabel: true,
+                      onTokenReceived: (token) =>
+                          _linkGoogleWithToken(context, token),
                     ),
                   ],
+                )
+              else
+                NeumorphicInteractiveContainer(
+                  onTap: () => _linkAccount(context, SocialProvider.google),
+                  padding: const EdgeInsets.all(AppDimens.md),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.g_mobiledata, size: 30),
+                      const SizedBox(width: AppDimens.md),
+                      Expanded(
+                        child: Text(
+                          'Link Google account',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: AppTypography.bold,
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
               const SizedBox(height: AppDimens.md),
               NeumorphicInteractiveContainer(
                 onTap: () => _linkAccount(context, SocialProvider.facebook),

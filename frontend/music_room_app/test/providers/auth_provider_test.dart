@@ -246,6 +246,55 @@ void main() {
       ).called(1);
     });
 
+    test(
+      'linkSocialWithToken posts pre-fetched token to link endpoint',
+      () async {
+        when(
+          () => mockApiClient.post(any(), data: any(named: 'data')),
+        ).thenAnswer(
+          (_) async => Response(
+            requestOptions: RequestOptions(path: ''),
+            statusCode: 200,
+          ),
+        );
+
+        final ok = await authProvider.linkSocialWithToken(
+          'google',
+          'web-id-token',
+        );
+
+        expect(ok, true);
+        expect(authProvider.error, null);
+        verify(
+          () => mockApiClient.post(
+            ApiConfig.linkSocial,
+            data: {'provider': 'google', 'accessToken': 'web-id-token'},
+          ),
+        ).called(1);
+      },
+    );
+
+    test('linkSocialWithToken sets error on DioException', () async {
+      when(() => mockApiClient.post(any(), data: any(named: 'data'))).thenThrow(
+        DioException(
+          requestOptions: RequestOptions(path: ''),
+          response: Response(
+            requestOptions: RequestOptions(path: ''),
+            data: {'message': 'Google account already linked'},
+            statusCode: 409,
+          ),
+        ),
+      );
+
+      final ok = await authProvider.linkSocialWithToken(
+        'google',
+        'web-id-token',
+      );
+
+      expect(ok, false);
+      expect(authProvider.error, 'Google account already linked');
+    });
+
     test('register does not require token values on success', () async {
       final response = Response(
         requestOptions: RequestOptions(path: ''),

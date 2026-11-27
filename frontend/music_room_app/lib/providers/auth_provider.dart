@@ -213,12 +213,7 @@ class AuthProvider extends ChangeNotifier {
         return false; // cancelled
       }
 
-      await _apiClient.post(
-        ApiConfig.linkSocial,
-        data: {'provider': provider.apiValue, 'accessToken': providerToken},
-      );
-      notifyListeners();
-      return true;
+      return await _postLinkSocial(provider.apiValue, providerToken);
     } on DioException catch (e) {
       _error =
           e.response?.data['message']?.toString() ?? 'Linking account failed';
@@ -229,6 +224,35 @@ class AuthProvider extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  /// Links an already-obtained OAuth [token] (used by Google Sign-In on Web,
+  /// where the token arrives from `renderButton()` instead of `authenticate()`).
+  Future<bool> linkSocialWithToken(String providerName, String token) async {
+    _setLoading(true);
+    _error = null;
+
+    try {
+      return await _postLinkSocial(providerName, token);
+    } on DioException catch (e) {
+      _error =
+          e.response?.data['message']?.toString() ?? 'Linking account failed';
+      return false;
+    } catch (e) {
+      _error = 'An unexpected error occurred';
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> _postLinkSocial(String providerName, String token) async {
+    await _apiClient.post(
+      ApiConfig.linkSocial,
+      data: {'provider': providerName, 'accessToken': token},
+    );
+    notifyListeners();
+    return true;
   }
 
   Future<void> register(

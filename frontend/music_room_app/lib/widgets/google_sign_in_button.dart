@@ -20,18 +20,23 @@ class GoogleSignInButton extends StatelessWidget {
   final VoidCallback? onPressed;
   final Future<void> Function(String accessToken) onTokenReceived;
   final TextStyle? labelStyle;
+  final bool continueLabel;
 
   const GoogleSignInButton({
     super.key,
     this.onPressed,
     required this.onTokenReceived,
     this.labelStyle,
+    this.continueLabel = false,
   });
 
   @override
   Widget build(BuildContext context) {
     if (kIsWeb) {
-      return _WebGoogleButton(onTokenReceived: onTokenReceived);
+      return _WebGoogleButton(
+        onTokenReceived: onTokenReceived,
+        continueLabel: continueLabel,
+      );
     }
     return _NativeGoogleButton(onPressed: onPressed, labelStyle: labelStyle);
   }
@@ -41,7 +46,11 @@ class GoogleSignInButton extends StatelessWidget {
 
 class _WebGoogleButton extends StatefulWidget {
   final Future<void> Function(String accessToken) onTokenReceived;
-  const _WebGoogleButton({required this.onTokenReceived});
+  final bool continueLabel;
+  const _WebGoogleButton({
+    required this.onTokenReceived,
+    this.continueLabel = false,
+  });
 
   @override
   State<_WebGoogleButton> createState() => _WebGoogleButtonState();
@@ -139,7 +148,7 @@ class _WebGoogleButtonState extends State<_WebGoogleButton> {
         boxShadow: tokens?.neumorphicShadow,
         border: Border.all(color: theme.scaffoldBackgroundColor, width: 0.5),
       ),
-      child: buildGoogleRenderButton(),
+      child: buildGoogleRenderButton(continueLabel: widget.continueLabel),
     );
   }
 }
