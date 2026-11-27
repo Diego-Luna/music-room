@@ -119,6 +119,27 @@ void main() {
     );
   }
 
+  test('a cache write failure still returns the network rooms', () async {
+    final room = Room(
+      id: 'r1',
+      name: 'From network',
+      ownerId: 'u1',
+      kind: RoomKind.playlist,
+      myRole: 'OWNER',
+    );
+    when(
+      () => mockRemote.getRooms(kind: any(named: 'kind')),
+    ).thenAnswer((_) async => [room]);
+    when(() => mockCache.getRoomById(any())).thenReturn(null);
+    when(() => mockCache.saveRooms(any())).thenThrow(Exception('hive closed'));
+
+    final result = await repo.getRooms(kind: RoomKind.playlist);
+
+    expect(result.single.name, 'From network');
+    expect(result.single.myRole, 'OWNER');
+    verifyNever(() => mockCache.deleteRoomsExcept(any()));
+  });
+
   test('a 429 from the server is not replaced by the cache', () async {
     when(
       () => mockRemote.getRooms(kind: any(named: 'kind')),
@@ -128,12 +149,15 @@ void main() {
     verifyNever(() => mockCache.getRooms());
   });
 
-  test('deleting a room the server already removed drops the local copy', () async {
-    when(() => mockRemote.deleteRoom('r1')).thenThrow(_httpError(404));
-    when(() => mockCache.deleteRoom('r1')).thenAnswer((_) async {});
+  test(
+    'deleting a room the server already removed drops the local copy',
+    () async {
+      when(() => mockRemote.deleteRoom('r1')).thenThrow(_httpError(404));
+      when(() => mockCache.deleteRoom('r1')).thenAnswer((_) async {});
 
-    await repo.deleteRoom('r1');
+      await repo.deleteRoom('r1');
 
-    verify(() => mockCache.deleteRoom('r1')).called(1);
-  });
+      verify(() => mockCache.deleteRoom('r1')).called(1);
+    },
+  );
 }

@@ -59,16 +59,23 @@ class OfflineRoomRepository implements RoomRepository {
     }
     try {
       final rooms = await _remote.getRooms(kind: kind);
-      // * Preserve previously cached track lists — GET /rooms returns metadata only.
-      final merged = rooms.map((room) {
-        if (room.tracks.isNotEmpty) return room;
-        final cached = _cache.getRoomById(room.id);
-        return cached != null ? room.copyWith(tracks: cached.tracks) : room;
-      }).toList();
-      // * GET /rooms is the full visible set. Drop rooms the server no longer
-      // * returns so a later offline read does not resurrect a deleted playlist.
-      await _cache.deleteRoomsExcept(rooms.map((room) => room.id).toSet());
-      await _cache.saveRooms(merged);
+      // * A cache write must not replace this network list. If saving throws,
+      // * the old fallback returned a stale cache and a playlist created
+      // * moments earlier vanished from every shelf.
+      try {
+        final merged = rooms.map((room) {
+          if (room.tracks.isNotEmpty) return room;
+          final cached = _cache.getRoomById(room.id);
+          return cached != null ? room.copyWith(tracks: cached.tracks) : room;
+        }).toList();
+        // * Only an unfiltered list is the full visible set. A kind-scoped
+        // * refresh must not delete the other kind, and a stale response
+        // * must not purge a room that was just created.
+        if (kind == null) {
+          await _cache.deleteRoomsExcept(rooms.map((room) => room.id).toSet());
+        }
+        await _cache.saveRooms(merged);
+      } catch (_) {}
       return rooms;
     } catch (error) {
       if (!_isOfflineError(error)) rethrow;

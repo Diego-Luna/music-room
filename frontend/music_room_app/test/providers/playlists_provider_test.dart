@@ -15,6 +15,7 @@ void main() {
 
   setUpAll(() {
     registerFallbackValue(FakeTrack());
+    registerFallbackValue(RoomKind.playlist);
   });
 
   setUp(() {
@@ -339,6 +340,68 @@ void main() {
 
       playlistsProvider.handleTrackRemoved('track-1');
       expect(playlistsProvider.playlists.first.tracks, isEmpty);
+    });
+
+    test(
+      'createPlaylist stays in the list when the refresh omits it',
+      () async {
+        when(
+          () => mockRepository.createRoom(
+            name: any(named: 'name'),
+            kind: RoomKind.playlist,
+            isPublic: any(named: 'isPublic'),
+            description: any(named: 'description'),
+            editAccess: any(named: 'editAccess'),
+          ),
+        ).thenAnswer(
+          (_) async => Room(
+            id: 'new-room',
+            name: 'Test',
+            ownerId: 'user-1',
+            kind: RoomKind.playlist,
+          ),
+        );
+        when(
+          () => mockRepository.getRooms(kind: RoomKind.playlist),
+        ).thenAnswer((_) async => []);
+
+        final created = await playlistsProvider.createPlaylist(
+          name: 'Test',
+          isPublic: true,
+          editAccess: 'EVERYONE',
+        );
+
+        expect(created.myRole, 'OWNER');
+        expect(playlistsProvider.playlists.map((room) => room.id), [
+          'new-room',
+        ]);
+        expect(playlistsProvider.playlists.single.myRole, 'OWNER');
+        final unstamped = Room(id: 'x', name: 'x', ownerId: 'user-1');
+        expect(unstamped.ownedBy('user-1'), isTrue);
+        expect(unstamped.ownedBy('someone-else'), isFalse);
+        expect(unstamped.joinedBy('user-1'), isFalse);
+      },
+    );
+
+    test('a track load failure still publishes the playlist', () async {
+      final room = Room(
+        id: 'room-pl-1',
+        name: 'My List',
+        ownerId: 'user-1',
+        myRole: 'OWNER',
+        kind: RoomKind.playlist,
+      );
+      when(
+        () => mockRepository.getRooms(kind: RoomKind.playlist),
+      ).thenAnswer((_) async => [room]);
+      when(
+        () => mockRepository.getPlaylistTracks(any()),
+      ).thenThrow(Exception('tracks down'));
+
+      await playlistsProvider.fetchPlaylists();
+
+      expect(playlistsProvider.playlists.single.id, 'room-pl-1');
+      expect(playlistsProvider.error, isNull);
     });
   });
 }

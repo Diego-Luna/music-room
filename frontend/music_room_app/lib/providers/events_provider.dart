@@ -80,8 +80,12 @@ class EventsProvider extends ChangeNotifier {
           .toList();
       final populatedRooms = await Future.wait(
         voteRooms.map((room) async {
-          final tracks = await _repository.getVoteTracks(room.id);
-          return room.copyWith(tracks: tracks);
+          try {
+            final tracks = await _repository.getVoteTracks(room.id);
+            return room.copyWith(tracks: tracks);
+          } catch (_) {
+            return room;
+          }
         }),
       );
       if (generation != _fetchGeneration) return;
@@ -105,6 +109,9 @@ class EventsProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Room _asOwner(Room room) =>
+      room.myRole == 'OWNER' ? room : room.copyWith(myRole: 'OWNER');
 
   // * value 1 = vote for the track, 0 = clear that vote.
   // * V.2.1: attach lat/lng from LocationConfig (Settings) for geo-gated rooms.
@@ -259,28 +266,33 @@ class EventsProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final room = await _repository.createRoom(
-        name: name,
-        kind: RoomKind.vote,
-        isPublic: isPublic,
-        description: description,
-        voteAccess: voteAccess,
-        voteWindow: voteWindow,
-        voteStartsAt: voteStartsAt,
-        voteEndsAt: voteEndsAt,
-        voteLocationLat: voteLocationLat,
-        voteLocationLng: voteLocationLng,
-        voteLocationRadiusM: voteLocationRadiusM,
+      final created = _asOwner(
+        await _repository.createRoom(
+          name: name,
+          kind: RoomKind.vote,
+          isPublic: isPublic,
+          description: description,
+          voteAccess: voteAccess,
+          voteWindow: voteWindow,
+          voteStartsAt: voteStartsAt,
+          voteEndsAt: voteEndsAt,
+          voteLocationLat: voteLocationLat,
+          voteLocationLng: voteLocationLng,
+          voteLocationRadiusM: voteLocationRadiusM,
+        ),
       );
-      _events = [room, ..._events.where((event) => event.id != room.id)];
-      _selectedEvent = room;
+      _events = [created, ..._events.where((event) => event.id != created.id)];
+      _selectedEvent = created;
       notifyListeners();
       await fetchEvents(force: true);
-      final idx = _events.indexWhere((e) => e.id == room.id);
+      final idx = _events.indexWhere((e) => e.id == created.id);
       if (idx != -1) {
         _selectedEvent = _events[idx];
+      } else {
+        _events = [created, ..._events];
+        _selectedEvent = created;
       }
-      return room;
+      return created;
     } catch (e) {
       _error = e.toString();
       rethrow;

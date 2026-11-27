@@ -8,6 +8,7 @@ import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
+import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/pages/playlists/widgets/create_playlist_dialog.dart';
 import 'package:music_room_app/widgets/neumorphic_search_bar.dart';
@@ -30,21 +31,28 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
   String _searchQuery = '';
   _PlaylistShelf _shelf = _PlaylistShelf.yours;
 
-  bool _onShelf(Room playlist) {
-    switch (_shelf) {
-      case _PlaylistShelf.yours:
-        return playlist.myRole == 'OWNER';
-      case _PlaylistShelf.joined:
-        return playlist.myRole == 'MEMBER' || playlist.myRole == 'ADMIN';
-      case _PlaylistShelf.discover:
-        return playlist.myRole == null;
+  String? _currentUserId(BuildContext context) {
+    try {
+      return context.watch<AuthProvider>().user?.id;
+    } on ProviderNotFoundException {
+      return null;
     }
   }
 
-  String _relationLabel(Room playlist) {
+  bool _onShelf(Room playlist, String? userId) {
+    switch (_shelf) {
+      case _PlaylistShelf.yours:
+        return playlist.ownedBy(userId);
+      case _PlaylistShelf.joined:
+        return playlist.joinedBy(userId);
+      case _PlaylistShelf.discover:
+        return !playlist.ownedBy(userId) && playlist.myRole == null;
+    }
+  }
+
+  String _relationLabel(Room playlist, String? userId) {
+    if (playlist.ownedBy(userId)) return 'Yours';
     switch (playlist.myRole) {
-      case 'OWNER':
-        return 'Yours';
       case 'ADMIN':
       case 'MEMBER':
         return 'Member';
@@ -236,10 +244,11 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
   @override
   Widget build(BuildContext context) {
     final playlistsProvider = context.watch<PlaylistsProvider>();
+    final userId = _currentUserId(context);
     final isPremium = SubscriptionProvider.isPremiumOf(context);
     final isEmpty = playlistsProvider.playlists.isEmpty;
     final filteredPlaylists = playlistsProvider.playlists.where((playlist) {
-      if (!_onShelf(playlist)) return false;
+      if (!_onShelf(playlist, userId)) return false;
       final nameMatch = playlist.name.toLowerCase().contains(
         _searchQuery.toLowerCase(),
       );
@@ -261,89 +270,100 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
           // 3D Background entities (Floating tape/guitar, etc.)
           const Opacity(opacity: 0.4, child: BackgroundFloaters(noteTop: 8)),
 
-          if (playlistsProvider.isLoading)
+          if (playlistsProvider.isLoading && isEmpty)
             const Center(child: CircularProgressIndicator())
           else
             Column(
               children: [
                 _buildPinnedHeader(context, isPremium: isPremium),
                 Expanded(
-                  child: CustomScrollView(
-                    slivers: [
-                      if (isEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _buildEmptyState(
-                            context,
-                            isPremium: isPremium,
-                          ),
-                        )
-                      else if (isSearchEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _buildSearchEmptyState(context),
-                        )
-                      else if (isShelfEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _buildShelfEmptyState(context),
-                        )
-                      else
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            if (index >= filteredPlaylists.length) {
-                              return null;
-                            }
-                            final playlist = filteredPlaylists[index];
-
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppDimens.lg,
-                                vertical: AppDimens.sm / 2,
+                  child: Stack(
+                    children: [
+                      CustomScrollView(
+                        slivers: [
+                          if (isEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _buildEmptyState(
+                                context,
+                                isPremium: isPremium,
                               ),
-                              child: StaggeredList(
-                                index: index,
-                                child: PlaceholderCard(
-                                  title: playlist.name,
-                                  subtitle:
-                                      '${_relationLabel(playlist)} • ${playlist.tracks.length} songs',
-                                  leading: Hero(
-                                    tag: 'playlist_cover_${playlist.id}',
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.surface,
-                                        borderRadius: BorderRadius.circular(
-                                          AppDimens.radiusMedium,
+                            )
+                          else if (isSearchEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _buildSearchEmptyState(context),
+                            )
+                          else if (isShelfEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _buildShelfEmptyState(context),
+                            )
+                          else
+                            SliverList(
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                if (index >= filteredPlaylists.length) {
+                                  return null;
+                                }
+                                final playlist = filteredPlaylists[index];
+
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppDimens.lg,
+                                    vertical: AppDimens.sm / 2,
+                                  ),
+                                  child: StaggeredList(
+                                    index: index,
+                                    child: PlaceholderCard(
+                                      title: playlist.name,
+                                      subtitle:
+                                          '${_relationLabel(playlist, userId)} • ${playlist.tracks.length} songs',
+                                      leading: Hero(
+                                        tag: 'playlist_cover_${playlist.id}',
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.surface,
+                                            borderRadius: BorderRadius.circular(
+                                              AppDimens.radiusMedium,
+                                            ),
+                                            boxShadow: Theme.of(context)
+                                                .extension<AppDesignTokens>()
+                                                ?.neumorphicPressedShadow,
+                                          ),
+                                          child: Icon(
+                                            Icons.playlist_play,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                          ),
                                         ),
-                                        boxShadow: Theme.of(context)
-                                            .extension<AppDesignTokens>()
-                                            ?.neumorphicPressedShadow,
                                       ),
-                                      child: Icon(
-                                        Icons.playlist_play,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
+                                      onTap: () => context.go(
+                                        '$routePlaylists/$routePlaylistDetail',
+                                        extra: {'playlist': playlist},
                                       ),
                                     ),
                                   ),
-                                  onTap: () => context.go(
-                                    '$routePlaylists/$routePlaylistDetail',
-                                    extra: {'playlist': playlist},
-                                  ),
-                                ),
-                              ),
-                            );
-                          }, childCount: filteredPlaylists.length),
-                        ),
-                      if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: AppDimens.xxl * 3),
+                                );
+                              }, childCount: filteredPlaylists.length),
+                            ),
+                          if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: AppDimens.xxl * 3),
+                            ),
+                        ],
+                      ),
+                      if (playlistsProvider.isLoading)
+                        const Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: LinearProgressIndicator(minHeight: 2),
                         ),
                     ],
                   ),

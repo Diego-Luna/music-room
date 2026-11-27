@@ -11,6 +11,7 @@ import 'package:music_room_app/widgets/placeholder_card.dart';
 import 'package:music_room_app/widgets/interactive_3d/floating_music_entities.dart';
 import 'package:music_room_app/widgets/neumorphic_icon_button.dart';
 import 'package:music_room_app/widgets/primary_button.dart';
+import 'package:music_room_app/providers/auth_provider.dart';
 import 'package:music_room_app/providers/events_provider.dart';
 import 'package:music_room_app/pages/events/widgets/create_event_dialog.dart';
 import 'package:music_room_app/widgets/neumorphic_search_bar.dart';
@@ -32,21 +33,28 @@ class _EventsPageState extends State<EventsPage> {
   String _searchQuery = '';
   _EventShelf _shelf = _EventShelf.yours;
 
-  bool _onShelf(Room event) {
-    switch (_shelf) {
-      case _EventShelf.yours:
-        return event.myRole == 'OWNER';
-      case _EventShelf.joined:
-        return event.myRole == 'MEMBER' || event.myRole == 'ADMIN';
-      case _EventShelf.discover:
-        return event.myRole == null;
+  String? _currentUserId(BuildContext context) {
+    try {
+      return context.watch<AuthProvider>().user?.id;
+    } on ProviderNotFoundException {
+      return null;
     }
   }
 
-  String _relationLabel(Room event) {
+  bool _onShelf(Room event, String? userId) {
+    switch (_shelf) {
+      case _EventShelf.yours:
+        return event.ownedBy(userId);
+      case _EventShelf.joined:
+        return event.joinedBy(userId);
+      case _EventShelf.discover:
+        return !event.ownedBy(userId) && event.myRole == null;
+    }
+  }
+
+  String _relationLabel(Room event, String? userId) {
+    if (event.ownedBy(userId)) return 'Yours';
     switch (event.myRole) {
-      case 'OWNER':
-        return 'Yours';
       case 'ADMIN':
       case 'MEMBER':
         return 'Member';
@@ -278,9 +286,10 @@ class _EventsPageState extends State<EventsPage> {
   @override
   Widget build(BuildContext context) {
     final eventsProvider = context.watch<EventsProvider>();
+    final userId = _currentUserId(context);
     final isEmpty = eventsProvider.events.isEmpty;
     final filteredEvents = eventsProvider.events.where((event) {
-      if (!_onShelf(event)) return false;
+      if (!_onShelf(event, userId)) return false;
       final nameMatch = event.name.toLowerCase().contains(
         _searchQuery.toLowerCase(),
       );
@@ -301,84 +310,95 @@ class _EventsPageState extends State<EventsPage> {
         children: [
           const Opacity(opacity: 0.4, child: BackgroundFloaters(noteTop: 8)),
 
-          if (eventsProvider.isLoading)
+          if (eventsProvider.isLoading && isEmpty)
             const Center(child: CircularProgressIndicator())
           else
             Column(
               children: [
                 _buildPinnedHeader(context),
                 Expanded(
-                  child: CustomScrollView(
-                    slivers: [
-                      if (isEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _buildEmptyState(context),
-                        )
-                      else if (isSearchEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _buildSearchEmptyState(context),
-                        )
-                      else if (isShelfEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: _buildShelfEmptyState(context),
-                        )
-                      else
-                        SliverList(
-                          delegate: SliverChildBuilderDelegate((
-                            context,
-                            index,
-                          ) {
-                            if (index >= filteredEvents.length) return null;
-                            final event = filteredEvents[index];
+                  child: Stack(
+                    children: [
+                      CustomScrollView(
+                        slivers: [
+                          if (isEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _buildEmptyState(context),
+                            )
+                          else if (isSearchEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _buildSearchEmptyState(context),
+                            )
+                          else if (isShelfEmpty)
+                            SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: _buildShelfEmptyState(context),
+                            )
+                          else
+                            SliverList(
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                if (index >= filteredEvents.length) return null;
+                                final event = filteredEvents[index];
 
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppDimens.lg,
-                                vertical: AppDimens.sm / 2,
-                              ),
-                              child: StaggeredList(
-                                index: index,
-                                child: PlaceholderCard(
-                                  title: event.name,
-                                  subtitle: event.isGeoGated
-                                      ? '${_relationLabel(event)} • geo • ${event.tracks.length} tracks'
-                                      : '${_relationLabel(event)} • ${event.tracks.length} tracks',
-                                  leading: Hero(
-                                    tag: 'event_cover_${event.id}',
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.surface,
-                                        borderRadius: BorderRadius.circular(
-                                          AppDimens.radiusMedium,
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppDimens.lg,
+                                    vertical: AppDimens.sm / 2,
+                                  ),
+                                  child: StaggeredList(
+                                    index: index,
+                                    child: PlaceholderCard(
+                                      title: event.name,
+                                      subtitle: event.isGeoGated
+                                          ? '${_relationLabel(event, userId)} • geo • ${event.tracks.length} tracks'
+                                          : '${_relationLabel(event, userId)} • ${event.tracks.length} tracks',
+                                      leading: Hero(
+                                        tag: 'event_cover_${event.id}',
+                                        child: Container(
+                                          decoration: BoxDecoration(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.surface,
+                                            borderRadius: BorderRadius.circular(
+                                              AppDimens.radiusMedium,
+                                            ),
+                                            boxShadow: Theme.of(context)
+                                                .extension<AppDesignTokens>()
+                                                ?.neumorphicPressedShadow,
+                                          ),
+                                          child: Icon(
+                                            event.isGeoGated
+                                                ? Icons.location_on
+                                                : Icons.how_to_vote,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.primary,
+                                          ),
                                         ),
-                                        boxShadow: Theme.of(context)
-                                            .extension<AppDesignTokens>()
-                                            ?.neumorphicPressedShadow,
                                       ),
-                                      child: Icon(
-                                        event.isGeoGated
-                                            ? Icons.location_on
-                                            : Icons.how_to_vote,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.primary,
-                                      ),
+                                      onTap: () => _openEvent(event),
                                     ),
                                   ),
-                                  onTap: () => _openEvent(event),
-                                ),
-                              ),
-                            );
-                          }, childCount: filteredEvents.length),
-                        ),
-                      if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
-                        const SliverToBoxAdapter(
-                          child: SizedBox(height: AppDimens.xxl * 3),
+                                );
+                              }, childCount: filteredEvents.length),
+                            ),
+                          if (!isEmpty && !isSearchEmpty && !isShelfEmpty)
+                            const SliverToBoxAdapter(
+                              child: SizedBox(height: AppDimens.xxl * 3),
+                            ),
+                        ],
+                      ),
+                      if (eventsProvider.isLoading)
+                        const Positioned(
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          child: LinearProgressIndicator(minHeight: 2),
                         ),
                     ],
                   ),

@@ -194,6 +194,11 @@ class _HomePageState extends State<HomePage> {
       ...eventsProvider.events.expand((r) => r.tracks),
     }.toList();
 
+    final waiting =
+        mixes.isEmpty &&
+        recentEvents.isEmpty &&
+        (playlistsProvider.isLoading || eventsProvider.isLoading);
+
     return FadeIn(
       duration: const Duration(milliseconds: 600),
       child: SlideIn(
@@ -202,6 +207,11 @@ class _HomePageState extends State<HomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: AppDimens.lg),
+            if (waiting)
+              const Padding(
+                padding: EdgeInsets.only(top: AppDimens.xxl),
+                child: Center(child: CircularProgressIndicator()),
+              ),
             if (allTracks.isNotEmpty) _buildTopSongs(context, allTracks),
             if (mixes.isNotEmpty) _buildPlaylists(context, mixes),
             if (recentEvents.isNotEmpty)

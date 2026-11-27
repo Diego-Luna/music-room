@@ -19,12 +19,25 @@ class ResponsiveBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.topCenter,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: maxWidth),
-        child: SizedBox(width: double.infinity, child: child),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // * Fill the shell when the parent gives a height. Inside a scroll
+        // * view the height is unbounded and the child keeps its own size.
+        final height = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : null;
+        return Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: SizedBox(
+              width: double.infinity,
+              height: height,
+              child: child,
+            ),
+          ),
+        );
+      },
     );
   }
 }

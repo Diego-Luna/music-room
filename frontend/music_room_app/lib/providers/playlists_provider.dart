@@ -51,8 +51,12 @@ class PlaylistsProvider extends ChangeNotifier {
           .toList();
       final populatedRooms = await Future.wait(
         playlistRooms.map((playlistRoom) async {
-          final tracks = await _repository.getPlaylistTracks(playlistRoom.id);
-          return playlistRoom.copyWith(tracks: tracks);
+          try {
+            final tracks = await _repository.getPlaylistTracks(playlistRoom.id);
+            return playlistRoom.copyWith(tracks: tracks);
+          } catch (_) {
+            return playlistRoom;
+          }
         }),
       );
       if (generation != _fetchGeneration) return;
@@ -79,20 +83,25 @@ class PlaylistsProvider extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final room = await _repository.createRoom(
-        name: name,
-        kind: RoomKind.playlist,
-        isPublic: isPublic,
-        description: description,
-        editAccess: editAccess,
+      final created = _asOwner(
+        await _repository.createRoom(
+          name: name,
+          kind: RoomKind.playlist,
+          isPublic: isPublic,
+          description: description,
+          editAccess: editAccess,
+        ),
       );
       _playlists = [
-        room,
-        ..._playlists.where((playlist) => playlist.id != room.id),
+        created,
+        ..._playlists.where((playlist) => playlist.id != created.id),
       ];
       notifyListeners();
       await fetchPlaylists(force: true);
-      return room;
+      if (!_playlists.any((playlist) => playlist.id == created.id)) {
+        _playlists = [created, ..._playlists];
+      }
+      return created;
     } catch (e) {
       _error = e.toString();
       rethrow;
@@ -101,6 +110,11 @@ class PlaylistsProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  // * The running API's create payload has no myRole. Without this stamp the
+  // * new room matches no shelf until a later list refresh replaces it.
+  Room _asOwner(Room room) =>
+      room.myRole == 'OWNER' ? room : room.copyWith(myRole: 'OWNER');
 
   // * Invite a friend to a (private) playlist — POST /rooms/:id/invitations.
   // * Throws on failure so the dialog can surface the backend message.

@@ -76,6 +76,16 @@ class Room {
       voteLocationLng != null &&
       voteLocationRadiusM != null;
 
+  // * Yours when the server says so, or when this account owns the room.
+  // * Create responses and GET /rooms/:id omit myRole, which otherwise
+  // * dumped a room the user just made into Discover (or nowhere).
+  bool ownedBy(String? userId) =>
+      myRole == 'OWNER' ||
+      (userId != null && userId.isNotEmpty && ownerId == userId);
+
+  bool joinedBy(String? userId) =>
+      !ownedBy(userId) && (myRole == 'MEMBER' || myRole == 'ADMIN');
+
   factory Room.fromJson(Map<String, dynamic> json) {
     return Room(
       id: json['id'] as String,
@@ -141,6 +151,7 @@ class Room {
     double? voteLocationLng,
     double? voteLocationRadiusM,
     List<Track>? tracks,
+    Object? myRole = _keep,
     Object? currentTrackId = _keep,
     Object? currentTrackStartedAt = _keep,
     Object? playbackPausedAt = _keep,
@@ -149,7 +160,7 @@ class Room {
       id: id,
       name: name ?? this.name,
       ownerId: ownerId,
-      myRole: myRole,
+      myRole: identical(myRole, _keep) ? this.myRole : myRole as String?,
       kind: kind ?? this.kind,
       isPublic: isPublic ?? this.isPublic,
       description: description ?? this.description,
