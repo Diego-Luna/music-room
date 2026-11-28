@@ -6,6 +6,8 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { isUniqueViolation } from '../prisma/prisma-errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
 import { AddTrackDto, VoteTrackDto } from './dto/track.dto';
@@ -99,19 +101,27 @@ export class TracksService {
       return track;
     }
 
-    const track = await this.prisma.track.create({
-      data: {
-        roomId,
-        provider,
-        providerId: dto.providerId,
-        title: dto.title,
-        artist: dto.artist,
-        durationMs: dto.durationMs,
-        artworkUrl: dto.artworkUrl ?? null,
-        previewUrl: dto.previewUrl ?? null,
-        addedById: userId,
-      },
-    });
+    let track;
+    try {
+      track = await this.prisma.track.create({
+        data: {
+          roomId,
+          provider,
+          providerId: dto.providerId,
+          title: dto.title,
+          artist: dto.artist,
+          durationMs: dto.durationMs,
+          artworkUrl: dto.artworkUrl ?? null,
+          previewUrl: dto.previewUrl ?? null,
+          addedById: userId,
+        },
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('Track already in the queue');
+      }
+      throw error;
+    }
     this.realtime?.emitToRoom(roomId, 'track:added', track);
     // A VOTE room has no DJ: if it was idle, the track we just added
     // starts now instead of waiting for the next progression tick.
@@ -154,14 +164,37 @@ export class TracksService {
       );
     }
 
-    // ! Lock the track, then read the previous vote and update the score in
-    //   the same transaction. A second vote from this user waits, sees the
-    //   row already written, and applies a zero delta instead of a 500.
     const updated = await this.prisma.$transaction(async (tx) => {
-      const locked = await tx.$queryRaw<Array<{ playedAt: Date | null }>>`
-        SELECT "playedAt" FROM "Track" WHERE "id" = ${trackId} FOR UPDATE
+      // ! One request per voter and room at a time. Two votes sent together
+      //   by the same user would otherwise each miss the other's uncommitted
+      //   row and both count.
+      await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtext(${roomId}), hashtext(${userId}))
       `;
-      const lockedTrack = locked[0];
+
+      // One vote per person. Choosing another track moves the vote.
+      const others =
+        dto.value === 1
+          ? await tx.trackVote.findMany({
+              where: { roomId, userId, NOT: { trackId } },
+            })
+          : [];
+      const releasing = others.filter((other) => other.value);
+
+      // ! Lock every track this vote touches in id order, so two voters
+      //   moving their votes in opposite directions wait instead of deadlock.
+      const lockIds = [
+        ...new Set([trackId, ...releasing.map((other) => other.trackId)]),
+      ].sort();
+      const locked = await tx.$queryRaw<
+        Array<{ id: string; playedAt: Date | null }>
+      >`
+        SELECT "id", "playedAt" FROM "Track"
+        WHERE "id" IN (${Prisma.join(lockIds)})
+        ORDER BY "id"
+        FOR UPDATE
+      `;
+      const lockedTrack = locked.find((row) => row.id === trackId);
       if (!lockedTrack) {
         throw new NotFoundException('Track not found');
       }
@@ -178,35 +211,21 @@ export class TracksService {
         );
       }
 
-      // One vote per person. Choosing another track moves the vote.
       const released: Array<{ trackId: string; score: number }> = [];
-      if (dto.value === 1) {
-        const others = await tx.trackVote.findMany({
-          where: { roomId, userId, NOT: { trackId } },
-        });
-        for (const other of others) {
-          if (!other.value) continue;
-          await tx.$queryRaw`
-            SELECT "id" FROM "Track" WHERE "id" = ${other.trackId} FOR UPDATE
-          `;
-          const stillPlaying = await tx.room.findUnique({
-            where: { id: roomId },
-            select: { currentTrackId: true },
-          });
-          if (stillPlaying?.currentTrackId === other.trackId) {
-            throw new BadRequestException(
-              'Your vote stays on the track that is already playing',
-            );
-          }
-          await tx.trackVote.delete({
-            where: { trackId_userId: { trackId: other.trackId, userId } },
-          });
-          const cleared = await tx.track.update({
-            where: { id: other.trackId },
-            data: { score: { increment: -other.value } },
-          });
-          released.push({ trackId: other.trackId, score: cleared.score });
+      for (const other of releasing) {
+        if (playing?.currentTrackId === other.trackId) {
+          throw new BadRequestException(
+            'Your vote stays on the track that is already playing',
+          );
         }
+        await tx.trackVote.delete({
+          where: { trackId_userId: { trackId: other.trackId, userId } },
+        });
+        const cleared = await tx.track.update({
+          where: { id: other.trackId },
+          data: { score: { increment: -other.value } },
+        });
+        released.push({ trackId: other.trackId, score: cleared.score });
       }
 
       const previous = await tx.trackVote.findUnique({

@@ -35,6 +35,7 @@ describe('TracksService', () => {
     };
     $transaction: Fn;
     $queryRaw: Fn;
+    $executeRaw: Fn;
   };
   let realtime: { emitToRoom: Fn; emitToUser: Fn };
   let queue: { startIdle: Fn };
@@ -78,7 +79,8 @@ describe('TracksService', () => {
           ? (cb as (p: unknown) => Promise<unknown>)(prisma)
           : cb,
       ),
-      $queryRaw: vi.fn().mockResolvedValue([{ playedAt: null }]),
+      $queryRaw: vi.fn().mockResolvedValue([{ id: 't1', playedAt: null }]),
+      $executeRaw: vi.fn().mockResolvedValue(1),
     };
     realtime = { emitToRoom: vi.fn(), emitToUser: vi.fn() };
     queue = { startIdle: vi.fn() };
@@ -304,6 +306,23 @@ describe('TracksService', () => {
     });
   });
 
+  describe('addTrack concurrency', () => {
+    it('turns two simultaneous suggestions of one track into 409, not 500', async () => {
+      prisma.room.findUnique.mockResolvedValue(baseRoom);
+      prisma.track.findUnique.mockResolvedValue(null);
+      prisma.track.create.mockRejectedValue({ code: 'P2002' });
+
+      await expect(
+        service.addTrack('r1', 'u1', {
+          providerId: 'p1',
+          title: 'Song',
+          artist: 'Artist',
+          durationMs: 200_000,
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
   describe('vote', () => {
     beforeEach(() => {
       prisma.room.findUnique.mockResolvedValue(baseRoom);
@@ -313,7 +332,7 @@ describe('TracksService', () => {
     });
 
     it('rejects a track marked played under the row lock', async () => {
-      prisma.$queryRaw.mockResolvedValue([{ playedAt: new Date() }]);
+      prisma.$queryRaw.mockResolvedValue([{ id: 't1', playedAt: new Date() }]);
 
       await expect(service.vote('r1', 't1', 'u1', { value: 1 })).rejects.toThrow(
         BadRequestException,
