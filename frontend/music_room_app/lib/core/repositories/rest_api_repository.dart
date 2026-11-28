@@ -55,8 +55,9 @@ class RestApiRepository implements RoomRepository {
         'voteAccess': ?voteAccess,
         'voteWindow': ?voteWindow,
         if (voteStartsAt != null)
-          'voteStartsAt': voteStartsAt.toIso8601String(),
-        if (voteEndsAt != null) 'voteEndsAt': voteEndsAt.toIso8601String(),
+          'voteStartsAt': voteStartsAt.toUtc().toIso8601String(),
+        if (voteEndsAt != null)
+          'voteEndsAt': voteEndsAt.toUtc().toIso8601String(),
         'voteLocationLat': ?voteLocationLat,
         'voteLocationLng': ?voteLocationLng,
         'voteLocationRadiusM': ?voteLocationRadiusM?.round(),
