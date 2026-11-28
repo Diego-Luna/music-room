@@ -12,8 +12,14 @@ import 'package:music_room_app/providers/events_provider.dart';
 class ProximityHost extends StatefulWidget {
   final Widget child;
   final EventsProvider events;
+  final GlobalKey<NavigatorState>? navigatorKey;
 
-  const ProximityHost({super.key, required this.events, required this.child});
+  const ProximityHost({
+    super.key,
+    required this.events,
+    required this.child,
+    this.navigatorKey,
+  });
 
   @override
   State<ProximityHost> createState() => _ProximityHostState();
@@ -36,7 +42,7 @@ class _ProximityHostState extends State<ProximityHost> {
   }
 
   void _announce(NearbyEvent hit) {
-    final ctx = rootScaffoldMessengerKey.currentContext;
+    final ctx = (widget.navigatorKey ?? rootNavigatorKey).currentContext;
     if (ctx == null || !ctx.mounted) return;
 
     ProximityApproachSheet.show(
@@ -44,10 +50,7 @@ class _ProximityHostState extends State<ProximityHost> {
       nearby: hit,
       onOpen: () {
         widget.events.selectEvent(hit.room);
-        AppRouter.router.go(
-          eventPath(hit.room.id),
-          extra: {'event': hit.room},
-        );
+        AppRouter.router.go(eventPath(hit.room.id), extra: {'event': hit.room});
       },
     );
   }

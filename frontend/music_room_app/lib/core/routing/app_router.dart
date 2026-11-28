@@ -11,6 +11,7 @@ import 'package:music_room_app/providers/friends_provider.dart';
 import 'package:music_room_app/providers/notifications_provider.dart';
 import 'package:music_room_app/config/offline_cache.dart';
 import 'package:music_room_app/config/token_storage.dart';
+import 'package:music_room_app/core/globals.dart';
 import 'package:music_room_app/core/repositories/offline_room_repository.dart';
 import 'package:music_room_app/core/services/connectivity_sync_manager.dart';
 import 'package:music_room_app/core/repositories/device_repository.dart';
@@ -246,6 +247,7 @@ CustomTransitionPage<void> _buildPageWithTransition({
 
 class AppRouter {
   static final GoRouter router = GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: routeStart,
     debugLogDiagnostics: true,
     errorBuilder: (context, state) => const NotFoundPage(),
