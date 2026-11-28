@@ -14,8 +14,9 @@ export interface SubscriptionPlan {
   features: string[];
 }
 
-// VI.3 — the two offers, established beforehand. The Music Playlist Editor
-// (creating playlist rooms) is the premium-only functionality.
+// VI.3 — the two offers, established beforehand. Creating and hosting
+// playlist rooms is the premium-only functionality; editing an existing
+// playlist follows its own edit license (V.2.3: everyone by default).
 const PLANS: SubscriptionPlan[] = [
   {
     tier: 'FREE',
@@ -24,7 +25,8 @@ const PLANS: SubscriptionPlan[] = [
     features: [
       'Music Track Vote rooms',
       'Music Control Delegation',
-      'Join playlist rooms you have been invited to',
+      'Join and edit playlists you have access to',
+      'Up to 3 rooms of your own',
     ],
   },
   {
@@ -67,13 +69,13 @@ export class SubscriptionService {
     return { tier: updated.subscriptionTier as SubscriptionTier };
   }
 
-  // VI.3 — entitlement check for the premium-only Music Playlist Editor
-  // (creating a playlist room, and editing playlist items).
+  // VI.3 — entitlement check for the premium-only feature: creating a
+  // playlist room.
   async assertPremium(userId: string): Promise<void> {
     const { tier } = await this.getMine(userId);
     if (tier !== 'PREMIUM') {
       throw new ForbiddenException(
-        'The Music Playlist Editor requires a premium subscription',
+        'Creating a playlist requires a premium subscription',
       );
     }
   }

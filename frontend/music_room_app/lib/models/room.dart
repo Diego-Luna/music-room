@@ -86,6 +86,14 @@ class Room {
   bool joinedBy(String? userId) =>
       !ownedBy(userId) && (myRole == 'MEMBER' || myRole == 'ADMIN');
 
+  // * V.2.3 edit license, mirrored from the server: EVERYONE edits by
+  // * default; INVITED_ONLY keeps editing to the owner and members.
+  bool editableBy(String? userId) =>
+      editAccess != 'INVITED_ONLY' ||
+      ownedBy(userId) ||
+      myRole == 'MEMBER' ||
+      myRole == 'ADMIN';
+
   factory Room.fromJson(Map<String, dynamic> json) {
     return Room(
       id: json['id'] as String,

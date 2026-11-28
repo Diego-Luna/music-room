@@ -224,10 +224,9 @@ export class RoomsService {
     }
   }
 
-  // VI.3 — the Music Playlist Editor is a premium feature: only PREMIUM
-  // accounts may create (host) playlist rooms. Free accounts keep VOTE
-  // rooms and delegation. Editing playlist items is gated the same way in
-  // PlaylistService. Downgrading never deletes existing playlist rooms.
+  // VI.3 — only PREMIUM accounts may create (host) playlist rooms. Free
+  // accounts keep VOTE rooms, delegation, and edit any playlist its edit
+  // license allows (V.2.3). Downgrading never deletes existing playlists.
   private async requirePlaylistEntitlement(
     userId: string,
     kind: RoomKind,

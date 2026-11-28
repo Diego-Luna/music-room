@@ -6,10 +6,11 @@ import {
   NotFoundException,
   Optional,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { generateKeyBetween } from 'fractional-indexing';
+import { isUniqueViolation } from '../prisma/prisma-errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeService } from '../realtime/realtime.service';
-import { SubscriptionService } from '../subscription/subscription.service';
 import { AddPlaylistItemDto, MovePlaylistItemDto } from './dto/playlist.dto';
 
 type Room = {
@@ -27,18 +28,18 @@ type TrackRow = {
   addedById: string;
 };
 
+type Db = Prisma.TransactionClient;
+
 @Injectable()
 export class PlaylistService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly subscription: SubscriptionService,
     @Optional() private readonly realtime?: RealtimeService,
   ) {}
 
   async addItem(roomId: string, userId: string, dto: AddPlaylistItemDto) {
     const room = await this.requirePlaylistRoom(roomId);
     await this.requireEditor(room, userId);
-    await this.subscription.assertPremium(userId);
 
     if (dto.afterTrackId && dto.beforeTrackId) {
       throw new BadRequestException(
@@ -47,37 +48,49 @@ export class PlaylistService {
     }
 
     const provider = dto.provider ?? 'deezer';
-    const dup = await this.prisma.track.findUnique({
-      where: {
-        roomId_provider_providerId: {
+    let track;
+    try {
+      track = await this.prisma.$transaction(async (tx) => {
+        await this.lockPlaylist(tx, roomId);
+        const dup = await tx.track.findUnique({
+          where: {
+            roomId_provider_providerId: {
+              roomId,
+              provider,
+              providerId: dto.providerId,
+            },
+          },
+        });
+        if (dup) throw new ConflictException('Track already in this playlist');
+
+        const position = await this.computePosition(
+          tx,
           roomId,
-          provider,
-          providerId: dto.providerId,
-        },
-      },
-    });
-    if (dup) throw new ConflictException('Track already in this playlist');
+          dto.afterTrackId,
+          dto.beforeTrackId,
+        );
 
-    const position = await this.computePosition(
-      roomId,
-      dto.afterTrackId,
-      dto.beforeTrackId,
-    );
-
-    const track = await this.prisma.track.create({
-      data: {
-        roomId,
-        provider,
-        providerId: dto.providerId,
-        title: dto.title,
-        artist: dto.artist,
-        durationMs: dto.durationMs,
-        artworkUrl: dto.artworkUrl ?? null,
-        previewUrl: dto.previewUrl ?? null,
-        addedById: userId,
-        position,
-      },
-    });
+        return tx.track.create({
+          data: {
+            roomId,
+            provider,
+            providerId: dto.providerId,
+            title: dto.title,
+            artist: dto.artist,
+            durationMs: dto.durationMs,
+            artworkUrl: dto.artworkUrl ?? null,
+            previewUrl: dto.previewUrl ?? null,
+            addedById: userId,
+            position,
+          },
+        });
+      });
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('Track already in this playlist');
+      }
+      throw error;
+    }
     this.realtime?.emitToRoom(roomId, 'playlist:item-added', track);
     return track;
   }
@@ -90,7 +103,6 @@ export class PlaylistService {
   ) {
     const room = await this.requirePlaylistRoom(roomId);
     await this.requireEditor(room, userId);
-    await this.subscription.assertPremium(userId);
 
     if (!dto.afterTrackId && !dto.beforeTrackId) {
       throw new BadRequestException(
@@ -106,28 +118,35 @@ export class PlaylistService {
       throw new BadRequestException('Cannot place a track relative to itself');
     }
 
-    const track = await this.prisma.track.findUnique({
-      where: { id: trackId },
-    });
-    if (!track || track.roomId !== roomId) {
-      throw new NotFoundException('Track not found');
-    }
+    // ! Moves on one playlist run one after another: each reads the order
+    //   left by the previous one, so two users dropping into the same gap
+    //   never get the same position.
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await this.lockPlaylist(tx, roomId);
+      const track = await tx.track.findUnique({
+        where: { id: trackId },
+      });
+      if (!track || track.roomId !== roomId) {
+        throw new NotFoundException('Track not found');
+      }
 
-    const position = await this.computePosition(
-      roomId,
-      dto.afterTrackId,
-      dto.beforeTrackId,
-      trackId,
-    );
+      const position = await this.computePosition(
+        tx,
+        roomId,
+        dto.afterTrackId,
+        dto.beforeTrackId,
+        trackId,
+      );
 
-    const updated = await this.prisma.track.update({
-      where: { id: trackId },
-      data: { position },
+      return tx.track.update({
+        where: { id: trackId },
+        data: { position },
+      });
     });
     this.realtime?.emitToRoom(roomId, 'playlist:item-moved', {
       roomId,
       trackId,
-      position,
+      position: updated.position,
     });
     return updated;
   }
@@ -135,14 +154,16 @@ export class PlaylistService {
   async removeItem(roomId: string, trackId: string, userId: string) {
     const room = await this.requirePlaylistRoom(roomId);
     await this.requireEditor(room, userId);
-    await this.subscription.assertPremium(userId);
-    const track = await this.prisma.track.findUnique({
-      where: { id: trackId },
+    await this.prisma.$transaction(async (tx) => {
+      await this.lockPlaylist(tx, roomId);
+      const track = await tx.track.findUnique({
+        where: { id: trackId },
+      });
+      if (!track || track.roomId !== roomId) {
+        throw new NotFoundException('Track not found');
+      }
+      await tx.track.delete({ where: { id: trackId } });
     });
-    if (!track || track.roomId !== roomId) {
-      throw new NotFoundException('Track not found');
-    }
-    await this.prisma.track.delete({ where: { id: trackId } });
     this.realtime?.emitToRoom(roomId, 'playlist:item-removed', { trackId });
   }
 
@@ -156,6 +177,10 @@ export class PlaylistService {
   }
 
   // ── helpers ─────────────────────────────────────────────────────
+  private async lockPlaylist(tx: Db, roomId: string): Promise<void> {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${roomId}))`;
+  }
+
   private async requirePlaylistRoom(roomId: string): Promise<Room> {
     const room = (await this.prisma.room.findUnique({
       where: { id: roomId },
@@ -202,6 +227,7 @@ export class PlaylistService {
   }
 
   private async computePosition(
+    db: Db,
     roomId: string,
     afterTrackId?: string,
     beforeTrackId?: string,
@@ -209,7 +235,7 @@ export class PlaylistService {
   ): Promise<string> {
     const findPosition = async (id?: string): Promise<string | null> => {
       if (!id) return null;
-      const row = (await this.prisma.track.findUnique({
+      const row = (await db.track.findUnique({
         where: { id },
       })) as TrackRow | null;
       if (!row || row.roomId !== roomId || !row.position) {
@@ -223,7 +249,7 @@ export class PlaylistService {
     const excludeFilter = excludeTrackId ? { id: { not: excludeTrackId } } : {};
 
     if (!after && !before) {
-      const last = (await this.prisma.track.findFirst({
+      const last = (await db.track.findFirst({
         where: { roomId, position: { not: null }, ...excludeFilter },
         orderBy: { position: 'desc' },
       })) as TrackRow | null;
@@ -231,7 +257,7 @@ export class PlaylistService {
     } else if (after && !before) {
       // * Find the immediate successor so inserting after a middle track lands
       //   strictly between `after` and the next track instead of colliding.
-      const next = (await this.prisma.track.findFirst({
+      const next = (await db.track.findFirst({
         where: { roomId, position: { gt: after }, ...excludeFilter },
         orderBy: { position: 'asc' },
       })) as TrackRow | null;
@@ -239,7 +265,7 @@ export class PlaylistService {
     } else if (before && !after) {
       // * Find the immediate predecessor so inserting before a middle track
       //   lands strictly between the previous track and `before`.
-      const prev = (await this.prisma.track.findFirst({
+      const prev = (await db.track.findFirst({
         where: { roomId, position: { lt: before }, ...excludeFilter },
         orderBy: { position: 'desc' },
       })) as TrackRow | null;

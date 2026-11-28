@@ -12,7 +12,6 @@ import 'package:music_room_app/providers/playlists_provider.dart';
 import 'package:music_room_app/providers/player_provider.dart';
 import 'package:music_room_app/providers/socket_provider.dart';
 import 'package:music_room_app/providers/auth_provider.dart';
-import 'package:music_room_app/providers/subscription_provider.dart';
 import 'package:music_room_app/models/room.dart';
 import 'package:music_room_app/models/track.dart';
 import 'package:music_room_app/widgets/track_search_sheet.dart';
@@ -40,10 +39,17 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
   bool _isLocalReorder = false;
   bool _isDraggingTrack = false;
 
+  String? _currentUserId({bool listen = true}) {
+    try {
+      return Provider.of<AuthProvider>(context, listen: listen).user?.id;
+    } on ProviderNotFoundException {
+      return null;
+    }
+  }
+
   // * onReorderItem already adjusts newIndex for the removed oldIndex.
   Future<void> _onReorder(Room playlist, int oldIndex, int newIndex) async {
-    final canEdit = SubscriptionProvider.isPremiumOf(context, listen: false);
-    if (!canEdit) return;
+    if (!playlist.editableBy(_currentUserId(listen: false))) return;
     if (newIndex == oldIndex) return;
 
     final reordered = List<Track>.from(_orderedTracks);
@@ -278,14 +284,9 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
       _forceResync = false;
     }
 
-    String? currentUserId;
-    try {
-      currentUserId = Provider.of<AuthProvider>(context).user?.id;
-    } on ProviderNotFoundException {
-      currentUserId = null;
-    }
+    final currentUserId = _currentUserId();
     final isOwner = currentUserId != null && playlist.ownerId == currentUserId;
-    final canEdit = SubscriptionProvider.isPremiumOf(context);
+    final canEdit = playlist.editableBy(currentUserId);
 
     final tag = 'playlist_cover_${playlist.id}';
 
@@ -436,16 +437,13 @@ class _PlaylistDetailPageState extends State<PlaylistDetailPage> {
                   borderRadius: BorderRadius.circular(AppDimens.radiusMedium),
                   child: ListTile(
                     leading: Icon(
-                      Icons.workspace_premium,
+                      Icons.lock_outline,
                       color: theme.colorScheme.primary,
                     ),
-                    title: const Text('Playlist editor is Premium'),
+                    title: const Text('Only invited users can edit'),
                     subtitle: const Text(
-                      'You can listen. Upgrade to add, reorder, or remove tracks.',
-                    ),
-                    trailing: TextButton(
-                      onPressed: () => context.push(routeSubscription),
-                      child: const Text('Upgrade'),
+                      'You can listen. Ask the owner for an invite to add, '
+                      'reorder, or remove tracks.',
                     ),
                   ),
                 ),

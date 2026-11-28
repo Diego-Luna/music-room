@@ -78,8 +78,7 @@ class _SubscriptionPageState extends State<SubscriptionPage> {
         ),
         const SizedBox(height: AppDimens.xs),
         Text(
-          'Premium unlocks the Music Playlist Editor — create and host '
-          'your own playlist rooms.',
+          'Premium lets you create and host your own playlist rooms.',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: AppDimens.lg),

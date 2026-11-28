@@ -105,8 +105,8 @@ class _PlaylistsPageState extends State<PlaylistsPage> {
             Text(
               isPremium
                   ? 'Create a collaborative playlist and add tracks from Deezer.'
-                  : 'The Music Playlist Editor is a Premium feature. '
-                        'You can still join playlists you are invited to.',
+                  : 'Creating playlists is a Premium feature. '
+                        'You can still join and edit other playlists.',
               textAlign: TextAlign.center,
               style: theme.textTheme.bodyMedium,
             ),
